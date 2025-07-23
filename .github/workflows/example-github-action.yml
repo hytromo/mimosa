@@ -29,7 +29,7 @@ jobs:
 
       - name: Setup mimosa
         id: setup-mimosa
-        uses: hytromo/mimosa/gh/setup-action@feature/show-cache
+        uses: hytromo/mimosa/gh/setup-action@main
         with:
           version: v0.0.6
 
