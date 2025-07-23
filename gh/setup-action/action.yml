@@ -1,0 +1,26 @@
+name: Mimosa Setup
+description: Setup the mimosa binary at the desired version
+author: Alexandros Solanos
+
+branding:
+  icon: chevrons-down
+  color: green
+
+inputs:
+  version:
+    description: The mimosa binary version
+    required: false
+    default: 'latest'
+  tools-file:
+    description:
+      The .tool-versions asdf/mise file to extract the mimosa version from
+    required: false
+    default: '.tool-versions'
+
+outputs:
+  path:
+    description: The full path to the mimosa binary
+
+runs:
+  using: node20
+  main: dist/index.js

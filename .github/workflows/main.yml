@@ -1,0 +1,92 @@
+name: Build and test
+
+on:
+  push:
+    tags:
+      - "*"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-test:
+    name: Build and test
+    runs-on: ubuntu-24.04
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::947281064882:role/mimosa-github-actions-role
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: hytromo
+          password: ${{ secrets.DOCKER_PAT }}
+
+      - name: Go build
+        run: |
+            CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o mimosa ./cmd/mimosa/*
+            # make executable available for e2e tests
+            sudo mv mimosa /usr/local/bin/
+
+      - name: Run e2e tests
+        env:
+            REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+            REPOSITORY: mimosa-testing
+            IMAGE_TAG: ${{ github.sha }}
+        working-directory: tests-e2e
+        run: |
+            for IMAGE_TAG_I in $REGISTRY/$REPOSITORY:$IMAGE_TAG hytromo/$REPOSITORY:$IMAGE_TAG; do
+              for dir in *; do
+                cd "$dir";
+                export FULL_IMAGE_TAG=$IMAGE_TAG_I-$RANDOM
+                bash test.sh
+                cd -
+              done
+            done
+
+  release:
+    name: Release
+    needs: build-and-test
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

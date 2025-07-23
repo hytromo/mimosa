@@ -1,0 +1,3 @@
+ignored-files/**
+.dockerignore
+*.dockerignore
