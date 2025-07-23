@@ -3,23 +3,32 @@ package main
 import (
 	"os"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
+	"golang.org/x/term"
 )
 
+type OnlyMessageFormatter struct{}
+
+func (f *OnlyMessageFormatter) Format(entry *logrus.Entry) ([]byte, error) {
+	return []byte(entry.Message + "\n"), nil
+}
+
+func isTerminal() bool {
+	return term.IsTerminal(int(os.Stdout.Fd()))
+}
+
 func initLogging() {
-	log.SetFormatter(&log.TextFormatter{
-		DisableLevelTruncation: true,
-	})
-
-	levelStr := os.Getenv("LOG_LEVEL")
-	if levelStr == "" {
-		levelStr = "info"
+	if isTerminal() {
+		logrus.SetFormatter(&OnlyMessageFormatter{})
+	} else {
+		logrus.SetFormatter(&logrus.TextFormatter{
+			DisableLevelTruncation: true,
+		})
 	}
+}
 
-	level, err := log.ParseLevel(levelStr)
-	if err != nil {
-		log.WithError(err).Warnf("Invalid log level '%s', defaulting to 'info'", levelStr)
-		level = log.InfoLevel
-	}
-	log.SetLevel(level)
+var CleanLog = &logrus.Logger{
+	Out:       os.Stdout,
+	Formatter: &OnlyMessageFormatter{},
+	Level:     logrus.InfoLevel,
 }

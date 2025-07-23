@@ -16,7 +16,7 @@ import (
 	"github.com/hytromo/mimosa/internal/utils/fileutil"
 )
 
-var UserDirs = userdirs.ForApp("mimosa", "hytromo", "mimosa.hytromo.com")
+var CacheDir = userdirs.ForApp("mimosa", "hytromo", "mimosa.hytromo.com").CacheDir
 
 type CacheFile struct {
 	Tags          []string  `json:"tags"`
@@ -29,7 +29,7 @@ type Cache struct {
 }
 
 func (cache *Cache) DataPath() string {
-	return filepath.Join(UserDirs.CacheDir, cache.CommandHash, cache.FilesHash, "mimosa-cache.json")
+	return filepath.Join(CacheDir, cache.CommandHash, cache.FilesHash, "mimosa-cache.json")
 }
 
 func (cache *Cache) LatestTag() (string, error) {
@@ -135,7 +135,7 @@ func (cache *Cache) Save(finalTag string) (dataFile string, err error) {
 }
 
 func ForgetCacheEntriesOlderThan(forgetTime time.Time) {
-	cacheDir := UserDirs.CacheDir
+	cacheDir := CacheDir
 
 	log.Debugf("Forgetting cache entries older than %s in %s", forgetTime, cacheDir)
 

@@ -11,6 +11,7 @@ type CacheSubcommandOptions struct {
 	Enabled   bool
 	Forget    string
 	ForgetYes bool
+	Show      bool
 }
 
 // AppOptions defines the options of the application

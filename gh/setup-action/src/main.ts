@@ -52,17 +52,13 @@ async function getLatestVersion(): Promise<string> {
   }
 
   const json = (await res.json()) as LatestReleaseResponse
-  return json.tag_name
+  return json.tag_name.replaceAll('v', '').trim()
 }
 
 export async function run(): Promise<void> {
   try {
     let version: string = core.getInput('version')
     const toolFile: string = core.getInput('tool-file')
-
-    if (version === 'latest' || (!toolFile && !version)) {
-      version = await getLatestVersion()
-    }
 
     if (toolFile) {
       let mimosaLine = fs
@@ -79,11 +75,16 @@ export async function run(): Promise<void> {
       version = mimosaLine.replaceAll('mimosa', '')
     }
 
-    version = version.replaceAll('v', '').trim()
-
     if (!version) {
       core.setFailed(`Invalid version ${version}`)
       return
+    }
+
+    version = version.replaceAll('v', '').trim()
+
+    if (version === 'latest' || (!toolFile && !version)) {
+      version = await getLatestVersion()
+      console.log(`Using latest version: ${version}`)
     }
 
     const runner = {
@@ -115,9 +116,13 @@ export async function run(): Promise<void> {
 
     fs.rmSync(tmpDir, { recursive: true, force: true })
 
-    console.log(`Installed mimosa version ${version} at ${targetPath}`)
+    core.setOutput(
+      'cache-path',
+      execSync(`mimosa cache --show`).toString().trim()
+    )
+    core.setOutput('binary-path', targetPath)
 
-    core.setOutput('path', targetPath)
+    console.log(`Installed mimosa version ${version} at ${targetPath}`)
   } catch (error) {
     // Fail the workflow run if an error occurs
     if (error instanceof Error) core.setFailed(error.message)
