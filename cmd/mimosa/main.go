@@ -95,6 +95,10 @@ func main() {
 			cacher.ForgetCacheEntriesOlderThan(forgetTime)
 		}
 
+		if appOptions.Cache.Show {
+			CleanLog.Infoln(cacher.CacheDir)
+		}
+
 	}
 
 }

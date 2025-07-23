@@ -12,6 +12,7 @@ require (
 	github.com/kalafut/imohash v1.1.0
 	github.com/moby/patternmatcher v0.6.0
 	github.com/sirupsen/logrus v1.9.3
+	golang.org/x/term v0.31.0
 )
 
 require (

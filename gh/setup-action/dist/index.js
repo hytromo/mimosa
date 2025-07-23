@@ -31263,15 +31263,12 @@ async function getLatestVersion() {
         throw new Error(`Failed to fetch latest release: ${res.status} ${res.statusText}`);
     }
     const json = (await res.json());
-    return json.tag_name;
+    return json.tag_name.replaceAll('v', '').trim();
 }
 async function run() {
     try {
         let version = coreExports.getInput('version');
         const toolFile = coreExports.getInput('tool-file');
-        if (version === 'latest' || (!toolFile && !version)) {
-            version = await getLatestVersion();
-        }
         if (toolFile) {
             let mimosaLine = fs
                 .readFileSync(toolFile)
@@ -31285,10 +31282,14 @@ async function run() {
             }
             version = mimosaLine.replaceAll('mimosa', '');
         }
-        version = version.replaceAll('v', '').trim();
         if (!version) {
             coreExports.setFailed(`Invalid version ${version}`);
             return;
+        }
+        version = version.replaceAll('v', '').trim();
+        if (version === 'latest' || (!toolFile && !version)) {
+            version = await getLatestVersion();
+            console.log(`Using latest version: ${version}`);
         }
         const runner = {
             os: platformMap[process.platform],
@@ -31309,8 +31310,9 @@ async function run() {
         fs.copyFileSync(mimosaPath, targetPath);
         fs.chmodSync(targetPath, 0o755);
         fs.rmSync(tmpDir, { recursive: true, force: true });
+        coreExports.setOutput('cache-path', execSync(`mimosa cache --show`).toString().trim());
+        coreExports.setOutput('binary-path', targetPath);
         console.log(`Installed mimosa version ${version} at ${targetPath}`);
-        coreExports.setOutput('path', targetPath);
     }
     catch (error) {
         // Fail the workflow run if an error occurs

@@ -18,8 +18,10 @@ inputs:
     default: '.tool-versions'
 
 outputs:
-  path:
+  binary-path:
     description: The full path to the mimosa binary
+  cache-path:
+    description: The full path to the mimosa cache directory
 
 runs:
   using: node20

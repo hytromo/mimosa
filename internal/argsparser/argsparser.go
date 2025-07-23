@@ -94,11 +94,13 @@ func Parse(args []string) (configuration.AppOptions, error) {
 			cacheCmd := flag.NewFlagSet(cacheSubCmd, flag.ExitOnError)
 			forgetOpt := cacheCmd.String("forget", "", "forget all cache entries older than a period of time (e.g. 1h, 2d, 3w)")
 			forgetYesOpt := cacheCmd.Bool("yes", false, "skip confirmation prompt for forgetting cache")
+			showOpt := cacheCmd.Bool("show", false, "show the cache location")
 			// Parse the arguments after the subcommand
 			cacheCmd.Parse(args[2:])
 
 			appOptions.Cache.Forget = *forgetOpt
 			appOptions.Cache.ForgetYes = *forgetYesOpt
+			appOptions.Cache.Show = *showOpt
 			appOptions.Cache.Enabled = true
 		},
 	}
