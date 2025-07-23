@@ -28,9 +28,10 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Setup mimosa
+        id: setup-mimosa
         uses: hytromo/mimosa/gh/setup-action@main
         with:
-          version: v0.0.6
+          version: v0.0.7
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -52,7 +53,7 @@ jobs:
       - name: Fetch mimosa cache
         uses: actions/cache@v4
         with:
-          path: ~/.cache/mimosa
+          path: ${{ steps.setup-mimosa.outputs.cache-path }}
           key: mimosa-cache
 
       - name: Use mimosa for dockerhub
@@ -64,7 +65,7 @@ jobs:
         run: |
           # this file is ignored, so after the first build we should be hitting our cache
           echo $RANDOM > to-ignore.txt
-          echo dockerhub -> useful.txt
+          echo dockerhub > useful.txt
 
           # push to dockerhub
           mimosa remember -- docker buildx build --platform linux/amd64,linux/arm64 --push -t hytromo/$REPOSITORY:$IMAGE_TAG .

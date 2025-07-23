@@ -19,9 +19,9 @@ builds:
       - CGO_ENABLED=0
 archives:
   - id: default
-    builds:
+    ids:
       - mimosa
-    format: tar.gz
+    formats: [ 'tar.gz' ]
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     files:
       - LICENSE
