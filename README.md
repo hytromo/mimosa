@@ -1,85 +1,187 @@
-- [mimosa](#mimosa)
-  - [Key Features](#key-features)
-  - [Installation](#installation)
-  - [Github actions](#github-actions)
-  - [How It Works](#how-it-works)
-  - [Example Usage](#example-usage)
-    - [Remember](#remember)
-    - [Forget](#forget)
-  - [License](#license)
+<div align="center">
+<h1><a href="https://github.com/hytromo/mimosa">
+  <img src="./logo.webp" alt="mimosa-logo" height="300" /><br />
+  mimosa
+</a></h1>
+<p><em>Zero-config docker image promotion</em></p>
+</div>
 
-# mimosa
+# What does it do
 
+* <b>No more wasteful docker builds</b> - you don't have to wait for CI to finish just because of a tiny change in the README.
+* <b>Image promotion - for free</b> - you've tested your changes in a branch, so why should you wait for `main`/`master` to rebuild, and also risk producing a different image? Use Mimosa and skip straight to deployment.
 
-**Mimosa** is a smart caching wrapper for Docker image builds. It accelerates repeated builds by detecting when the build context and command are unchanged, and reuses previously built images by retagging them, avoiding unnecessary rebuilds. In the demo below, when there is a cache hit, the `docs-v2` tag is created by referencing the `docs` tag manifests, and the tag becames available in Dockerhub without pulling/pushing any image.
+# How does it do it
+
+Just prepend your docker build commands like this: `mimosa remember -- docker buildx build ...` and Mimosa makes sure you don't run the same build twice. If you've run the same build before, it reaches out to your container registry and retags the previously built image instead.
 
 <p align="center">
   <img width="800" src="./example.svg">
 </p>
 
 
-## Key Features
+* It calculates a unique hash based on your docker command, build context, and your `Dockerfile`/`.dockerignore` files.  
+* It saves the hash-tag map to the cache.  
+* If it calculates the same hash in the future, it simply retags the already built image instead of rebuilding.  
+* All without downloading or reuploading the image - that's what makes it fast.  
+* If it hasn't seen the hash before, it builds the image as normal - no tricks. The hash is then saved to the cache for future use.
 
-- **Intelligent Build Caching:**  
-  Mimosa computes a unique cache key based on the Docker build command (excluding the tag) and the exact set of files included in the build context (respecting `.dockerignore` and custom Dockerfile locations). If nothing relevant has changed, it can instantly retag a previously built image instead of running a full build.
+- [What does it do](#what-does-it-do)
+- [How does it do it](#how-does-it-do-it)
+- [Key Features](#key-features)
+- [Installation](#installation)
+  - [Inside GitHub Actions](#inside-github-actions)
+  - [On your system](#on-your-system)
+- [Usage](#usage)
+  - [GitHub Actions](#github-actions)
+- [Commands](#commands)
+  - [Remember](#remember)
+  - [Cache](#cache)
+    - [Cache Management](#cache-management)
+  - [Advanced usage](#advanced-usage)
+    - [Log level](#log-level)
+    - [Inject Cache via Env Variable](#inject-cache-via-env-variable)
+- [FAQ](#faq)
+  - [What about multi-platform builds?](#what-about-multi-platform-builds)
+  - [What about custom build contexts?](#what-about-custom-build-contexts)
+  - [What about custom Dockerfile locations?](#what-about-custom-dockerfile-locations)
+  - [What about custom `.dockerignore` files?](#what-about-custom-dockerignore-files)
+  - [Can I use normal docker buildx commands?](#can-i-use-normal-docker-buildx-commands)
+  - [Isn't this just yet another way for my build to fail?](#isnt-this-just-yet-another-way-for-my-build-to-fail)
+  - [What's up with the name?](#whats-up-with-the-name)
 
-- **Seamless Docker Integration:**  
-  Mimosa wraps the standard `docker build` (and `docker buildx`) commands. You use it by passing the same arguments you would to Docker.
+
+# Key Features
+
+- **Seamless docker Integration:**  
+  Mimosa wraps standard `docker buildx build` (and `docker build`) commands. You use it by passing the same arguments you would to Docker.
 
 - **Automatic Context and Dockerfile Detection:**  
-  Mimosa automatically detects the build context, Dockerfile, and `.dockerignore` (including custom-named dockerignore files).
+  Mimosa automatically detects the build context, Dockerfile, and `.dockerignore` (including custom-named dockerignore files). It accounts for exactly what's needed to ensure that your build gets a unique cache key. It ignores all files specified in your `.dockerignore`, so a well-maintained `.dockerignore` makes all the difference.
 
-- **Persistent Local Cache:**  
-  Caching metadata is stored in a user-specific cache directory, tracking the last 10 tags for each unique build context and command.
+- **Seamless Integration with GitHub Actions:**  
+  `mimosa` works with `actions/cache` as well as its own `hytromo/mimosa/gh/cache-action` action, which offers repository-scoped caching [instead of branch-scoped](https://docs.github.com/en/actions/reference/dependency-caching-reference#restrictions-for-accessing-a-cache) - which means that all your branches can have access to the same cache at once!
 
-- **Transparent Fallback:**  
-  If the cache is not valid (e.g., files or command changed), Mimosa simply runs the Docker build as normal and updates the cache.
+# Installation
 
-## Installation
+## Inside GitHub Actions
 
-Pre-built binaries are available on the [Releases page](https://github.com/hytromo/mimosa/releases). Download the appropriate binary for your platform and add it to your PATH.
-
-
-## Github actions
-
-See the [example github action](./.github/workflows/example-github-action.yml) for details on how to use `mimosa` in your Github Actions.
-
-## How It Works
-
-1. **Parse the Build Command:**  
-   Mimosa analyzes your `docker build` command, extracting the context, Dockerfile, tag, and all files that will be sent to Docker.
-
-2. **Compute a Cache Key:**  
-   It hashes the build command (with the tag replaced by a placeholder) and all included files.
-
-3. **Cache Lookup:**  
-   - If a matching cache entry exists, Mimosa retags the previously built image to the requested tag and exits quickly.
-   - If not, it runs the Docker build, then saves the result in the cache for future use.
-
-4. **Result Reporting:**  
-   Mimosa logs whether a cache hit or miss occurred.
-
-## Example Usage
-
-### Remember
-
-```sh
-mimosa remember -- docker buildx build --build-arg DATE=1753095178 --platform linux/amd64,linux/arm64 --push -t hytromo/mimosa-example:local-test-v2 .
+```yaml
+- uses: hytromo/mimosa/gh/setup-action@setup-action-v1
+  with:
+    version: v0.0.8
 ```
 
-- The `remember` subcommand tells Mimosa to cache and reuse builds.
-- The rest of the command is exactly what you would pass to `docker build`.
+See the [the GitHub Action docs](./docs/gh-actions/README.md) for details on how to use `mimosa` in your GitHub Actions.
 
-### Forget
+## On your system
+
+Pre-built binaries are available on the [Releases page](https://github.com/hytromo/mimosa/releases). Download the appropriate binary for your platform and add it to your `PATH`.
+
+# Usage
+
+## GitHub Actions
+
+See the [example GitHub Action](./docs/gh-actions/README.md) for details.
+
+# Commands
+
+## Remember
 
 ```sh
-mimosa cache --forget 6M # forget entries older than 6 months
-mimosa cache --forget 24h # forget entries older than 24 hours
+mimosa remember -- docker buildx build --build-arg MYARG=MYVALUE --platform linux/amd64,linux/arm64 --push -t hytromo/mimosa-example:v1 .
+# ... typical docker build
 
-mimosa cache --forget 1y --yes # no user input
+# Now change something that should not influence the build result
+
+mimosa remember -- docker buildx build --build-arg MYARG=MYVALUE --platform linux/amd64,linux/arm64 --push -t hytromo/mimosa-example:v2 .
+# ... mimosa understands that nothing important has changed, so it just makes v2 point to v1 - they are the same image - no build happens!
 ```
 
+* The `remember` subcommand tells Mimosa to cache and reuse builds.
+* The rest of the command is exactly what you'd pass to `docker build`.
 
-## License
+## Cache
 
-This project is licensed under the [GNU GPL v3](LICENSE). See the LICENSE file for details.
+### Cache Management
+
+```sh
+mimosa cache --show # Show where the cache is being saved
+
+mimosa cache --forget 6M # Forget entries older than 6 months
+mimosa cache --forget 24h # Forget entries older than 24 hours
+
+mimosa cache --forget 1y --yes # No user prompt
+```
+
+## Advanced usage
+
+### Log level
+
+You can use the `LOG_LEVEL` env variable to control the log level, use `LOG_LEVEL=debug` for debug logging.
+
+### Inject Cache via Env Variable
+
+The `MIMOSA_CACHE` env variable can be used and takes precedence over the default cache location.
+
+```bash
+export MIMOSA_CACHE=`cat <<EOF
+<z85 hash1> <tag1>
+<hash2> <tag2>
+<hash3> <tag3>
+...
+EOF`
+
+mimosa remember -- docker buildx build ... # etc
+```
+
+Note: the cache location is still used to save the build's cache, even if `MIMOSA_CACHE` is present.
+
+# FAQ
+
+## What about multi-platform builds?
+
+Mimosa supports multi-platform builds. It looks into the existing docker image's index manifests and makes the new tag point to the same ones - no matter how many or which they are.
+
+## What about custom build contexts?
+
+Mimosa analyzes the docker build command and understands what your build context is, whether it's `.` or something else.
+
+## What about custom Dockerfile locations?
+
+If you specify `-f` / `--file`, it will use that file instead of the default `Dockerfile`.
+
+## What about custom `.dockerignore` files?
+
+`<Dockerfile name>.dockerignore` takes precedence over `.dockerignore` ([docs](https://docs.docker.com/build/concepts/context/#dockerignore-files)) - Mimosa knows these rules.
+
+## Can I use normal docker buildx commands?
+
+... or am I forced to use BUILDKIT?
+
+You can absolutely use typical docker build commands.
+
+```bash
+mimosa remember -- docker build -t hytromo/mimosa-testing:simple-docker-build .
+```
+
+... but it is not best practice to `mimosa remember` a build that it is not pushed - because mimosa will always assume that the image has successfully been pushed to the target registry if the command it remembers finishes successfully.
+So if your separate `docker push` command fails, there is no way to invalidate Mimosa's cache.
+Also, if there is a cache hit, Mimosa will also retag the image in the remote registry - which might be confusing if `--push` is not present in the command. So it's always a good idea to `--push` your builds when you `mimosa remember` them.
+
+## Isn't this just yet another way for my build to fail?
+
+Mimosa takes all the possible precautions to just run the provided command if it fails to calculate the hash, or has any other kind of issue.
+In fact, it is so permissive that it can run any command - freely:
+```bash
+# it will detect that this is not a docker command, and it will just run it, even respecting its exit code
+mimosa remember -- echo I am run via mimosa
+```
+
+Mimosa will also always respect the exit code of the docker command and will exit with the same code, so you can rest assured that any custom scripts or behaviors will continue working as expected.
+
+## What's up with the name?
+
+*Mimosa pudica* is a plant that closes its leaves on touch to protect itself.
+
+If the plant is repeatedly exposed to a non-harmful stimulus, such as a gentle touch or a repeated drop that doesn't cause actual damage, it will eventually stop responding. This phenomenon is called habituation, which is considered the simplest form of learning. The plant "learns" that the repeated disturbance is not a threat and thus doesn't need to expend energy on closing its leaves.

@@ -7,6 +7,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type ParsedBuildCommand struct {
@@ -65,20 +67,18 @@ func findContextPath(args []string) (string, error) {
 	return "", fmt.Errorf("cannot find docker build context path")
 }
 
-func resolveDockerfilePath(contextPath, dockerfilePath string) string {
-	if dockerfilePath == "" {
-		return filepath.Join(contextPath, "Dockerfile")
-	} else if !filepath.IsAbs(dockerfilePath) {
-		if filepath.IsAbs(contextPath) {
-			return filepath.Join(contextPath, dockerfilePath)
-		} else {
-			absDockerfile, err := filepath.Abs(dockerfilePath)
-			if err == nil {
-				return absDockerfile
-			}
-		}
+func resolveDockerfilePath(cwd, extractFromCommandDokcerfilePath string) string {
+	if extractFromCommandDokcerfilePath == "" {
+		extractFromCommandDokcerfilePath = "Dockerfile"
 	}
-	return dockerfilePath
+
+	path, err := filepath.Abs(filepath.Join(cwd, extractFromCommandDokcerfilePath))
+
+	if err == nil {
+		return path
+	}
+
+	return filepath.Join(cwd, "Dockerfile")
 }
 
 func findDockerignorePath(contextPath, dockerfilePath string) string {
@@ -142,13 +142,13 @@ func extractRegistryDomain(tag string) string {
 
 func ParseBuildCommand(dockerBuildCmd []string) (ParsedBuildCommand, error) {
 	if len(dockerBuildCmd) < 2 {
-		return ParsedBuildCommand{}, fmt.Errorf("not enough arguments for docker command")
+		return ParsedBuildCommand{}, fmt.Errorf("not enough arguments for a docker build command")
 	}
 
 	// Use argsparser logic to check docker and build/buildx
 	executable := dockerBuildCmd[0]
 	if executable != "docker" {
-		return ParsedBuildCommand{}, fmt.Errorf("only docker commands are supported")
+		return ParsedBuildCommand{}, fmt.Errorf("only 'docker' executable is supported for caching, got: %s", executable)
 	}
 	args := dockerBuildCmd[1:]
 	if len(args) < 1 {
@@ -193,23 +193,23 @@ func ParseBuildCommand(dockerBuildCmd []string) (ParsedBuildCommand, error) {
 	}, nil
 }
 
-func RunCommand(parsedBuildCommand ParsedBuildCommand) error {
-	cmd := exec.Command(parsedBuildCommand.Executable, parsedBuildCommand.Args...)
+func RunCommand(command []string) int {
+	cmd := exec.Command(command[0], command[1:]...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
 
 	err := cmd.Run()
 	if err != nil {
+		log.Errorln("Command failed:", err.Error())
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			if status, ok := exitErr.Sys().(interface{ ExitStatus() int }); ok {
 				// trying to exit the same using the same exit status like docker
-				os.Exit(status.ExitStatus())
+				return status.ExitStatus()
 			}
-			os.Exit(1)
 		}
-		return fmt.Errorf("docker command failed")
+		return 1
 	}
 
-	return nil
+	return 0
 }

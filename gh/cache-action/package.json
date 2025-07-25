@@ -1,11 +1,11 @@
 {
-  "name": "mimosa-setup-action",
-  "description": "GitHub Action for setting up Mimosa",
+  "name": "mimosa-cache-action",
+  "description": "GitHub Action for managing Mimosa cache",
   "version": "0.0.0",
   "author": "",
   "type": "module",
   "private": true,
-  "homepage": "https://github.com/hytromo/mimosa/tree/main/gh/setup-action",
+  "homepage": "https://github.com/hytromo/mimosa/tree/main/gh/cache-action",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/hytromo/mimosa.git"

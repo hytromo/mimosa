@@ -18,6 +18,13 @@ func isTerminal() bool {
 }
 
 func initLogging() {
+	level, err := logrus.ParseLevel(os.Getenv("LOG_LEVEL"))
+	if err != nil {
+		level = logrus.InfoLevel
+	}
+
+	logrus.SetLevel(level)
+
 	if isTerminal() {
 		logrus.SetFormatter(&OnlyMessageFormatter{})
 	} else {

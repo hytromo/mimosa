@@ -1,0 +1,10 @@
+{
+  "name": "sync-example-confirmer-to-real-example",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "module",
+  "license": "MIT",
+  "dependencies": {
+    "yaml": "^2.8.0"
+  }
+}

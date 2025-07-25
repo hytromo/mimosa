@@ -15,9 +15,17 @@ trap cleanup EXIT
 TMP_FILE=$(mktemp)
 DATE=$(date +%s)
 
+echo
+echo ">>> TEST 4.1 <<<"
+echo
+
 CMD="mimosa remember -- docker buildx build --file Dockerfile.custom --build-arg DATE=${DATE} --platform linux/amd64,linux/arm64 --push -t ${FULL_IMAGE_TAG} ."
 $CMD 2>&1 | tee "$TMP_FILE"
 grep -q "mimosa-cache-hit: false" "$TMP_FILE"
+
+echo
+echo ">>> TEST 4.2 <<<"
+echo
 
 echo $RANDOM > ignored-files/random
 
@@ -26,12 +34,19 @@ CMD="mimosa remember -- docker buildx build --file Dockerfile.custom --build-arg
 $CMD 2>&1 | tee "$TMP_FILE"
 grep -q "mimosa-cache-hit: false" "$TMP_FILE"
 
+echo
+echo ">>> TEST 4.3 <<<"
+echo
+
 echo 'ignored-files/**' > Dockerfile.custom.dockerignore
 
 CMD="mimosa remember -- docker buildx build --file Dockerfile.custom --build-arg DATE=${DATE} --platform linux/amd64,linux/arm64 --push -t ${FULL_IMAGE_TAG}-v2 ."
 $CMD 2>&1 | tee "$TMP_FILE"
 grep -q "mimosa-cache-hit: false" "$TMP_FILE"
 
+echo
+echo ">>> TEST 4.4 <<<"
+echo
 echo $RANDOM > ignored-files/random
 
 CMD="mimosa remember -- docker buildx build --file Dockerfile.custom --build-arg DATE=${DATE} --platform linux/amd64,linux/arm64 --push -t ${FULL_IMAGE_TAG}-v2 ."
