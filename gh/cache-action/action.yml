@@ -1,0 +1,32 @@
+name: Mimosa Cache
+description: Save the Mimosa cache to a GitHub repository variable to enable repo-global caching.
+author: Alexandros Solanos
+
+branding:
+  icon: chevrons-down
+  color: green
+
+inputs:
+  github-token:
+    description:
+      GitHub token to use for authentication - needs to have write:variables
+      scope
+    required: true
+  variable-name:
+    description: The repository variable name to save the cache
+    required: false
+    default: 'MIMOSA_CACHE'
+  max-length:
+    description: The maximum length of the cache
+    required: false
+    default: '48000' # 48k is the max length for GitHub variables as defined in https://docs.github.com/en/actions/reference/variables-reference#limits-for-configuration-variables
+
+outputs:
+  success:
+    description: Whether the action was successful or not
+  cache-entries-count:
+    description: The number of entries saved in the cache
+
+runs:
+  using: node20
+  main: dist/index.js

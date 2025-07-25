@@ -1,0 +1,167 @@
+name: Confirm working example
+
+on:
+  pull_request:
+
+permissions:
+  contents: write
+
+jobs:
+  recommended-example-github-action:
+    name: "Recommended: Repo Variable cache"
+    runs-on: ubuntu-24.04
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Setup mimosa
+        id: setup-mimosa
+        run: |
+            CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o mimosa ./cmd/mimosa/*
+            sudo mv mimosa /usr/local/bin/
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::947281064882:role/mimosa-github-actions-role
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: hytromo
+          password: ${{ secrets.DOCKER_PAT }}
+
+      - name: Use mimosa for dockerhub
+        working-directory: docs/gh-actions/actions-example
+        env:
+          REPOSITORY: mimosa-testing
+          IMAGE_TAG: recommended-example-${{ github.sha }}
+          LOG_LEVEL: DEBUG # remove this once you have confirmed that mimosa is working
+          MIMOSA_CACHE: ${{ vars.MIMOSA_CACHE }}
+        run: |
+          # this file is ignored, so after the first build we should be hitting our cache
+          echo $RANDOM > to-ignore.txt
+          echo dockerhub > useful.txt
+
+          # push to dockerhub
+          mimosa remember -- docker buildx build --platform linux/amd64,linux/arm64 --push -t hytromo/$REPOSITORY:$IMAGE_TAG .
+
+      - name: Use mimosa for ECR
+        working-directory: docs/gh-actions/actions-example
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          REPOSITORY: mimosa-testing
+          IMAGE_TAG: recommended-example-${{ github.sha }}
+          LOG_LEVEL: DEBUG # remove this once you have confirmed that mimosa is working
+          MIMOSA_CACHE: ${{ vars.MIMOSA_CACHE }}
+        run: |
+          # this file is ignored, so after the first build we should be hitting our cache
+          echo $RANDOM > to-ignore.txt
+          echo ecr > useful.txt
+
+          # push to AWS ECR
+          mimosa remember -- docker buildx build --platform linux/amd64,linux/arm64 --push -t $REGISTRY/$REPOSITORY:$IMAGE_TAG .
+
+      - name: Save mimosa cache
+        uses: ./gh/cache-action
+        with:
+          github-token: ${{ secrets.WRITE_VARIABLES_GH_PAT }}
+
+  not-recommended-example-github-action:
+    name: "Not recommended: actions/cache"
+    runs-on: ubuntu-24.04
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Setup mimosa
+        id: setup-mimosa
+        run: |
+            CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o mimosa ./cmd/mimosa/*
+            sudo mv mimosa /usr/local/bin/
+            echo "cache-path=$(mimosa cache --show)" >> $GITHUB_OUTPUT
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::947281064882:role/mimosa-github-actions-role
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: hytromo
+          password: ${{ secrets.DOCKER_PAT }}
+
+      - name: Fetch mimosa cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.setup-mimosa.outputs.cache-path }}
+          key: mimosa-cache-${{ github.ref }}-${{ github.sha }}
+          restore-keys: |
+            mimosa-cache-${{ github.ref }}-
+            mimosa-cache-
+
+      - name: Use mimosa for dockerhub
+        working-directory: docs/gh-actions/actions-example
+        env:
+          REPOSITORY: mimosa-testing
+          IMAGE_TAG: example-${{ github.sha }}
+          LOG_LEVEL: DEBUG # remove this once you have confirmed that mimosa is working
+        run: |
+          # this file is ignored, so after the first build we should be hitting our cache
+          echo $RANDOM > to-ignore.txt
+          echo dockerhub > useful.txt
+
+          # push to dockerhub
+          mimosa remember -- docker buildx build --platform linux/amd64,linux/arm64 --push -t hytromo/$REPOSITORY:$IMAGE_TAG .
+
+      - name: Use mimosa for ECR
+        working-directory: docs/gh-actions/actions-example
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          REPOSITORY: mimosa-testing
+          IMAGE_TAG: example-${{ github.sha }}
+          LOG_LEVEL: DEBUG # remove this once you have confirmed that mimosa is working
+        run: |
+          # this file is ignored, so after the first build we should be hitting our cache
+          echo $RANDOM > to-ignore.txt
+          echo ecr > useful.txt
+
+          # push to AWS ECR
+          mimosa remember -- docker buildx build --platform linux/amd64,linux/arm64 --push -t $REGISTRY/$REPOSITORY:$IMAGE_TAG .

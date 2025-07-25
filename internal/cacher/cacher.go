@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/elliotchance/orderedmap/v3"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/apparentlymart/go-userdirs/userdirs"
@@ -24,18 +25,25 @@ type CacheFile struct {
 }
 
 type Cache struct {
-	CommandHash string // The hash of the docker build command itself
-	FilesHash   string // The hash of all the related files
+	InMemoryEntries *orderedmap.OrderedMap[string, string] // populated by the MIMOSA_CACHE environment variable and taking precedence over the cache directory
+	FinalHash       string                                 // the final hash of the current command and files
 }
 
 func (cache *Cache) DataPath() string {
-	return filepath.Join(CacheDir, cache.CommandHash, cache.FilesHash, "mimosa-cache.json")
+	return filepath.Join(CacheDir, cache.FinalHash+".json")
 }
 
 func (cache *Cache) LatestTag() (string, error) {
-	filename := cache.DataPath()
+	inMemoryEntry, ok := cache.GetInMemoryEntry()
 
-	data, err := os.ReadFile(filename)
+	if ok {
+		log.Debugf("Returning in-memory cache entry for hash %s: %s", cache.FinalHash, inMemoryEntry)
+		return inMemoryEntry, nil
+	}
+
+	cachedFilePath := cache.DataPath()
+
+	data, err := os.ReadFile(cachedFilePath)
 	if err != nil {
 		return "", err
 	}
@@ -52,12 +60,35 @@ func (cache *Cache) LatestTag() (string, error) {
 	return cacheFile.Tags[len(cacheFile.Tags)-1], nil
 }
 
-func (cache *Cache) Exists() bool {
-	filename := cache.DataPath()
+func (cache *Cache) GetInMemoryEntry() (string, bool) {
+	if cache.InMemoryEntries.Len() == 0 {
+		return "", false
+	}
 
-	if _, err := os.Stat(filename); errors.Is(err, os.ErrNotExist) {
+	// first checking the in-memory cache
+	z85Hash, err := hasher.HexToZ85(cache.FinalHash)
+	if err != nil {
+		log.Warnf("Failed to convert final hash to Z85: %v", err)
+		return "", false
+	}
+	if entry, ok := cache.InMemoryEntries.Get(z85Hash); ok {
+		return entry, true
+	}
+
+	return "", false
+}
+
+func (cache *Cache) Exists() bool {
+	if _, ok := cache.GetInMemoryEntry(); ok {
+		log.Debugf("Cache hit in memory for hash %s", cache.FinalHash)
+		return true
+	}
+
+	if _, err := os.Stat(cache.DataPath()); errors.Is(err, os.ErrNotExist) {
 		return false
 	}
+
+	log.Debugf("Cache hit on disk for hash %s", cache.FinalHash)
 
 	return true
 }
@@ -68,7 +99,7 @@ func GetCache(parsedBuildCommand docker.ParsedBuildCommand) (cache Cache, err er
 
 	commandInfo = append(commandInfo, parsedBuildCommand.RegistryDomain)
 
-	log.Debugf("Deducting command hash from %v\n", commandInfo)
+	log.Debugf("Deducting command hash from %v", commandInfo)
 
 	commandHash := hasher.HashStrings(commandInfo)
 
@@ -85,13 +116,13 @@ func GetCache(parsedBuildCommand docker.ParsedBuildCommand) (cache Cache, err er
 	filesHash, err := hasher.HashFiles(files)
 
 	if err != nil {
-		return Cache{}, err
+		return cache, err
 	}
 
-	return Cache{
-		CommandHash: commandHash,
-		FilesHash:   filesHash,
-	}, nil
+	cache.FinalHash = hasher.HashStrings([]string{commandHash, filesHash})
+	cache.InMemoryEntries = GetAllInMemoryEntries()
+
+	return cache, nil
 }
 
 func (cache *Cache) Save(finalTag string) (dataFile string, err error) {
@@ -119,11 +150,12 @@ func (cache *Cache) Save(finalTag string) (dataFile string, err error) {
 			}
 		}
 	}
-	// Add new tag if unique
+
+	// Add new tag if unique at the end
 	if _, exists := tagSet[finalTag]; !exists {
 		tags = append(tags, finalTag)
 	}
-	// Keep only last 10 unique tags
+	// Keep only last 10 unique tags (= the last 10 tags of the list)
 	if len(tags) > 10 {
 		tags = tags[len(tags)-10:]
 	}
@@ -145,7 +177,7 @@ func ForgetCacheEntriesOlderThan(forgetTime time.Time) {
 			return err
 		}
 
-		if info.IsDir() || !strings.HasSuffix(path, "mimosa-cache.json") {
+		if info.IsDir() || !strings.HasSuffix(path, ".json") {
 			return nil
 		}
 
@@ -176,13 +208,6 @@ func ForgetCacheEntriesOlderThan(forgetTime time.Time) {
 		deletedCount++
 		return nil
 	})
-
-	if deletedCount > 0 {
-		fileutil.DeleteEmptyDirectories(cacheDir)
-		if err != nil {
-			log.Errorf("Failed to delete empty directories in %s: %v", cacheDir, err)
-		}
-	}
 
 	if err != nil {
 		log.Errorf("Failed to forget cache entries: %v", err)

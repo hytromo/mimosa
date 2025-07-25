@@ -58,6 +58,7 @@ jobs:
             REGISTRY: ${{ steps.login-ecr.outputs.registry }}
             REPOSITORY: mimosa-testing
             IMAGE_TAG: ${{ github.sha }}
+            LOG_LEVEL: debug
         working-directory: tests-e2e
         run: |
             for IMAGE_TAG_I in $REGISTRY/$REPOSITORY:$IMAGE_TAG hytromo/$REPOSITORY:$IMAGE_TAG; do

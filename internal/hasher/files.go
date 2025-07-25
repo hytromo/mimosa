@@ -74,13 +74,13 @@ func HashFiles(filePaths []string) (string, error) {
 
 	if log.IsLevelEnabled(log.DebugLevel) {
 		// Print the number of files and their paths
-		log.Debugf("Deducting file hash from %d files:\n", len(filePaths))
+		log.Debugf("Deducting file hash from %d files:", len(filePaths))
 		for _, path := range filePaths {
 			log.Debugln(path)
 		}
 		log.Debugln("Files hashed per worker:")
 		for i, c := range workerStats {
-			log.Debugf("  Worker %d: %d files\n", i, c)
+			log.Debugf("  Worker %d: %d files", i, c)
 		}
 	}
 

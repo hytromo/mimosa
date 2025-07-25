@@ -9,6 +9,10 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// Retag an image by fetching its descriptor and pushing it under a new tag.
+// If the image is a manifest list, it will repush all manifests under the new tag
+// previousTag is the full tag of the image to retag
+// newTag is the full new tag to push
 func Retag(previousTag string, newTag string) error {
 	ref, err := name.ParseReference(previousTag)
 	if err != nil {
@@ -18,6 +22,7 @@ func Retag(previousTag string, newTag string) error {
 	// Fetch the descriptor from the remote registry
 	desc, err := Get(ref)
 	if err != nil {
+		log.Debugln("Failed to get descriptor for", previousTag, ":", err)
 		return err
 	}
 
@@ -25,12 +30,14 @@ func Retag(previousTag string, newTag string) error {
 	if desc.Descriptor.MediaType == types.OCIImageIndex || desc.Descriptor.MediaType == types.DockerManifestList {
 		index, err := desc.ImageIndex()
 		if err != nil {
+			log.Debugln("Failed to get image index for", previousTag, ":", err)
 			return err
 		}
 
 		// Get the manifest descriptors for each platform
 		manifestList, err := index.IndexManifest()
 		if err != nil {
+			log.Debugln("Failed to get manifest list for", previousTag, ":", err)
 			return err
 		}
 		var manifestsToRepush []string
@@ -47,10 +54,16 @@ func Retag(previousTag string, newTag string) error {
 		err = PublishManifestsUnderTag(bareImageName, bareNewTagName, manifestsToRepush)
 
 		if err != nil {
+			log.Debugln("Failed to repush manifests for", previousTag, ":", err)
 			return err
 		}
 	} else {
-		return fmt.Errorf("not an image index")
+		// this means that the tag does not point to an image index, so a simple retagging is enough
+		err = SimpleRetag(previousTag, newTag)
+		if err != nil {
+			log.Debugln("Failed to retag", previousTag, "to", newTag, ":", err)
+			return err
+		}
 	}
 
 	return nil
