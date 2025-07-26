@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/hytromo/mimosa/internal/configuration"
+	log "github.com/sirupsen/logrus"
 )
 
 func getWrongOptionsError(subCommandsMap map[string]func()) (err error) {
@@ -85,7 +86,11 @@ func Parse(args []string) (configuration.AppOptions, error) {
 		rememberSubCmd: func() {
 			rememberCmd := flag.NewFlagSet(rememberSubCmd, flag.ExitOnError)
 			// Parse the arguments after the subcommand
-			rememberCmd.Parse(args[2:])
+			err := rememberCmd.Parse(args[2:])
+			if err != nil {
+				log.Errorf("Failed to parse arguments after subcommand: %s", err)
+				return
+			}
 
 			appOptions.Remember.CommandToRun = rememberCmd.Args()
 			appOptions.Remember.Enabled = true
@@ -97,7 +102,11 @@ func Parse(args []string) (configuration.AppOptions, error) {
 			showOpt := cacheCmd.Bool("show", false, "show the cache location")
 			toEnvValue := cacheCmd.Bool("to-env-value", false, "combine the existing disk cache with the MIMOSA_CACHE env variable")
 			// Parse the arguments after the subcommand
-			cacheCmd.Parse(args[2:])
+			err := cacheCmd.Parse(args[2:])
+			if err != nil {
+				log.Errorf("Failed to parse arguments after subcommand: %s", err)
+				return
+			}
 
 			appOptions.Cache.Forget = *forgetOpt
 			appOptions.Cache.ForgetYes = *forgetYesOpt

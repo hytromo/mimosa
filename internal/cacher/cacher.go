@@ -163,7 +163,7 @@ func (cache *Cache) Save(finalTag string) (dataFile string, err error) {
 	return dataFile, fileutil.SaveJSON(dataFile, CacheFile{
 		Tags:          tags,
 		LastUpdatedAt: time.Now().UTC(),
-	}, false)
+	})
 }
 
 func ForgetCacheEntriesOlderThan(forgetTime time.Time) {

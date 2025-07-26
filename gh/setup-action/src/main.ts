@@ -93,7 +93,7 @@ export async function run(): Promise<void> {
     }
 
     if (!runner.os || !runner.arch) {
-      // mimosa not supported in this platform
+      // mimosa not supported in this platform!
       core.setFailed(
         `Unsupported platform or architecture: ${process.platform} ${process.arch}`
       )

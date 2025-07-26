@@ -34,3 +34,6 @@ go.work.sum
 mimosa-*
 
 node_modules/
+.venv
+
+.vscode

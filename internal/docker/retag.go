@@ -27,7 +27,7 @@ func Retag(previousTag string, newTag string) error {
 	}
 
 	// Check if it's an index (manifest list)
-	if desc.Descriptor.MediaType == types.OCIImageIndex || desc.Descriptor.MediaType == types.DockerManifestList {
+	if desc.MediaType == types.OCIImageIndex || desc.MediaType == types.DockerManifestList {
 		index, err := desc.ImageIndex()
 		if err != nil {
 			log.Debugln("Failed to get image index for", previousTag, ":", err)
