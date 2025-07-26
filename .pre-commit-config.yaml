@@ -1,0 +1,48 @@
+repos:
+  - repo: local
+    hooks:
+      - id: npm-bundle-setup-action
+        name: Run npm bundle in gh/setup-action
+        entry: mise exec -- scripts/bundle-gh-action.sh
+        language: system
+        args: ["gh/setup-action"]
+        files: ^gh/setup-action(/src)?/
+
+      - id: npm-bundle-cache-action
+        name: Run npm bundle in gh/cache-action
+        entry: mise exec -- scripts/bundle-gh-action.sh
+        language: system
+        args: ["gh/cache-action"]
+        files: ^gh/cache-action(/src)?/
+
+      - id: sync-example-confirmer
+        name: Sync the real confirmer to the example
+        entry: mise exec -- node scripts/sync-example-confirmer-to-real-example/index.js
+        language: system
+        files: ^\.github/workflows/example-confirmer\.yml$
+
+      - id: go-fmt
+        name: Go fmt
+        entry: mise exec -- go fmt ./...
+        language: system
+        pass_filenames: false
+        files: \.go$
+
+      - id: go-vet
+        name: Go vet
+        entry: mise exec -- go vet ./...
+        language: system
+        pass_filenames: false
+        files: \.go$
+
+      - id: go-lint
+        name: Go lint
+        entry: mise exec -- golangci-lint run --fix
+        language: system
+        pass_filenames: false
+        files: \.go$
+
+  - repo: https://github.com/koalaman/shellcheck-precommit
+    rev: v0.10.0
+    hooks:
+    - id: shellcheck

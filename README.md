@@ -49,6 +49,7 @@ Just prepend your docker build commands like this: `mimosa remember -- docker bu
   - [Can I use normal docker buildx commands?](#can-i-use-normal-docker-buildx-commands)
   - [Isn't this just yet another way for my build to fail?](#isnt-this-just-yet-another-way-for-my-build-to-fail)
   - [What's up with the name?](#whats-up-with-the-name)
+- [Contributing](#contributing)
 
 
 # Key Features
@@ -185,3 +186,13 @@ Mimosa will also always respect the exit code of the docker command and will exi
 *Mimosa pudica* is a plant that closes its leaves on touch to protect itself.
 
 If the plant is repeatedly exposed to a non-harmful stimulus, such as a gentle touch or a repeated drop that doesn't cause actual damage, it will eventually stop responding. This phenomenon is called habituation, which is considered the simplest form of learning. The plant "learns" that the repeated disturbance is not a threat and thus doesn't need to expend energy on closing its leaves.
+
+# Contributing
+
+If you are interesting in contributing:
+
+1. Install [mise-en-place](https://mise.jdx.dev/getting-started.html) - great for tool management
+2. Clone the repo: `git clone https://github.com/hytromo/mimosa.git`
+3. Initialize the whole project without polluting your global environment: `mise init`
+4. Start hacking! The pre-commit hooks will help ensuring that the github actions are bundled or that the go code does not have code smells. Have a look at `.pre-commit-config.yaml` for details
+

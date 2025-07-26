@@ -6,6 +6,8 @@ import (
 
 	"github.com/kalafut/imohash"
 	"github.com/tilinna/z85"
+
+	log "github.com/sirupsen/logrus"
 )
 
 func HashStrings(toHash []string) string {
@@ -32,7 +34,12 @@ func HexToBytes(hexStr string) ([]byte, error) {
 
 func BytesToZ85(data []byte) string {
 	encoded := make([]byte, z85.EncodedLen(len(data)))
-	z85.Encode(encoded, data)
+	_, err := z85.Encode(encoded, data)
+
+	if err != nil {
+		log.Debugf("Failed to encode bytes to Z85: %v", err)
+	}
+
 	return string(encoded)
 }
 

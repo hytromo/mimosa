@@ -56,7 +56,7 @@ func GetAllInMemoryEntries() *orderedmap.OrderedMap[string, string] {
 // The entries are ordered from the newest to the oldest and only the latest tag for each hash is kept.
 func GetDiskCacheToMemoryEntries() *orderedmap.OrderedMap[string, string] {
 	diskEntries := make([]*CacheFileWithHash, 0)
-	filepath.Walk(CacheDir, func(path string, info os.FileInfo, err error) error {
+	err := filepath.Walk(CacheDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			log.Debugf("Failed to walk cache directory: %v", err)
 			return nil
@@ -89,6 +89,10 @@ func GetDiskCacheToMemoryEntries() *orderedmap.OrderedMap[string, string] {
 
 		return nil
 	})
+
+	if (err) != nil {
+		log.Debugf("Failed to walk cache directory: %v", err)
+	}
 
 	// Sort by LastUpdatedAt (newest first)
 	sort.Slice(diskEntries, func(i, j int) bool {
