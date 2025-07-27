@@ -202,5 +202,6 @@ If you are interested in contributing:
 1. Install [mise-en-place](https://mise.jdx.dev/getting-started.html) - great for tool management
 2. Clone the repo: `git clone https://github.com/hytromo/mimosa.git`
 3. Initialize the whole project without polluting your global environment: `mise init`
-4. Start hacking! The pre-commit hooks will help ensuring that the github actions are bundled or that the go code does not have code smells. Have a look at `.pre-commit-config.yaml` for details
+4. Go tests are also testing real integration with dockerhub, you will need to be authenticated into dockerhub and the repository mimosa-testing will be created
+5. Start hacking! The pre-commit hooks will help ensuring that the github actions are bundled or that the go code does not have code smells. Have a look at `.pre-commit-config.yaml` for details
 
