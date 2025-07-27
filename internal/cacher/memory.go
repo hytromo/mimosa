@@ -28,7 +28,7 @@ func GetAllInMemoryEntries() *orderedmap.OrderedMap[string, string] {
 				continue
 			}
 			parts := strings.Split(line, " ")
-			if len(parts) != 2 {
+			if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
 				log.Warnln("Invalid MIMOSA_CACHE entry:", line)
 				continue
 			}
