@@ -3,16 +3,14 @@ repos:
     hooks:
       - id: npm-bundle-setup-action
         name: Run npm bundle in gh/setup-action
-        entry: mise exec -- scripts/bundle-gh-action.sh
+        entry: bash -c 'cd gh/setup-action && mise exec -- npm run bundle'
         language: system
-        args: ["gh/setup-action"]
         files: ^gh/setup-action(/src)?/
 
       - id: npm-bundle-cache-action
         name: Run npm bundle in gh/cache-action
-        entry: mise exec -- scripts/bundle-gh-action.sh
+        entry: bash -c 'cd gh/cache-action && mise exec -- npm run bundle'
         language: system
-        args: ["gh/cache-action"]
         files: ^gh/cache-action(/src)?/
 
       - id: sync-example-confirmer
