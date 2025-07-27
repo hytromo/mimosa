@@ -40,6 +40,13 @@ repos:
         pass_filenames: false
         files: \.go$
 
+      - id: go-test
+        name: Go test
+        entry: mise exec -- go test ./...
+        language: system
+        pass_filenames: false
+        files: \.go$
+
   - repo: https://github.com/koalaman/shellcheck-precommit
     rev: v0.10.0
     hooks:
