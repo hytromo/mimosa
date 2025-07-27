@@ -8,8 +8,8 @@
 
 # What does it do
 
-* <b>No more wasteful docker builds</b> - you don't have to wait for CI to finish just because of a tiny change in the README.
-* <b>Image promotion - for free</b> - you've tested your changes in a branch, so why should you wait for `main`/`master` to rebuild, and also risk producing a different image? Use Mimosa and skip straight to deployment.
+* **No more wasteful docker builds** - you don't have to wait for CI to finish just because of a tiny change in the README.
+* **Image promotion - for free** - you've tested your changes in a branch, so why should you wait for `main`/`master` to rebuild, and also risk producing a different image? Use Mimosa and skip straight to deployment.
 
 # How does it do it
 
@@ -105,7 +105,7 @@ mimosa remember -dry-run -- docker buildx build --build-arg MYARG=MYVALUE --plat
 ```sh
 mimosa cache --show # Show where the cache is being saved
 
-# forget cache associated with a spcific build - this influences the local cache only, it doesn't touch the remote registry
+# forget cache associated with a specific build - this influences the local cache only, it doesn't touch the remote registry
 mimosa forget -- docker buildx build --build-arg MYARG=MYVALUE --platform linux/amd64,linux/arm64 --push -t hytromo/mimosa-example:v1 .
 
 mimosa cache --forget 6M # Forget entries older than 6 months
@@ -189,7 +189,7 @@ If the plant is repeatedly exposed to a non-harmful stimulus, such as a gentle t
 
 # Contributing
 
-If you are interesting in contributing:
+If you are interested in contributing:
 
 1. Install [mise-en-place](https://mise.jdx.dev/getting-started.html) - great for tool management
 2. Clone the repo: `git clone https://github.com/hytromo/mimosa.git`
