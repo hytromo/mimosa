@@ -105,9 +105,6 @@ export async function run(): Promise<void> {
         `Mimosa cache is already up to date with the latest version of variable ${repoVariableName} - skipping update.`
       )
       return
-    } else {
-      console.log('Original value:', mimosaEnv['MIMOSA_CACHE'])
-      console.log('New value:', newMimosaCacheEnv)
     }
 
     try {

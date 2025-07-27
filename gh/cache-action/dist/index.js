@@ -35696,10 +35696,6 @@ async function run() {
             console.log(`Mimosa cache is already up to date with the latest version of variable ${repoVariableName} - skipping update.`);
             return;
         }
-        else {
-            console.log('Original value:', mimosaEnv['MIMOSA_CACHE']);
-            console.log('New value:', newMimosaCacheEnv);
-        }
         try {
             // mimosa env variable changed
             await octokit.rest.actions.updateRepoVariable({
