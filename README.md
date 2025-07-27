@@ -44,7 +44,7 @@ Just prepend your docker build commands like this: `mimosa remember -- docker bu
   - [What about custom build contexts?](#what-about-custom-build-contexts)
   - [What about custom Dockerfile locations?](#what-about-custom-dockerfile-locations)
   - [What about custom `.dockerignore` files?](#what-about-custom-dockerignore-files)
-  - [Can I use normal docker buildx commands?](#can-i-use-normal-docker-buildx-commands)
+  - [Can I use normal docker build commands?](#can-i-use-normal-docker-build-commands)
   - [Isn't this just yet another way for my build to fail?](#isnt-this-just-yet-another-way-for-my-build-to-fail)
   - [What's up with the name?](#whats-up-with-the-name)
 - [Contributing](#contributing)
@@ -156,7 +156,7 @@ If you specify `-f` / `--file`, it will use that file instead of the default `Do
 
 `<Dockerfile name>.dockerignore` takes precedence over `.dockerignore` ([docs](https://docs.docker.com/build/concepts/context/#dockerignore-files)) - Mimosa knows these rules.
 
-## Can I use normal docker buildx commands?
+## Can I use normal docker build commands?
 
 ... or am I forced to use BUILDKIT?
 
