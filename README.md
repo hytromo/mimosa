@@ -117,6 +117,7 @@ mimosa cache --forget 6M # Forget entries older than 6 months
 mimosa cache --forget 24h # Forget entries older than 24 hours
 
 mimosa cache --forget 1y --yes # No user prompt
+mimosa cache --purge # Delete all entries
 ```
 
 ## Advanced usage

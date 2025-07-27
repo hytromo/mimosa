@@ -92,11 +92,15 @@ func main() {
 			log.Infoln("mimosa-cache-hit: false")
 		}
 	} else if appOptions.Cache.Enabled {
-		if appOptions.Cache.Forget != "" {
-			forgetDuration, err := argsparser.ParseDuration(appOptions.Cache.Forget)
-			if err != nil {
-				log.Errorf("Invalid forget duration: %v", err)
-				return
+		if appOptions.Cache.Forget != "" || appOptions.Cache.Purge {
+			forgetDuration, _ := argsparser.ParseDuration("0s") // purge
+
+			if appOptions.Cache.Forget != "" {
+				forgetDuration, err = argsparser.ParseDuration(appOptions.Cache.Forget)
+				if err != nil {
+					log.Errorf("Invalid forget duration: %v", err)
+					return
+				}
 			}
 
 			forgetTime := time.Now().UTC().Add(-forgetDuration)

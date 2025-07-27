@@ -13,6 +13,7 @@ type CacheSubcommandOptions struct {
 	Forget     string
 	ForgetYes  bool
 	Show       bool
+	Purge      bool
 	ToEnvValue bool
 }
 

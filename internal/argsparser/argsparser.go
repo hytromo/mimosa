@@ -100,9 +100,10 @@ func Parse(args []string) (configuration.AppOptions, error) {
 		cacheSubCmd: func() {
 			cacheCmd := flag.NewFlagSet(cacheSubCmd, flag.ExitOnError)
 			forgetOpt := cacheCmd.String("forget", "", "forget all cache entries older than a period of time (e.g. 1h, 2d, 3w)")
-			forgetYesOpt := cacheCmd.Bool("yes", false, "skip confirmation prompt for forgetting cache")
+			forgetYesOpt := cacheCmd.Bool("yes", false, "skip confirmation prompt for forgetting cache (including purging)")
 			showOpt := cacheCmd.Bool("show", false, "show the cache location")
 			toEnvValue := cacheCmd.Bool("to-env-value", false, "combine the existing disk cache with the MIMOSA_CACHE env variable")
+			purge := cacheCmd.Bool("purge", false, "delete all cache entries")
 			// Parse the arguments after the subcommand
 			err := cacheCmd.Parse(args[2:])
 			if err != nil {
@@ -114,6 +115,7 @@ func Parse(args []string) (configuration.AppOptions, error) {
 			appOptions.Cache.ForgetYes = *forgetYesOpt
 			appOptions.Cache.Show = *showOpt
 			appOptions.Cache.ToEnvValue = *toEnvValue
+			appOptions.Cache.Purge = *purge
 			appOptions.Cache.Enabled = true
 		},
 	}
