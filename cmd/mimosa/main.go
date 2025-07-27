@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -24,22 +23,25 @@ func main() {
 		log.Fatal(err.Error())
 	}
 
-	if appOptions.Remember.Enabled {
-		parsedBuildCommand, err := docker.ParseBuildCommand(appOptions.Remember.CommandToRun)
-
-		if log.IsLevelEnabled(log.DebugLevel) {
-			jsonOfParsedCommand, err := json.MarshalIndent(parsedBuildCommand, "", "  ")
-			if err == nil {
-				log.Debugln("Parsed build command:")
-				log.Debugln(string(jsonOfParsedCommand))
-			}
+	if appOptions.Remember.Enabled || appOptions.Forget.Enabled {
+		var commandToRun []string
+		if appOptions.Remember.Enabled {
+			commandToRun = appOptions.Remember.CommandToRun
+		} else {
+			commandToRun = appOptions.Forget.CommandToRun
 		}
 
+		parsedBuildCommand, err := docker.ParseBuildCommand(commandToRun)
+
 		if err != nil {
+			if appOptions.Forget.Enabled {
+				// we need to be able to parse the command to forget
+				log.Fatal(err.Error())
+			}
 			// we run the provided command anyway even if it is not parsable as a valid docker command
 			// as the philosophy of mimosa is to not block the user
 			log.Errorln(err.Error())
-			exitCode := docker.RunCommand(appOptions.Remember.CommandToRun, appOptions.Remember.DryRun)
+			exitCode := docker.RunCommand(commandToRun, appOptions.Remember.DryRun)
 			os.Exit(exitCode)
 			return
 		}
@@ -47,10 +49,23 @@ func main() {
 		cache, cacheInitError := cacher.GetCache(parsedBuildCommand)
 
 		if cacheInitError != nil {
+			if appOptions.Forget.Enabled {
+				log.Fatalf("Could not calculate hash: %s", cacheInitError.Error())
+			}
+
 			log.Errorln(cacheInitError.Error())
 		}
 
 		if cacheInitError == nil && cache.Exists() {
+			if appOptions.Forget.Enabled {
+				log.Infoln("Removing cache entry", cache.DataPath())
+				err := cache.Remove(appOptions.Forget.DryRun)
+				if err != nil {
+					log.Fatalf("Failed to remove cache entry: %s", err.Error())
+				}
+				return
+			}
+
 			latestCachedTag, err := cache.LatestTag()
 			if err == nil {
 				log.Debugln("The tag", parsedBuildCommand.FinalTag, "will point now to", latestCachedTag)
@@ -69,9 +84,13 @@ func main() {
 					// given that we failed to retag, we will run the command anyway
 				}
 			}
+		} else if appOptions.Forget.Enabled {
+			log.Infof("Cache entry %v was not found", cache.FinalHash)
+			os.Exit(1)
+			return
 		}
 
-		exitCode := docker.RunCommand(appOptions.Remember.CommandToRun, appOptions.Remember.DryRun)
+		exitCode := docker.RunCommand(commandToRun, appOptions.Remember.DryRun)
 
 		if exitCode != 0 {
 			// the docker build command itself failed, so we need to follow and exit

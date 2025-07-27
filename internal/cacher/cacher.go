@@ -33,6 +33,15 @@ func (cache *Cache) DataPath() string {
 	return filepath.Join(CacheDir, cache.FinalHash+".json")
 }
 
+func (cache *Cache) Remove(dryRun bool) error {
+	if dryRun {
+		log.Infoln("> DRY RUN: cache entry would be removed from", cache.DataPath())
+		return nil
+	}
+
+	return os.Remove(cache.DataPath())
+}
+
 func (cache *Cache) LatestTag() (string, error) {
 	inMemoryEntry, ok := cache.GetInMemoryEntry()
 

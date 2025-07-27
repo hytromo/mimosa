@@ -113,6 +113,9 @@ mimosa remember -dry-run -- docker buildx build --build-arg MYARG=MYVALUE --plat
 ```sh
 mimosa cache --show # Show where the cache is being saved
 
+# forget cache associated with a spcific build - this influences the local cache only, it doesn't touch the remote registry
+mimosa forget -- docker buildx build --build-arg MYARG=MYVALUE --platform linux/amd64,linux/arm64 --push -t hytromo/mimosa-example:v1 .
+
 mimosa cache --forget 6M # Forget entries older than 6 months
 mimosa cache --forget 24h # Forget entries older than 24 hours
 

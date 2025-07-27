@@ -78,6 +78,7 @@ func ParseDuration(s string) (time.Duration, error) {
 // Returns an error if the list of strings cannot be parsed.
 func Parse(args []string) (configuration.AppOptions, error) {
 	rememberSubCmd := "remember"
+	forgetSubCmd := "forget"
 	cacheSubCmd := "cache"
 
 	var appOptions configuration.AppOptions
@@ -96,6 +97,20 @@ func Parse(args []string) (configuration.AppOptions, error) {
 			appOptions.Remember.CommandToRun = rememberCmd.Args()
 			appOptions.Remember.DryRun = *dryRunOpt
 			appOptions.Remember.Enabled = true
+		},
+		forgetSubCmd: func() {
+			forgetSubCmd := flag.NewFlagSet(forgetSubCmd, flag.ExitOnError)
+			dryRunOpt := forgetSubCmd.Bool("dry-run", false, "Do not actually remove any cache entry - just show what would happen")
+
+			err := forgetSubCmd.Parse(args[2:])
+			if err != nil {
+				log.Errorf("Failed to parse arguments after subcommand: %s", err)
+				return
+			}
+
+			appOptions.Forget.CommandToRun = forgetSubCmd.Args()
+			appOptions.Forget.DryRun = *dryRunOpt
+			appOptions.Forget.Enabled = true
 		},
 		cacheSubCmd: func() {
 			cacheCmd := flag.NewFlagSet(cacheSubCmd, flag.ExitOnError)
