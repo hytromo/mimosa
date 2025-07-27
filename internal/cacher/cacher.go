@@ -126,7 +126,11 @@ func GetCache(parsedBuildCommand docker.ParsedBuildCommand) (cache Cache, err er
 		}
 	}
 
-	files := docker.IncludedFiles(parsedBuildCommand.ContextPath, parsedBuildCommand.DockerignorePath)
+	files, err := docker.IncludedFiles(parsedBuildCommand.ContextPath, parsedBuildCommand.DockerignorePath)
+
+	if err != nil {
+		return cache, err
+	}
 
 	if parsedBuildCommand.DockerignorePath != "" {
 		files = append(files, parsedBuildCommand.DockerignorePath)
