@@ -32,9 +32,7 @@ Just prepend your docker build commands like this: `mimosa remember -- docker bu
 - [Installation](#installation)
   - [Inside GitHub Actions](#inside-github-actions)
   - [On your system](#on-your-system)
-- [Usage](#usage)
-  - [GitHub Actions](#github-actions)
-- [Commands](#commands)
+- [CLI usage](#cli-usage)
   - [Remember](#remember)
   - [Cache](#cache)
     - [Cache Management](#cache-management)
@@ -79,13 +77,7 @@ See the [the GitHub Action docs](./docs/gh-actions/README.md) for details on how
 
 Pre-built binaries are available on the [Releases page](https://github.com/hytromo/mimosa/releases). Download the appropriate binary for your platform and add it to your `PATH`.
 
-# Usage
-
-## GitHub Actions
-
-See the [example GitHub Action](./docs/gh-actions/README.md) for details.
-
-# Commands
+# CLI usage
 
 ## Remember
 
