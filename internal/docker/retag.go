@@ -13,7 +13,12 @@ import (
 // If the image is a manifest list, it will repush all manifests under the new tag
 // previousTag is the full tag of the image to retag
 // newTag is the full new tag to push
-func Retag(previousTag string, newTag string) error {
+func Retag(previousTag string, newTag string, dryRun bool) error {
+	if dryRun {
+		log.Infoln("> DRY RUN:", previousTag, "would be retagged to", newTag)
+		return nil
+	}
+
 	ref, err := name.ParseReference(previousTag)
 	if err != nil {
 		return err

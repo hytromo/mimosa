@@ -85,6 +85,7 @@ func Parse(args []string) (configuration.AppOptions, error) {
 	subCommandsMap := map[string]func(){
 		rememberSubCmd: func() {
 			rememberCmd := flag.NewFlagSet(rememberSubCmd, flag.ExitOnError)
+			dryRunOpt := rememberCmd.Bool("dry-run", false, "Do not actually build or push anything - just show if it would be a cache hit or not - combine with the LOG_LEVEL env variable for more details.")
 			// Parse the arguments after the subcommand
 			err := rememberCmd.Parse(args[2:])
 			if err != nil {
@@ -93,6 +94,7 @@ func Parse(args []string) (configuration.AppOptions, error) {
 			}
 
 			appOptions.Remember.CommandToRun = rememberCmd.Args()
+			appOptions.Remember.DryRun = *dryRunOpt
 			appOptions.Remember.Enabled = true
 		},
 		cacheSubCmd: func() {

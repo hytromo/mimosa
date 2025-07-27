@@ -4,6 +4,7 @@ package configuration
 type RememberSubcommandOptions struct {
 	Enabled      bool
 	CommandToRun []string
+	DryRun       bool
 }
 
 // CacheSubcommandOptions defines the options of the cache subcommand

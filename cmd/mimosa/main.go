@@ -39,7 +39,7 @@ func main() {
 			// we run the provided command anyway even if it is not parsable as a valid docker command
 			// as the philosophy of mimosa is to not block the user
 			log.Errorln(err.Error())
-			exitCode := docker.RunCommand(appOptions.Remember.CommandToRun)
+			exitCode := docker.RunCommand(appOptions.Remember.CommandToRun, appOptions.Remember.DryRun)
 			os.Exit(exitCode)
 			return
 		}
@@ -54,9 +54,9 @@ func main() {
 			latestCachedTag, err := cache.LatestTag()
 			if err == nil {
 				log.Debugln("The tag", parsedBuildCommand.FinalTag, "will point now to", latestCachedTag)
-				err := docker.Retag(latestCachedTag, parsedBuildCommand.FinalTag)
+				err := docker.Retag(latestCachedTag, parsedBuildCommand.FinalTag, appOptions.Remember.DryRun)
 				if err == nil {
-					dataFile, err := cache.Save(parsedBuildCommand.FinalTag)
+					dataFile, err := cache.Save(parsedBuildCommand.FinalTag, appOptions.Remember.DryRun)
 					if err != nil {
 						log.Errorln("Failed to save to cache:", err)
 					}
@@ -71,7 +71,7 @@ func main() {
 			}
 		}
 
-		exitCode := docker.RunCommand(appOptions.Remember.CommandToRun)
+		exitCode := docker.RunCommand(appOptions.Remember.CommandToRun, appOptions.Remember.DryRun)
 
 		if exitCode != 0 {
 			// the docker build command itself failed, so we need to follow and exit
@@ -82,7 +82,7 @@ func main() {
 
 		if cacheInitError == nil {
 			// build was successful, let's save the cache entry
-			dataFile, err := cache.Save(parsedBuildCommand.FinalTag)
+			dataFile, err := cache.Save(parsedBuildCommand.FinalTag, appOptions.Remember.DryRun)
 			if err != nil {
 				log.Errorf("Failed to save to cache: %v", err)
 			} else {

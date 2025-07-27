@@ -97,6 +97,10 @@ mimosa remember -- docker buildx build --build-arg MYARG=MYVALUE --platform linu
 
 mimosa remember -- docker buildx build --build-arg MYARG=MYVALUE --platform linux/amd64,linux/arm64 --push -t hytromo/mimosa-example:v2 .
 # ... mimosa understands that nothing important has changed, so it just makes v2 point to v1 - they are the same image - no build happens!
+
+
+# dry run - do not build, retag or write to cache, just show what would happen
+mimosa remember -dry-run -- docker buildx build --build-arg MYARG=MYVALUE --platform linux/amd64,linux/arm64 --push -t hytromo/mimosa-example:v2 .
 ```
 
 * The `remember` subcommand tells Mimosa to cache and reuse builds.

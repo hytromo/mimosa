@@ -193,7 +193,12 @@ func ParseBuildCommand(dockerBuildCmd []string) (ParsedBuildCommand, error) {
 	}, nil
 }
 
-func RunCommand(command []string) int {
+func RunCommand(command []string, dryRun bool) int {
+	if dryRun {
+		log.Infoln("> DRY RUN: command would be run:", strings.Join(command, " "))
+		return 0
+	}
+
 	cmd := exec.Command(command[0], command[1:]...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
