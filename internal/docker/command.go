@@ -65,6 +65,10 @@ func findContextPath(args []string) (string, error) {
 	for i := 1; i < len(args); i++ {
 		arg := args[i]
 
+		if (arg == "buildx" || arg == "build") && i < 2 {
+			continue
+		}
+
 		// If the current argument starts with '-', it's a flag / normal argument (could be --file, -t, --no-cache, etc.)
 		if strings.HasPrefix(arg, "-") {
 			previousArgument = arg // save this so as to see if the next arg is its value
