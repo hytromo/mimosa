@@ -1,9 +1,17 @@
 <div align="center">
-<h1><a href="https://github.com/hytromo/mimosa">
-  <img src="./logo.webp" alt="mimosa-logo" height="300" /><br />
-  mimosa
-</a></h1>
-<p><em>Zero-config docker image promotion</em></p>
+  <h1><a href="https://github.com/hytromo/mimosa">
+      <img src="./logo.webp" alt="mimosa-logo" height="300" /><br />
+      mimosa
+    </a></h1>
+
+  <a href="https://github.com/hytromo/mimosa/releases"><img alt="Github Releases"
+      src="https://img.shields.io/badge/dynamic/json?url=https://api.github.com/repos/hytromo/mimosa/releases&query=$.0.name&style=for-the-badge&logo=go&label=mimosa"></a>
+  <a href="https://github.com/hytromo/mimosa/blob/main/LICENSE"><img alt="GitHub" src="https://img.shields.io/github/license/hytromo/mimosa?color=%2344CC11&style=for-the-badge"></a>
+  <a href="https://github.com/hytromo/mimosa/actions/workflows/main.yml"><img alt="GitHub Workflow Status" src="https://img.shields.io/github/actions/workflow/status/hytromo/mimosa/main.yml?style=for-the-badge"></a>
+  <a href="https://github.com/hytromo/mimosa/stargazers"><img alt="GitHub Repo stars" src="https://img.shields.io/github/stars/hytromo/mimosa?style=for-the-badge
+  "></a>
+  <p><em>Zero-config docker image promotion</em></p>
+
 </div>
 
 # What does it do
