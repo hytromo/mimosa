@@ -1,4 +1,4 @@
-package main
+package logger
 
 import (
 	"os"
@@ -17,7 +17,10 @@ func isTerminal() bool {
 	return term.IsTerminal(int(os.Stdout.Fd()))
 }
 
-func initLogging() {
+func InitLogging(customIsTerminal func() bool) {
+	if customIsTerminal == nil {
+		customIsTerminal = isTerminal
+	}
 	level, err := logrus.ParseLevel(os.Getenv("LOG_LEVEL"))
 	if err != nil {
 		level = logrus.InfoLevel
@@ -25,7 +28,7 @@ func initLogging() {
 
 	logrus.SetLevel(level)
 
-	if isTerminal() {
+	if customIsTerminal() {
 		logrus.SetFormatter(&OnlyMessageFormatter{})
 	} else {
 		logrus.SetFormatter(&logrus.TextFormatter{
