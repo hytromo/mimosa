@@ -39,13 +39,13 @@ export async function run(): Promise<void> {
         repo: context.repo.repo,
         name: repoVariableName
       })
-      const existingsMimosaCacheEnv = response.data.value || ''
+      const existingMimosaCacheEnv = (response.data.value || '')?.trim()
       console.log(
-        `Existing variable ${repoVariableName} found with value length: ${existingsMimosaCacheEnv.length}`
+        `Existing variable ${repoVariableName} found with value length: ${existingMimosaCacheEnv.length}`
       )
-      if (existingsMimosaCacheEnv) {
+      if (existingMimosaCacheEnv) {
         // set the existing variable value to the environment
-        mimosaEnv['MIMOSA_CACHE'] = existingsMimosaCacheEnv
+        mimosaEnv['MIMOSA_CACHE'] = existingMimosaCacheEnv
       }
     } catch (error: any) {
       // ignore any error
@@ -100,7 +100,15 @@ export async function run(): Promise<void> {
       )
     }
 
+    if (mimosaEnv['MIMOSA_CACHE'] === newMimosaCacheEnv) {
+      console.log(
+        `Mimosa cache is already up to date with the latest version of variable ${repoVariableName} - skipping update.`
+      )
+      return
+    }
+
     try {
+      // mimosa env variable changed
       await octokit.rest.actions.updateRepoVariable({
         owner: context.repo.owner,
         repo: context.repo.repo,
