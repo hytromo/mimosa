@@ -112,6 +112,20 @@ func GetCache(parsedBuildCommand docker.ParsedBuildCommand) (cache Cache, err er
 
 	log.Debugf("Command hash: %v - deducted from %v", commandHash, commandInfo)
 
+	if _, err := os.Stat(parsedBuildCommand.ContextPath); errors.Is(err, os.ErrNotExist) {
+		return cache, err
+	}
+
+	if _, err := os.Stat(parsedBuildCommand.DockerfilePath); errors.Is(err, os.ErrNotExist) {
+		return cache, err
+	}
+
+	if parsedBuildCommand.DockerignorePath != "" {
+		if _, err := os.Stat(parsedBuildCommand.DockerignorePath); errors.Is(err, os.ErrNotExist) {
+			return cache, err
+		}
+	}
+
 	files := docker.IncludedFiles(parsedBuildCommand.ContextPath, parsedBuildCommand.DockerignorePath)
 
 	if parsedBuildCommand.DockerignorePath != "" {
