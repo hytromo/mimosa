@@ -76,7 +76,7 @@ Just prepend your docker build commands like this: `mimosa remember -- docker bu
 ```yaml
 - uses: hytromo/mimosa/gh/setup-action@setup-action-v1
   with:
-    version: v0.0.9
+    version: v0.0.10
 ```
 
 See the [the GitHub Action docs](./docs/gh-actions/README.md) for details on how to use `mimosa` in your GitHub Actions.
