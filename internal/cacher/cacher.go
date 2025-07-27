@@ -33,6 +33,15 @@ func (cache *Cache) DataPath() string {
 	return filepath.Join(CacheDir, cache.FinalHash+".json")
 }
 
+func (cache *Cache) Remove(dryRun bool) error {
+	if dryRun {
+		log.Infoln("> DRY RUN: cache entry would be removed from", cache.DataPath())
+		return nil
+	}
+
+	return os.Remove(cache.DataPath())
+}
+
 func (cache *Cache) LatestTag() (string, error) {
 	inMemoryEntry, ok := cache.GetInMemoryEntry()
 
@@ -99,9 +108,9 @@ func GetCache(parsedBuildCommand docker.ParsedBuildCommand) (cache Cache, err er
 
 	commandInfo = append(commandInfo, parsedBuildCommand.RegistryDomain)
 
-	log.Debugf("Deducting command hash from %v", commandInfo)
-
 	commandHash := hasher.HashStrings(commandInfo)
+
+	log.Debugf("Command hash: %v - deducted from %v", commandHash, commandInfo)
 
 	files := docker.IncludedFiles(parsedBuildCommand.ContextPath, parsedBuildCommand.DockerignorePath)
 
@@ -115,18 +124,28 @@ func GetCache(parsedBuildCommand docker.ParsedBuildCommand) (cache Cache, err er
 
 	filesHash, err := hasher.HashFiles(files)
 
+	log.Debugf("Files hash: %v - deducted from %v files", filesHash, len(files))
+
 	if err != nil {
 		return cache, err
 	}
 
 	cache.FinalHash = hasher.HashStrings([]string{commandHash, filesHash})
+
+	log.Debugf("Final hash of command and files: %v", cache.FinalHash)
+
 	cache.InMemoryEntries = GetAllInMemoryEntries()
 
 	return cache, nil
 }
 
-func (cache *Cache) Save(finalTag string) (dataFile string, err error) {
+func (cache *Cache) Save(finalTag string, dryRun bool) (dataFile string, err error) {
 	dataFile = cache.DataPath()
+
+	if dryRun {
+		log.Infoln("> DRY RUN: cache entry would be saved to", dataFile)
+		return dataFile, nil
+	}
 
 	if err := os.MkdirAll(filepath.Dir(dataFile), 0755); err != nil {
 		return dataFile, err
@@ -163,7 +182,7 @@ func (cache *Cache) Save(finalTag string) (dataFile string, err error) {
 	return dataFile, fileutil.SaveJSON(dataFile, CacheFile{
 		Tags:          tags,
 		LastUpdatedAt: time.Now().UTC(),
-	}, false)
+	})
 }
 
 func ForgetCacheEntriesOlderThan(forgetTime time.Time) {

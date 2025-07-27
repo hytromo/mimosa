@@ -32,7 +32,7 @@ func PublishManifestsUnderTag(imageName string, tag string, manifests []string) 
 		}
 
 		var add mutate.Appendable
-		switch desc.Descriptor.MediaType {
+		switch desc.MediaType {
 		case types.OCIImageIndex, types.DockerManifestList:
 			add, err = desc.ImageIndex()
 		default:

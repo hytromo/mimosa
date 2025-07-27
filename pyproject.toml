@@ -1,0 +1,9 @@
+[project]
+name = "mimosa"
+version = "0.0.0"          # pyproject used only for maintaining python deps - version here does not matter
+description = ""
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pre-commit>=4.2.0",
+]

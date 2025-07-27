@@ -19,7 +19,8 @@ func HashFiles(filePaths []string) (string, error) {
 		return "", nil
 	}
 
-	nWorkers := int(math.Max(float64(runtime.NumCPU()-1), 1))
+	// as many workers as files, up to num of CPUs-1
+	nWorkers := int(math.Min(float64(len(filePaths)), math.Max(float64(runtime.NumCPU()-1), 1)))
 
 	fileChan := make(chan string, len(filePaths))
 	hashChan := make(chan []byte, len(filePaths))
@@ -78,9 +79,11 @@ func HashFiles(filePaths []string) (string, error) {
 		for _, path := range filePaths {
 			log.Debugln(path)
 		}
-		log.Debugln("Files hashed per worker:")
+		log.Debugf("Files hashed per worker (%v total workers):", nWorkers)
 		for i, c := range workerStats {
-			log.Debugf("  Worker %d: %d files", i, c)
+			if c > 0 {
+				log.Debugf("  Worker %d: %d files", i, c)
+			}
 		}
 	}
 

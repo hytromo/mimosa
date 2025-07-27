@@ -32,9 +32,7 @@ Just prepend your docker build commands like this: `mimosa remember -- docker bu
 - [Installation](#installation)
   - [Inside GitHub Actions](#inside-github-actions)
   - [On your system](#on-your-system)
-- [Usage](#usage)
-  - [GitHub Actions](#github-actions)
-- [Commands](#commands)
+- [CLI usage](#cli-usage)
   - [Remember](#remember)
   - [Cache](#cache)
     - [Cache Management](#cache-management)
@@ -49,6 +47,7 @@ Just prepend your docker build commands like this: `mimosa remember -- docker bu
   - [Can I use normal docker buildx commands?](#can-i-use-normal-docker-buildx-commands)
   - [Isn't this just yet another way for my build to fail?](#isnt-this-just-yet-another-way-for-my-build-to-fail)
   - [What's up with the name?](#whats-up-with-the-name)
+- [Contributing](#contributing)
 
 
 # Key Features
@@ -78,13 +77,7 @@ See the [the GitHub Action docs](./docs/gh-actions/README.md) for details on how
 
 Pre-built binaries are available on the [Releases page](https://github.com/hytromo/mimosa/releases). Download the appropriate binary for your platform and add it to your `PATH`.
 
-# Usage
-
-## GitHub Actions
-
-See the [example GitHub Action](./docs/gh-actions/README.md) for details.
-
-# Commands
+# CLI usage
 
 ## Remember
 
@@ -96,6 +89,10 @@ mimosa remember -- docker buildx build --build-arg MYARG=MYVALUE --platform linu
 
 mimosa remember -- docker buildx build --build-arg MYARG=MYVALUE --platform linux/amd64,linux/arm64 --push -t hytromo/mimosa-example:v2 .
 # ... mimosa understands that nothing important has changed, so it just makes v2 point to v1 - they are the same image - no build happens!
+
+
+# dry run - do not build, retag or write to cache, just show what would happen
+mimosa remember -dry-run -- docker buildx build --build-arg MYARG=MYVALUE --platform linux/amd64,linux/arm64 --push -t hytromo/mimosa-example:v2 .
 ```
 
 * The `remember` subcommand tells Mimosa to cache and reuse builds.
@@ -108,10 +105,14 @@ mimosa remember -- docker buildx build --build-arg MYARG=MYVALUE --platform linu
 ```sh
 mimosa cache --show # Show where the cache is being saved
 
+# forget cache associated with a spcific build - this influences the local cache only, it doesn't touch the remote registry
+mimosa forget -- docker buildx build --build-arg MYARG=MYVALUE --platform linux/amd64,linux/arm64 --push -t hytromo/mimosa-example:v1 .
+
 mimosa cache --forget 6M # Forget entries older than 6 months
 mimosa cache --forget 24h # Forget entries older than 24 hours
 
 mimosa cache --forget 1y --yes # No user prompt
+mimosa cache --purge # Delete all entries
 ```
 
 ## Advanced usage
@@ -185,3 +186,13 @@ Mimosa will also always respect the exit code of the docker command and will exi
 *Mimosa pudica* is a plant that closes its leaves on touch to protect itself.
 
 If the plant is repeatedly exposed to a non-harmful stimulus, such as a gentle touch or a repeated drop that doesn't cause actual damage, it will eventually stop responding. This phenomenon is called habituation, which is considered the simplest form of learning. The plant "learns" that the repeated disturbance is not a threat and thus doesn't need to expend energy on closing its leaves.
+
+# Contributing
+
+If you are interesting in contributing:
+
+1. Install [mise-en-place](https://mise.jdx.dev/getting-started.html) - great for tool management
+2. Clone the repo: `git clone https://github.com/hytromo/mimosa.git`
+3. Initialize the whole project without polluting your global environment: `mise init`
+4. Start hacking! The pre-commit hooks will help ensuring that the github actions are bundled or that the go code does not have code smells. Have a look at `.pre-commit-config.yaml` for details
+

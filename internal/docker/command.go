@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 	"os"
@@ -141,6 +142,7 @@ func extractRegistryDomain(tag string) string {
 }
 
 func ParseBuildCommand(dockerBuildCmd []string) (ParsedBuildCommand, error) {
+	log.Debugln("Parsing command:", dockerBuildCmd)
 	if len(dockerBuildCmd) < 2 {
 		return ParsedBuildCommand{}, fmt.Errorf("not enough arguments for a docker build command")
 	}
@@ -181,7 +183,7 @@ func ParseBuildCommand(dockerBuildCmd []string) (ParsedBuildCommand, error) {
 
 	cmdWithTagPlaceholder := buildCmdWithTagPlaceholder(dockerBuildCmd)
 
-	return ParsedBuildCommand{
+	parsedBuildCommand := ParsedBuildCommand{
 		FinalTag:              finalTag,
 		ContextPath:           contextPath,
 		CmdWithTagPlaceholder: cmdWithTagPlaceholder,
@@ -190,10 +192,25 @@ func ParseBuildCommand(dockerBuildCmd []string) (ParsedBuildCommand, error) {
 		Executable:            executable,
 		Args:                  args,
 		RegistryDomain:        registryDomain,
-	}, nil
+	}
+
+	if log.IsLevelEnabled(log.DebugLevel) {
+		jsonOfParsedCommand, err := json.MarshalIndent(parsedBuildCommand, "", "  ")
+		if err == nil {
+			log.Debugln("Parsed build command:")
+			log.Debugln(string(jsonOfParsedCommand))
+		}
+	}
+
+	return parsedBuildCommand, nil
 }
 
-func RunCommand(command []string) int {
+func RunCommand(command []string, dryRun bool) int {
+	if dryRun {
+		log.Infoln("> DRY RUN: command would be run:", strings.Join(command, " "))
+		return 0
+	}
+
 	cmd := exec.Command(command[0], command[1:]...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

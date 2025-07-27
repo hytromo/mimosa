@@ -1,5 +1,7 @@
 name: Mimosa Cache
-description: Save the Mimosa cache to a GitHub repository variable to enable repo-global caching.
+description:
+  Save the Mimosa cache to a GitHub repository variable to enable repo-global
+  caching.
 author: Alexandros Solanos
 
 branding:
