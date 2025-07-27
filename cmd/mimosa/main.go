@@ -11,10 +11,11 @@ import (
 	"github.com/hytromo/mimosa/internal/argsparser"
 	"github.com/hytromo/mimosa/internal/cacher"
 	"github.com/hytromo/mimosa/internal/docker"
+	"github.com/hytromo/mimosa/internal/logger"
 )
 
 func main() {
-	initLogging()
+	logger.InitLogging(nil)
 
 	appOptions, err := argsparser.Parse(os.Args)
 
@@ -136,12 +137,12 @@ func main() {
 
 			cacher.ForgetCacheEntriesOlderThan(forgetTime)
 		} else if appOptions.Cache.Show {
-			CleanLog.Infoln(cacher.CacheDir)
+			logger.CleanLog.Infoln(cacher.CacheDir)
 		} else if appOptions.Cache.ToEnvValue {
 			diskEntries := cacher.GetDiskCacheToMemoryEntries()
 			log.Debugln("-- Disk Cache Entries --")
 			for key, value := range diskEntries.AllFromFront() {
-				CleanLog.Infoln(fmt.Sprintf("%s %s", key, value))
+				logger.CleanLog.Infoln(fmt.Sprintf("%s %s", key, value))
 			}
 
 			envEntries := cacher.GetAllInMemoryEntries()
@@ -149,7 +150,7 @@ func main() {
 			for key, value := range envEntries.AllFromFront() {
 				if _, exists := diskEntries.Get(key); !exists {
 					// print only entries that are not in the disk cache
-					CleanLog.Infoln(fmt.Sprintf("%s %s", key, value))
+					logger.CleanLog.Infoln(fmt.Sprintf("%s %s", key, value))
 				}
 			}
 		}

@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/google/go-containerregistry/pkg/name"
+	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 	log "github.com/sirupsen/logrus"
 )
@@ -69,6 +70,35 @@ func Retag(previousTag string, newTag string, dryRun bool) error {
 			log.Debugln("Failed to retag", previousTag, "to", newTag, ":", err)
 			return err
 		}
+	}
+
+	return nil
+}
+
+func SimpleRetag(source, target string) error {
+	srcRef, err := name.ParseReference(source)
+	if err != nil {
+		log.Debugln("Failed to parse source reference:", err)
+		return err
+	}
+
+	dstRef, err := name.ParseReference(target)
+	if err != nil {
+		log.Debugln("Failed to parse destination reference:", err)
+		return err
+	}
+
+	// Get the image from the source tag
+	img, err := remote.Image(srcRef, remote.WithAuthFromKeychain(Keychain))
+	if err != nil {
+		log.Debugln("Failed to get image from source reference:", err)
+		return err
+	}
+
+	// Write the same image to the new tag
+	if err := remote.Write(dstRef, img, remote.WithAuthFromKeychain(Keychain)); err != nil {
+		log.Debugln("Failed to write image to new tag:", err)
+		return err
 	}
 
 	return nil

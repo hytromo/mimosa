@@ -11,7 +11,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func getWrongOptionsError(subCommandsMap map[string]func()) (err error) {
+func getInvalidSubcommandError(subCommandsMap map[string](func() error)) (err error) {
 	allSubcommands := make([]string, len(subCommandsMap))
 
 	i := 0
@@ -70,6 +70,27 @@ func ParseDuration(s string) (time.Duration, error) {
 	return sumDur, nil
 }
 
+var rememberUsage = `Usage of remember:
+  On cache miss: runs the given build command as is and stores the result in the local cache
+  On cache hit: makes the passed tag point to the cache entry in the remote registry - no build is performed
+  Example:
+	mimosa remember -- docker buildx build --build-arg MYARG=MYVALUE --platform linux/amd64,linux/arm64 --push -t hytromo/mimosa-example:v1 .
+`
+
+var forgetUsage = `Usage of forget:
+  Forgets a specific cache entry
+  Example:
+	mimosa forget -- docker buildx build --build-arg MYARG=MYVALUE --platform linux/amd64,linux/arm64 --push -t hytromo/mimosa-example:v1 .
+`
+
+var cacheUsage = `Usage of cache:
+  Manages the local disk cache
+  Example:
+    mimosa cache --show
+	mimosa cache --forget 6M
+	mimosa cache --purge
+`
+
 // Parse parses a list of strings as cli options and returns the final configuration.
 // Returns an error if the list of strings cannot be parsed.
 func Parse(args []string) (configuration.AppOptions, error) {
@@ -79,17 +100,12 @@ func Parse(args []string) (configuration.AppOptions, error) {
 
 	var appOptions configuration.AppOptions
 
-	subCommandsMap := map[string]func(){
-		rememberSubCmd: func() {
-			rememberCmd := flag.NewFlagSet(rememberSubCmd, flag.ExitOnError)
+	subCommandsMap := map[string](func() error){
+		rememberSubCmd: func() error {
+			rememberCmd := flag.NewFlagSet(rememberSubCmd, flag.ContinueOnError)
 
 			rememberCmd.Usage = func() {
-				fmt.Printf("Usage of %s:\n", rememberSubCmd)
-				fmt.Println("  On cache miss: runs the given build command as is and stores the result in the local cache")
-				fmt.Println("  On cache hit: makes the passed tag point to the cache entry in the remote registry - no build is performed")
-				fmt.Println("  Example:")
-				fmt.Println("    mimosa remember -- docker buildx build --build-arg MYARG=MYVALUE --platform linux/amd64,linux/arm64 --push -t hytromo/mimosa-example:v1 .")
-				fmt.Println()
+				fmt.Println(rememberUsage)
 				rememberCmd.PrintDefaults()
 			}
 
@@ -98,22 +114,19 @@ func Parse(args []string) (configuration.AppOptions, error) {
 			err := rememberCmd.Parse(args[2:])
 			if err != nil {
 				log.Errorf("Failed to parse arguments after subcommand: %s", err)
-				return
+				return err
 			}
 
 			appOptions.Remember.CommandToRun = rememberCmd.Args()
 			appOptions.Remember.DryRun = *dryRunOpt
 			appOptions.Remember.Enabled = true
+			return nil
 		},
-		forgetSubCmd: func() {
-			forgetCmd := flag.NewFlagSet(forgetSubCmd, flag.ExitOnError)
+		forgetSubCmd: func() error {
+			forgetCmd := flag.NewFlagSet(forgetSubCmd, flag.ContinueOnError)
 
 			forgetCmd.Usage = func() {
-				fmt.Printf("Usage of %s:\n", forgetSubCmd)
-				fmt.Println("  Forgets a specific cache entry - same arguments as the remember subcommand")
-				fmt.Println("  Example:")
-				fmt.Println("    mimosa forget -- docker buildx build --build-arg MYARG=MYVALUE --platform linux/amd64,linux/arm64 --push -t hytromo/mimosa-example:v1 .")
-				fmt.Println()
+				fmt.Println(forgetUsage)
 				forgetCmd.PrintDefaults()
 			}
 
@@ -122,20 +135,20 @@ func Parse(args []string) (configuration.AppOptions, error) {
 			err := forgetCmd.Parse(args[2:])
 			if err != nil {
 				log.Errorf("Failed to parse arguments after subcommand: %s", err)
-				return
+				return err
 			}
 
 			appOptions.Forget.CommandToRun = forgetCmd.Args()
 			appOptions.Forget.DryRun = *dryRunOpt
 			appOptions.Forget.Enabled = true
+
+			return nil
 		},
-		cacheSubCmd: func() {
-			cacheCmd := flag.NewFlagSet(cacheSubCmd, flag.ExitOnError)
+		cacheSubCmd: func() error {
+			cacheCmd := flag.NewFlagSet(cacheSubCmd, flag.ContinueOnError)
 
 			cacheCmd.Usage = func() {
-				fmt.Printf("Usage of %s:\n", cacheSubCmd)
-				fmt.Println("  Manages the local disk cache")
-				fmt.Println()
+				fmt.Println(cacheUsage)
 				cacheCmd.PrintDefaults()
 			}
 
@@ -148,7 +161,7 @@ func Parse(args []string) (configuration.AppOptions, error) {
 			err := cacheCmd.Parse(args[2:])
 			if err != nil {
 				log.Errorf("Failed to parse arguments after subcommand: %s", err)
-				return
+				return err
 			}
 
 			appOptions.Cache.Forget = *forgetOpt
@@ -157,6 +170,8 @@ func Parse(args []string) (configuration.AppOptions, error) {
 			appOptions.Cache.ToEnvValue = *toEnvValue
 			appOptions.Cache.Purge = *purge
 			appOptions.Cache.Enabled = true
+
+			return nil
 		},
 	}
 
@@ -169,10 +184,10 @@ func Parse(args []string) (configuration.AppOptions, error) {
 	parseCliOptionsOfSubcommand, subcommandExists := subCommandsMap[chosenCommand]
 
 	if !subcommandExists {
-		return appOptions, getWrongOptionsError(subCommandsMap)
+		return appOptions, getInvalidSubcommandError(subCommandsMap)
 	}
 
-	parseCliOptionsOfSubcommand()
+	err := parseCliOptionsOfSubcommand()
 
-	return appOptions, nil
+	return appOptions, err
 }

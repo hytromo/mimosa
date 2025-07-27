@@ -7,9 +7,11 @@ import (
 
 	"github.com/moby/patternmatcher"
 	"github.com/moby/patternmatcher/ignorefile"
+
+	log "github.com/sirupsen/logrus"
 )
 
-func IncludedFiles(contextDir string, dockerignorePath string) []string {
+func IncludedFiles(contextDir string, dockerignorePath string) ([]string, error) {
 	var includedFiles []string
 
 	if dockerignorePath == "" {
@@ -32,26 +34,30 @@ func IncludedFiles(contextDir string, dockerignorePath string) []string {
 			return nil
 		})
 		if err != nil {
-			panic(err)
+			log.Debugln(err)
+			return includedFiles, err
 		}
-		return includedFiles
+		return includedFiles, nil
 	}
 
 	dockerignoreContent, err := os.ReadFile(dockerignorePath)
 	if err != nil {
-		panic(err)
+		log.Debugln(err)
+		return includedFiles, err
 	}
 
 	// Parse patterns
 	patterns, err := ignorefile.ReadAll(bytes.NewReader(dockerignoreContent))
 	if err != nil {
-		panic(err)
+		log.Debugln(err)
+		return includedFiles, err
 	}
 
 	// Compile matcher
 	pm, err := patternmatcher.New(patterns)
 	if err != nil {
-		panic(err)
+		log.Debugln(err)
+		return includedFiles, err
 	}
 
 	err = filepath.WalkDir(contextDir, func(path string, d os.DirEntry, err error) error {
@@ -80,7 +86,8 @@ func IncludedFiles(contextDir string, dockerignorePath string) []string {
 		return nil
 	})
 	if err != nil {
-		panic(err)
+		log.Debugln(err)
+		return includedFiles, err
 	}
-	return includedFiles
+	return includedFiles, nil
 }

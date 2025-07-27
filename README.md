@@ -1,9 +1,19 @@
 <div align="center">
-<h1><a href="https://github.com/hytromo/mimosa">
-  <img src="./logo.webp" alt="mimosa-logo" height="300" /><br />
-  mimosa
-</a></h1>
-<p><em>Zero-config docker image promotion</em></p>
+  <h1><a href="https://github.com/hytromo/mimosa">
+      <img src="./logo.webp" alt="mimosa-logo" height="300" /><br />
+      mimosa
+    </a></h1>
+
+  <a href="https://github.com/hytromo/mimosa/releases"><img alt="Github Releases"
+      src="https://img.shields.io/badge/dynamic/json?url=https://api.github.com/repos/hytromo/mimosa/releases&query=$.0.name&style=for-the-badge&logo=go&label=mimosa"></a>
+  <a href="https://github.com/hytromo/mimosa/blob/main/LICENSE"><img alt="GitHub" src="https://img.shields.io/github/license/hytromo/mimosa?color=%2344CC11&style=for-the-badge"></a>
+  <a href="https://github.com/hytromo/mimosa/actions/workflows/main.yml"><img alt="GitHub Workflow Status" src="https://img.shields.io/github/actions/workflow/status/hytromo/mimosa/main.yml?style=for-the-badge"></a>
+  <a href="https://app.codecov.io/gh/hytromo/mimosa/"><img alt="Code coverage" src="https://img.shields.io/codecov/c/github/hytromo/mimosa/main?style=for-the-badge&logo=codecov
+  "></a>
+  <a href="https://github.com/hytromo/mimosa/stargazers"><img alt="GitHub Repo stars" src="https://img.shields.io/github/stars/hytromo/mimosa?style=for-the-badge
+  "></a>
+  <p><em>Zero-config docker image promotion</em></p>
+
 </div>
 
 # What does it do
@@ -68,7 +78,7 @@ Just prepend your docker build commands like this: `mimosa remember -- docker bu
 ```yaml
 - uses: hytromo/mimosa/gh/setup-action@setup-action-v1
   with:
-    version: v0.0.9
+    version: v0.0.10
 ```
 
 See the [the GitHub Action docs](./docs/gh-actions/README.md) for details on how to use `mimosa` in your GitHub Actions.
@@ -194,5 +204,6 @@ If you are interested in contributing:
 1. Install [mise-en-place](https://mise.jdx.dev/getting-started.html) - great for tool management
 2. Clone the repo: `git clone https://github.com/hytromo/mimosa.git`
 3. Initialize the whole project without polluting your global environment: `mise init`
-4. Start hacking! The pre-commit hooks will help ensuring that the github actions are bundled or that the go code does not have code smells. Have a look at `.pre-commit-config.yaml` for details
+4. Go tests are also testing real integration with dockerhub, you will need to be authenticated into dockerhub and the repository mimosa-testing will be created
+5. Start hacking! The pre-commit hooks will help ensuring that the github actions are bundled or that the go code does not have code smells. Have a look at `.pre-commit-config.yaml` for details
 
