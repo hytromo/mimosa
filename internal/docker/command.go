@@ -58,14 +58,35 @@ func extractBuildFlags(args []string) (finalTag, dockerfilePath string, err erro
 	return
 }
 
+// assumes the context path does not start with "-"
 func findContextPath(args []string) (string, error) {
-	for i := len(args) - 1; i >= 1; i-- {
-		if len(args[i]) == 0 || args[i][0] == '-' {
+	var previousArgument string
+
+	for i := 1; i < len(args); i++ {
+		arg := args[i]
+
+		// If the current argument starts with '-', it's a flag / normal argument (could be --file, -t, --no-cache, etc.)
+		if strings.HasPrefix(arg, "-") {
+			previousArgument = arg // save this so as to see if the next arg is its value
 			continue
 		}
-		return args[i], nil
+
+		// If the previous argument was a flag (and didn't include '='), assume this is its value
+		if strings.HasPrefix(previousArgument, "-") && !strings.Contains(previousArgument, "=") {
+			// This argument is being used as the value of the previous flag, so skip it
+			previousArgument = "" // Reset previous to avoid confusion on next iteration
+			continue
+		}
+
+		// If we reach here, the argument:
+		// - doesn't start with '-'
+		// - isn't the value of a previous flag
+		// So we assume it's the build context (e.g. ".", "./dir", etc.)
+		return arg, nil
 	}
-	return "", fmt.Errorf("cannot find docker build context path")
+
+	// If no suitable argument was found, return an error
+	return "", fmt.Errorf("context path not found")
 }
 
 func resolveDockerfilePath(cwd, extractFromCommandDokcerfilePath string) string {
