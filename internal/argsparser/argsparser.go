@@ -1,7 +1,6 @@
 package argsparser
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"regexp"
@@ -21,12 +20,9 @@ func getWrongOptionsError(subCommandsMap map[string]func()) (err error) {
 		i++
 	}
 
-	return errors.New(
-		fmt.Sprintln(
-			"Please specify one of the valid subcommands:",
-			strings.Join(allSubcommands, ", "),
-			"\nYou can use the -h/--help switch on the subcommands for further assistance on their usage",
-		),
+	return fmt.Errorf(
+		"please specify one of the valid subcommands: %s\nyou can use the -h/--help switch for further assistance on their usage",
+		strings.Join(allSubcommands, ", "),
 	)
 }
 
@@ -86,6 +82,17 @@ func Parse(args []string) (configuration.AppOptions, error) {
 	subCommandsMap := map[string]func(){
 		rememberSubCmd: func() {
 			rememberCmd := flag.NewFlagSet(rememberSubCmd, flag.ExitOnError)
+
+			rememberCmd.Usage = func() {
+				fmt.Printf("Usage of %s:\n", rememberSubCmd)
+				fmt.Println("  On cache miss: runs the given build command as is and stores the result in the local cache")
+				fmt.Println("  On cache hit: makes the passed tag point to the cache entry in the remote registry - no build is performed")
+				fmt.Println("  Example:")
+				fmt.Println("    mimosa remember -- docker buildx build --build-arg MYARG=MYVALUE --platform linux/amd64,linux/arm64 --push -t hytromo/mimosa-example:v1 .")
+				fmt.Println()
+				rememberCmd.PrintDefaults()
+			}
+
 			dryRunOpt := rememberCmd.Bool("dry-run", false, "Do not actually build or push anything - just show if it would be a cache hit or not - combine with the LOG_LEVEL env variable for more details.")
 			// Parse the arguments after the subcommand
 			err := rememberCmd.Parse(args[2:])
@@ -99,21 +106,39 @@ func Parse(args []string) (configuration.AppOptions, error) {
 			appOptions.Remember.Enabled = true
 		},
 		forgetSubCmd: func() {
-			forgetSubCmd := flag.NewFlagSet(forgetSubCmd, flag.ExitOnError)
-			dryRunOpt := forgetSubCmd.Bool("dry-run", false, "Do not actually remove any cache entry - just show what would happen")
+			forgetCmd := flag.NewFlagSet(forgetSubCmd, flag.ExitOnError)
 
-			err := forgetSubCmd.Parse(args[2:])
+			forgetCmd.Usage = func() {
+				fmt.Printf("Usage of %s:\n", forgetSubCmd)
+				fmt.Println("  Forgets a specific cache entry - same arguments as the remember subcommand")
+				fmt.Println("  Example:")
+				fmt.Println("    mimosa forget -- docker buildx build --build-arg MYARG=MYVALUE --platform linux/amd64,linux/arm64 --push -t hytromo/mimosa-example:v1 .")
+				fmt.Println()
+				forgetCmd.PrintDefaults()
+			}
+
+			dryRunOpt := forgetCmd.Bool("dry-run", false, "Do not actually remove any cache entry - just show what would happen")
+
+			err := forgetCmd.Parse(args[2:])
 			if err != nil {
 				log.Errorf("Failed to parse arguments after subcommand: %s", err)
 				return
 			}
 
-			appOptions.Forget.CommandToRun = forgetSubCmd.Args()
+			appOptions.Forget.CommandToRun = forgetCmd.Args()
 			appOptions.Forget.DryRun = *dryRunOpt
 			appOptions.Forget.Enabled = true
 		},
 		cacheSubCmd: func() {
 			cacheCmd := flag.NewFlagSet(cacheSubCmd, flag.ExitOnError)
+
+			cacheCmd.Usage = func() {
+				fmt.Printf("Usage of %s:\n", cacheSubCmd)
+				fmt.Println("  Manages the local disk cache")
+				fmt.Println()
+				cacheCmd.PrintDefaults()
+			}
+
 			forgetOpt := cacheCmd.String("forget", "", "forget all cache entries older than a period of time (e.g. 1h, 2d, 3w)")
 			forgetYesOpt := cacheCmd.Bool("yes", false, "skip confirmation prompt for forgetting cache (including purging)")
 			showOpt := cacheCmd.Bool("show", false, "show the cache location")
