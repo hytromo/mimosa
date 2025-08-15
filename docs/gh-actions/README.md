@@ -12,7 +12,7 @@ The recommended way is to use the repo variable cache. This enables you to have 
 - id: setup-mimosa
   uses: hytromo/mimosa/gh/setup-action@v1-setup
   with:
-    version: v0.0.10
+    version: v0.0.11
 ```
 
 2. Run your docker command with the `mimosa remember --` prefix
@@ -45,7 +45,7 @@ If you - for any reason - don't want to use a repo variable, you can use `action
 - id: setup-mimosa
   uses: hytromo/mimosa/gh/setup-action@v1-setup
   with:
-    version: v0.0.10
+    version: v0.0.11
 ```
 
 2. Fetch the cache
