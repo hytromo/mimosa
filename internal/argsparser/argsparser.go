@@ -3,11 +3,13 @@ package argsparser
 import (
 	"flag"
 	"fmt"
+	"os"
 	"regexp"
 	"strings"
 	"time"
 
 	"github.com/hytromo/mimosa/internal/configuration"
+	logger "github.com/hytromo/mimosa/internal/logger"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -97,10 +99,16 @@ func Parse(args []string) (configuration.AppOptions, error) {
 	rememberSubCmd := "remember"
 	forgetSubCmd := "forget"
 	cacheSubCmd := "cache"
+	versionSubCmd := "version"
 
 	var appOptions configuration.AppOptions
 
 	subCommandsMap := map[string](func() error){
+		versionSubCmd: func() error {
+			logger.CleanLog.Info("v0.0.11")
+			os.Exit(0)
+			return nil
+		},
 		rememberSubCmd: func() error {
 			rememberCmd := flag.NewFlagSet(rememberSubCmd, flag.ContinueOnError)
 
