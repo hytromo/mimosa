@@ -12,6 +12,7 @@ on:
 permissions:
   contents: read # checkout etc
   id-token: write # oidc
+  packages: write # publish to GitHub Packages
 
 jobs:
   test:
@@ -73,7 +74,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        registry: [DockerHub, "GCP GAR", "AWS ECR"]
+        registry: [DockerHub, "GCP GAR", "AWS ECR", "GitHub Packages"]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -139,6 +140,18 @@ jobs:
           registry: europe-west1-docker.pkg.dev
           username: oauth2accesstoken
           password: ${{ steps.auth-gcp.outputs.access_token }}
+
+      #######################
+      ### GitHub packages ###
+      #######################
+      - name: Login to GitHub Packages
+        if: ${{ matrix.registry == 'GitHub Packages' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: hytromo
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       ### auth end ###
 
       - name: Run e2e tests
@@ -157,6 +170,9 @@ jobs:
             elif [ "$REGISTRY_TYPE" == "GCP GAR" ]; then
               echo "Running tests against GCP GAR"
               REGISTRY="europe-west1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/mimosa"
+            elif [ "$REGISTRY_TYPE" == "GitHub Packages" ]; then
+              echo "Running tests against GitHub Packages"
+              REGISTRY="ghcr.io/hytromo/mimosa"
             fi
 
             # iterate over the different directories - each directory is a different e2e test
