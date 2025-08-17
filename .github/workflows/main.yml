@@ -134,6 +134,7 @@ jobs:
 
       - name: Login to GCP GAR
         uses: docker/login-action@v3
+        if: ${{ matrix.registry == 'GCP GAR' }}
         with:
           registry: europe-west1-docker.pkg.dev
           username: oauth2accesstoken
