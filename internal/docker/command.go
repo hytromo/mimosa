@@ -28,7 +28,6 @@ const (
 	tagShortFlagEq  = "-t="
 	fileFlagEq      = "--file="
 	fileShortFlagEq = "-f="
-	buildArgFlagEq  = "--build-arg="
 )
 
 func extractBuildFlags(args []string) (finalTag, dockerfilePath string, err error) {
