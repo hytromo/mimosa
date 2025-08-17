@@ -106,14 +106,14 @@ jobs:
       ### AWS  ###
       ############
       - name: Configure AWS credentials
-        if: ${{ matrix.registry == "AWS ECR" }}
+        if: ${{ matrix.registry == 'AWS ECR' }}
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::947281064882:role/mimosa-github-actions-role
           aws-region: us-east-1
 
       - name: Login to Amazon ECR
-        if: ${{ matrix.registry == "AWS ECR" }}
+        if: ${{ matrix.registry == 'AWS ECR' }}
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
