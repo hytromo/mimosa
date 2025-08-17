@@ -84,6 +84,9 @@ jobs:
           name: mimosa
           path: /usr/local/bin
 
+      - name: Make mimosa executable
+        run: chmod +x /usr/local/bin/mimosa
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
