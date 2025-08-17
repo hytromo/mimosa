@@ -124,17 +124,20 @@ jobs:
       ### GCP ###
       ###########
       - uses: google-github-actions/auth@v2
+        name: Authenticate to GCP
+        id: auth-gcp
         if: ${{ matrix.registry == 'GCP GAR' }}
         with:
+          token_format: access_token
           workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
           service_account: ${{ secrets.GCP_SA_EMAIL }}
 
-      - uses: google-github-actions/setup-gcloud@v2
-        if: ${{ matrix.registry == 'GCP GAR' }}
-
-      - name: Configure Docker auth
-        run: gcloud auth configure-docker "europe-west1-docker.pkg.dev" --quiet
-        if: ${{ matrix.registry == 'GCP GAR' }}
+      - name: Login to GCP GAR
+        uses: docker/login-action@v3
+        with:
+          registry: europe-west1-docker.pkg.dev
+          username: oauth2accesstoken
+          password: ${{ steps.auth-gcp.outputs.access_token }}
       ### auth end ###
 
       - name: Run e2e tests
