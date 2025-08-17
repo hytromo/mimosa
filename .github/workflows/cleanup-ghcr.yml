@@ -16,5 +16,5 @@ jobs:
         uses: actions/delete-package-versions@v5
         with:
           package-type: container
-          package-name: mimosa-testing
+          package-name:  mimosa/mimosa-testing 
           min-versions-to-keep: 20
