@@ -1,0 +1,20 @@
+name: Cleanup GitHub Container Registry
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+permissions:
+  packages: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete images older than 24 hours
+        uses: actions/delete-package-versions@v5
+        with:
+          package-type: container
+          package-name: mimosa-testing
+          min-versions-to-keep: 20
