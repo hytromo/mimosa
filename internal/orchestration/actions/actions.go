@@ -10,7 +10,7 @@ type Actions interface {
 	ParseCommand(command []string) (configuration.ParsedCommand, error)
 
 	// command execution
-	RunCommand(command []string) int
+	RunCommand(dryRun bool, command []string) int
 	ExitProcessWithCode(code int)
 
 	// caching

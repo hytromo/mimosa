@@ -71,39 +71,11 @@ func (cache *Cache) Remove(dryRun bool) error {
 	return os.Remove(cache.DataPath())
 }
 
-func (cache *Cache) LatestTag() (string, error) {
-	inMemoryEntry, ok := cache.GetInMemoryEntry()
-
-	if ok {
-		log.Debugf("Returning in-memory cache entry for hash %s: %s", cache.Hash, inMemoryEntry)
-		return inMemoryEntry, nil
-	}
-
-	cachedFilePath := cache.DataPath()
-
-	data, err := os.ReadFile(cachedFilePath)
-	if err != nil {
-		return "", err
-	}
-
-	var cacheFile CacheFile
-	err = json.Unmarshal(data, &cacheFile)
-	if err != nil {
-		return "", err
-	}
-	if len(cacheFile.Tags) == 0 {
-		return "", nil
-	}
-
-	return cacheFile.Tags[len(cacheFile.Tags)-1], nil
-}
-
 func (cache *Cache) GetInMemoryEntry() (string, bool) {
 	if cache.InMemoryEntries.Len() == 0 {
 		return "", false
 	}
 
-	// first checking the in-memory cache
 	z85Hash, err := hasher.HexToZ85(cache.Hash)
 	if err != nil {
 		log.Warnf("Failed to convert final hash to Z85: %v", err)
@@ -198,38 +170,34 @@ func (cache *Cache) Save(tagsByTarget map[string][]string, dryRun bool) error {
 		return err
 	}
 
-	tags := make([]string, 0, 10)
-	tagSet := make(map[string]struct{})
+	var td CacheFile
 
 	// Read existing tags from mimosa-cache.json if it exists
 	if data, err := os.ReadFile(dataFile); err == nil {
-		var td CacheFile
-		if err := json.Unmarshal(data, &td); err == nil {
-			for _, tag := range td.Tags {
-				if tag == "" {
-					continue
-				}
-				if _, exists := tagSet[tag]; !exists {
-					tags = append(tags, tag)
-					tagSet[tag] = struct{}{}
-				}
+		if err := json.Unmarshal(data, &td); err != nil {
+			log.Debugf("Failed to unmarshal cache file %s: %v", dataFile, err)
+		}
+	}
+
+	// add the new tags to the existing tags
+	for target, tags := range tagsByTarget {
+		for _, tag := range tags {
+			if _, exists := td.TagsByTarget[target]; !exists {
+				td.TagsByTarget[target] = []string{tag}
+			} else {
+				td.TagsByTarget[target] = append(td.TagsByTarget[target], tag)
+			}
+
+			// keep at most 10 tags per target
+			if len(td.TagsByTarget[target]) > 10 {
+				td.TagsByTarget[target] = td.TagsByTarget[target][len(td.TagsByTarget[target])-10:]
 			}
 		}
 	}
 
-	// Add new tag if unique at the end
-	if _, exists := tagSet[finalTag]; !exists {
-		tags = append(tags, finalTag)
-	}
-	// Keep only last 10 unique tags (= the last 10 tags of the list)
-	if len(tags) > 10 {
-		tags = tags[len(tags)-10:]
-	}
+	td.LastUpdatedAt = time.Now().UTC()
 
-	return fileutil.SaveJSON(dataFile, CacheFile{
-		Tags:          tags,
-		LastUpdatedAt: time.Now().UTC(),
-	})
+	return fileutil.SaveJSON(dataFile, td)
 }
 
 func ForgetCacheEntriesOlderThan(forgetTime time.Time) error {
