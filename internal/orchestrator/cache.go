@@ -1,0 +1,24 @@
+package orchestrator
+
+import (
+	"github.com/hytromo/mimosa/internal/actions"
+	"github.com/hytromo/mimosa/internal/configuration"
+)
+
+func handleCacheSubcommand(appOptions configuration.AppOptions, act actions.Actions) error {
+	if appOptions.Cache.Forget != "" || appOptions.Cache.Purge {
+		return act.ForgetCacheEntriesOlderThan(appOptions.Cache.Forget, appOptions.Cache.ForgetYes)
+	}
+
+	if appOptions.Cache.Show {
+		act.PrintCacheDir()
+		return nil
+	}
+
+	if appOptions.Cache.ToEnvValue {
+		act.PrintCacheToEnvValue()
+		return nil
+	}
+
+	return nil
+}

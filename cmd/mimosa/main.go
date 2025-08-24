@@ -20,10 +20,8 @@ func main() {
 	logger.InitLogging(nil)
 
 	appOptions, err := argsparser.Parse(os.Args)
-
 	if err != nil {
-		// we could not even parse our own arguments, we cannot recover from this
-		log.Fatal(err.Error())
+		log.Fatal(err.Error()) // we could not even parse our own arguments, we cannot recover from this
 	}
 
 	if appOptions.Remember.Enabled || appOptions.Forget.Enabled {
@@ -97,7 +95,7 @@ func main() {
 				}
 			}
 		} else if appOptions.Forget.Enabled {
-			log.Infof("Cache entry %v was not found", cache.FinalHash)
+			log.Infof("Cache entry %v was not found", cache.Hash)
 			os.Exit(1)
 			return
 		}

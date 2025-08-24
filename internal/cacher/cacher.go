@@ -26,11 +26,18 @@ type CacheFile struct {
 
 type Cache struct {
 	InMemoryEntries *orderedmap.OrderedMap[string, string] // populated by the MIMOSA_CACHE environment variable and taking precedence over the cache directory
-	FinalHash       string                                 // the final hash of the current command and files
+	Hash            string                                 // the final hash of the current command and files
 }
 
 func (cache *Cache) DataPath() string {
-	return filepath.Join(CacheDir, cache.FinalHash+".json")
+	return filepath.Join(CacheDir, cache.Hash+".json")
+}
+
+func (cache *Cache) ExistsInFilesystem() bool {
+	if _, err := os.Stat(cache.DataPath()); errors.Is(err, os.ErrNotExist) {
+		return false
+	}
+	return true
 }
 
 func (cache *Cache) Remove(dryRun bool) error {
@@ -46,7 +53,7 @@ func (cache *Cache) LatestTag() (string, error) {
 	inMemoryEntry, ok := cache.GetInMemoryEntry()
 
 	if ok {
-		log.Debugf("Returning in-memory cache entry for hash %s: %s", cache.FinalHash, inMemoryEntry)
+		log.Debugf("Returning in-memory cache entry for hash %s: %s", cache.Hash, inMemoryEntry)
 		return inMemoryEntry, nil
 	}
 
@@ -75,7 +82,7 @@ func (cache *Cache) GetInMemoryEntry() (string, bool) {
 	}
 
 	// first checking the in-memory cache
-	z85Hash, err := hasher.HexToZ85(cache.FinalHash)
+	z85Hash, err := hasher.HexToZ85(cache.Hash)
 	if err != nil {
 		log.Warnf("Failed to convert final hash to Z85: %v", err)
 		return "", false
@@ -89,7 +96,7 @@ func (cache *Cache) GetInMemoryEntry() (string, bool) {
 
 func (cache *Cache) Exists() bool {
 	if _, ok := cache.GetInMemoryEntry(); ok {
-		log.Debugf("Cache hit in memory for hash %s", cache.FinalHash)
+		log.Debugf("Cache hit in memory for hash %s", cache.Hash)
 		return true
 	}
 
@@ -97,7 +104,7 @@ func (cache *Cache) Exists() bool {
 		return false
 	}
 
-	log.Debugf("Cache hit on disk for hash %s", cache.FinalHash)
+	log.Debugf("Cache hit on disk for hash %s", cache.Hash)
 
 	return true
 }
@@ -148,25 +155,25 @@ func GetCache(parsedBuildCommand docker.ParsedBuildCommand) (cache Cache, err er
 		return cache, err
 	}
 
-	cache.FinalHash = hasher.HashStrings([]string{commandHash, filesHash})
+	cache.Hash = hasher.HashStrings([]string{commandHash, filesHash})
 
-	log.Debugf("Final hash of command and files: %v", cache.FinalHash)
+	log.Debugf("Final hash of command and files: %v", cache.Hash)
 
 	cache.InMemoryEntries = GetAllInMemoryEntries()
 
 	return cache, nil
 }
 
-func (cache *Cache) Save(finalTag string, dryRun bool) (dataFile string, err error) {
-	dataFile = cache.DataPath()
+func (cache *Cache) Save(tagsByTarget map[string][]string, dryRun bool) error {
+	dataFile := cache.DataPath()
 
 	if dryRun {
 		log.Infoln("> DRY RUN: cache entry would be saved to", dataFile)
-		return dataFile, nil
+		return nil
 	}
 
 	if err := os.MkdirAll(filepath.Dir(dataFile), 0755); err != nil {
-		return dataFile, err
+		return err
 	}
 
 	tags := make([]string, 0, 10)
@@ -197,13 +204,13 @@ func (cache *Cache) Save(finalTag string, dryRun bool) (dataFile string, err err
 		tags = tags[len(tags)-10:]
 	}
 
-	return dataFile, fileutil.SaveJSON(dataFile, CacheFile{
+	return fileutil.SaveJSON(dataFile, CacheFile{
 		Tags:          tags,
 		LastUpdatedAt: time.Now().UTC(),
 	})
 }
 
-func ForgetCacheEntriesOlderThan(forgetTime time.Time) {
+func ForgetCacheEntriesOlderThan(forgetTime time.Time) error {
 	cacheDir := CacheDir
 
 	log.Debugf("Forgetting cache entries older than %s in %s", forgetTime, cacheDir)
@@ -246,9 +253,7 @@ func ForgetCacheEntriesOlderThan(forgetTime time.Time) {
 		return nil
 	})
 
-	if err != nil {
-		log.Errorf("Failed to forget cache entries: %v", err)
-	}
-
 	log.Infoln("Deleted", deletedCount, "cache entries older than", forgetTime)
+
+	return err
 }

@@ -7,8 +7,6 @@ import (
 	"sort"
 	"sync"
 
-	log "github.com/sirupsen/logrus"
-
 	"github.com/kalafut/imohash"
 )
 
@@ -73,19 +71,19 @@ func HashFiles(filePaths []string) (string, error) {
 		workerStats[stat.workerID] = stat.count
 	}
 
-	if log.IsLevelEnabled(log.DebugLevel) {
-		// Print the number of files and their paths
-		log.Debugf("Deducting file hash from %d files:", len(filePaths))
-		for _, path := range filePaths {
-			log.Debugln(path)
-		}
-		log.Debugf("Files hashed per worker (%v total workers):", nWorkers)
-		for i, c := range workerStats {
-			if c > 0 {
-				log.Debugf("  Worker %d: %d files", i, c)
-			}
-		}
-	}
+	// if log.IsLevelEnabled(log.DebugLevel) {
+	// 	// Print the number of files and their paths
+	// 	log.Debugf("Deducting file hash from %d files:", len(filePaths))
+	// 	for _, path := range filePaths {
+	// 		log.Debugln(path)
+	// 	}
+	// 	log.Debugf("Files hashed per worker (%v total workers):", nWorkers)
+	// 	for i, c := range workerStats {
+	// 		if c > 0 {
+	// 			log.Debugf("  Worker %d: %d files", i, c)
+	// 		}
+	// 	}
+	// }
 
 	// Sort the hashes to ensure consistent order
 	sort.Slice(fileHashes, func(i, j int) bool {

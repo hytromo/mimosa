@@ -22,7 +22,7 @@ func setupTempCacheDir(t *testing.T) (string, func()) {
 
 func newTestCache(hash string) *Cache {
 	return &Cache{
-		FinalHash:       hash,
+		Hash:            hash,
 		InMemoryEntries: orderedmap.NewOrderedMap[string, string](),
 	}
 }
@@ -344,7 +344,7 @@ func TestGetCache_WithTempDockerfileAndContext(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetCache returned error: %v", err)
 	}
-	if cache.FinalHash == "" {
+	if cache.Hash == "" {
 		t.Errorf("Expected FinalHash to be set, got empty string")
 	}
 	if cache.InMemoryEntries == nil {
@@ -380,7 +380,7 @@ func TestGetCache_WithDockerignoreAndDockerfile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetCache returned error: %v", err)
 	}
-	if cache.FinalHash == "" {
+	if cache.Hash == "" {
 		t.Errorf("Expected FinalHash to be set, got empty string")
 	}
 }
@@ -415,7 +415,7 @@ func TestCache_GetInMemoryEntry_Found(t *testing.T) {
 	}
 
 	cache := &Cache{
-		FinalHash:       hash,
+		Hash:            hash,
 		InMemoryEntries: orderedmap.NewOrderedMap[string, string](),
 	}
 	cache.InMemoryEntries.Set(z85Hash, "mytag")
@@ -434,7 +434,7 @@ func TestCache_GetInMemoryEntry_NotFound(t *testing.T) {
 	defer cleanup()
 
 	cache := &Cache{
-		FinalHash:       "deadbeefdeadbeefdeadbeefdeadbeef",
+		Hash:            "deadbeefdeadbeefdeadbeefdeadbeef",
 		InMemoryEntries: orderedmap.NewOrderedMap[string, string](),
 	}
 	// No entry set
@@ -449,7 +449,7 @@ func TestCache_GetInMemoryEntry_InvalidHash(t *testing.T) {
 	defer cleanup()
 
 	cache := &Cache{
-		FinalHash:       "not-a-hex-hash",
+		Hash:            "not-a-hex-hash",
 		InMemoryEntries: orderedmap.NewOrderedMap[string, string](),
 	}
 	// Should not panic, just return false

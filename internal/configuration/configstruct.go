@@ -1,10 +1,17 @@
 package configuration
 
-// RememberSubcommandOptions defines the options of the remember subcommand
+type CommandContainer interface {
+	GetCommandToRun() []string
+}
+
 type RememberSubcommandOptions struct {
 	Enabled      bool
 	CommandToRun []string
 	DryRun       bool
+}
+
+func (r RememberSubcommandOptions) GetCommandToRun() []string {
+	return r.CommandToRun
 }
 
 // ForgetSubcommandOptions defines the options of the forget subcommand
@@ -12,6 +19,10 @@ type ForgetSubcommandOptions struct {
 	Enabled      bool
 	CommandToRun []string
 	DryRun       bool
+}
+
+func (f ForgetSubcommandOptions) GetCommandToRun() []string {
+	return f.CommandToRun
 }
 
 // CacheSubcommandOptions defines the options of the cache subcommand
