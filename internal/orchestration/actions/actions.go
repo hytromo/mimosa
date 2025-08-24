@@ -29,6 +29,6 @@ type Actions interface {
 type Actioner struct {
 }
 
-func NewActioner() *Actioner {
+func New() *Actioner {
 	return &Actioner{}
 }
