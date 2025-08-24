@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 
 	"github.com/hytromo/mimosa/internal/argsparser"
 	"github.com/hytromo/mimosa/internal/cacher"
+	"github.com/hytromo/mimosa/internal/configuration"
 	"github.com/hytromo/mimosa/internal/docker"
 	"github.com/hytromo/mimosa/internal/logger"
 )
@@ -32,6 +34,15 @@ func main() {
 			commandToRun = appOptions.Forget.CommandToRun
 		}
 
+		// Try to parse as a bake command first
+		parsedBakeCommand, bakeErr := docker.ParseBakeCommand(commandToRun)
+		if bakeErr == nil {
+			// This is a bake command, handle it
+			handleBakeCommand(parsedBakeCommand, appOptions)
+			return
+		}
+
+		// Try to parse as a regular build command
 		parsedBuildCommand, err := docker.ParseBuildCommand(commandToRun)
 
 		if err != nil {
@@ -157,4 +168,25 @@ func main() {
 
 	}
 
+}
+
+// handleBakeCommand handles docker bake commands by processing each target individually
+func handleBakeCommand(parsedBakeCommand docker.ParsedBakeCommand, appOptions configuration.AppOptions) {
+	bakeTargets := parsedBakeCommand.Targets
+
+	if len(bakeTargets) == 0 {
+		log.Warnln("No targets with tags found in bake configuration")
+		// Run the original command anyway
+		exitCode := docker.RunCommand(appOptions.Remember.CommandToRun, appOptions.Remember.DryRun)
+		os.Exit(exitCode)
+		return
+	}
+
+	// json pretty print all the bake targets:
+	bakeTargetsJSON, err := json.MarshalIndent(bakeTargets, "", "  ")
+	if err != nil {
+		log.Errorln("Failed to marshal bake targets:", err)
+	}
+	log.Infoln("Bake targets:", string(bakeTargetsJSON))
+	os.Exit(0)
 }

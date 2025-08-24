@@ -61,7 +61,7 @@ Just prepend your docker build commands like this: `mimosa remember -- docker bu
 # Key Features
 
 - **Seamless docker Integration:**  
-  Mimosa wraps standard `docker buildx build` (and `docker build`) commands. You use it by passing the same arguments you would to Docker.
+  Mimosa wraps standard `docker buildx build` (and `docker build`) commands, as well as `docker buildx bake` commands. You use it by passing the same arguments you would to Docker.
 
 - **Automatic Context and Dockerfile Detection:**  
   Mimosa automatically detects the build context, Dockerfile, and `.dockerignore` (including custom-named dockerignore files). It accounts for exactly what's needed to ensure that your build gets a unique cache key. It ignores all files specified in your `.dockerignore`, so a well-maintained `.dockerignore` makes all the difference.
@@ -98,6 +98,9 @@ mimosa remember -- docker buildx build --build-arg MYARG=MYVALUE --platform linu
 mimosa remember -- docker buildx build --build-arg MYARG=MYVALUE --platform linux/amd64,linux/arm64 --push -t hytromo/mimosa-example:v2 .
 # ... mimosa understands that nothing important has changed, so it just makes v2 point to v1 - they are the same image - no build happens!
 
+# Docker Bake support - cache multiple targets and tags
+mimosa remember -- docker buildx bake -f docker-bake.hcl
+# ... mimosa processes each target individually and caches them separately
 
 # dry run - do not build, retag or write to cache, just show what would happen
 mimosa remember -dry-run -- docker buildx build --build-arg MYARG=MYVALUE --platform linux/amd64,linux/arm64 --push -t hytromo/mimosa-example:v2 .
