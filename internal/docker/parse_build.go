@@ -196,7 +196,7 @@ func ParseBuildCommand(dockerBuildCmd []string) (configuration.ParsedCommand, er
 		return configuration.ParsedCommand{}, fmt.Errorf("only image building is supported")
 	}
 
-	allTags, additionalBuildContexts, dockerfilePath, err := extractBuildFlags(args)
+	allTags, allBuildContexts, dockerfilePath, err := extractBuildFlags(args)
 	if err != nil {
 		return configuration.ParsedCommand{}, err
 	}
@@ -222,17 +222,20 @@ func ParseBuildCommand(dockerBuildCmd []string) (configuration.ParsedCommand, er
 
 	cmdWithTagPlaceholder := buildCmdWithTagsPlaceholder(dockerBuildCmd)
 
+	// add the context in all the build contexts:
+	allBuildContexts["$main"] = contextPath
+
 	return configuration.ParsedCommand{
 		Command: dockerBuildCmd,
 		TagsByTarget: map[string][]string{
 			"default": allTags,
 		},
 		Hash: hasher.HashBuildCommand(hasher.DockerBuildCommand{
-			DockerfilePath:          dockerfilePath,
-			DockerignorePath:        dockerignorePath,
-			AdditionalBuildContexts: additionalBuildContexts,
-			AllRegistryDomains:      allRegistryDomains,
-			CmdWithTagPlaceholder:   cmdWithTagPlaceholder,
+			DockerfilePath:        dockerfilePath,
+			DockerignorePath:      dockerignorePath,
+			BuildContexts:         allBuildContexts,
+			AllRegistryDomains:    allRegistryDomains,
+			CmdWithTagPlaceholder: cmdWithTagPlaceholder,
 		}),
 	}, nil
 }
