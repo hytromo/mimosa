@@ -1,8 +1,8 @@
 package orchestrator
 
 import (
-	"github.com/hytromo/mimosa/internal/actions"
 	"github.com/hytromo/mimosa/internal/configuration"
+	"github.com/hytromo/mimosa/internal/orchestration/actions"
 )
 
 func handleCacheSubcommand(appOptions configuration.AppOptions, act actions.Actions) error {

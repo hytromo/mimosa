@@ -4,8 +4,8 @@ import (
 	"errors"
 	"strconv"
 
-	"github.com/hytromo/mimosa/internal/actions"
 	"github.com/hytromo/mimosa/internal/configuration"
+	"github.com/hytromo/mimosa/internal/orchestration/actions"
 	log "github.com/sirupsen/logrus"
 )
 

@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
+	"github.com/hytromo/mimosa/internal/configuration"
+	"github.com/hytromo/mimosa/internal/hasher"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -29,19 +30,20 @@ const (
 	fileShortFlagEq = "-f="
 )
 
-func extractBuildFlags(args []string) (finalTag, dockerfilePath string, err error) {
-	finalTag = ""
+func extractBuildFlags(args []string) (allTags []string, additionalBuildContexts map[string]string, dockerfilePath string, err error) {
+	allTags = []string{}
 	dockerfilePath = ""
+	additionalBuildContexts = make(map[string]string)
 	for i := 1; i < len(args); i++ {
 		if args[i] == "--tag" || args[i] == "-t" {
 			if i+1 < len(args) {
-				finalTag = args[i+1]
+				allTags = append(allTags, args[i+1])
 				i++ // skip next
 			}
 		} else if len(args[i]) > len(tagFlagEq)-1 && args[i][:len(tagFlagEq)] == tagFlagEq {
-			finalTag = args[i][len(tagFlagEq):]
+			allTags = append(allTags, args[i][len(tagFlagEq):])
 		} else if len(args[i]) > len(tagShortFlagEq)-1 && args[i][:len(tagShortFlagEq)] == tagShortFlagEq {
-			finalTag = args[i][len(tagShortFlagEq):]
+			allTags = append(allTags, args[i][len(tagShortFlagEq):])
 		} else if args[i] == "--file" || args[i] == "-f" {
 			if i+1 < len(args) {
 				dockerfilePath = args[i+1]
@@ -51,8 +53,18 @@ func extractBuildFlags(args []string) (finalTag, dockerfilePath string, err erro
 			dockerfilePath = args[i][len(fileFlagEq):]
 		} else if len(args[i]) > len(fileShortFlagEq)-1 && args[i][:len(fileShortFlagEq)] == fileShortFlagEq {
 			dockerfilePath = args[i][len(fileShortFlagEq):]
+		} else if args[i] == "--build-context" {
+			if i+1 < len(args) {
+				additionalBuildContexts[args[i+1]] = args[i+2]
+				i++ // skip next
+			}
 		}
 	}
+
+	if len(allTags) == 0 {
+		return nil, nil, "", fmt.Errorf("cannot find image tag using the -t or --tag option")
+	}
+
 	return
 }
 
@@ -123,7 +135,7 @@ func findDockerignorePath(contextPath, dockerfilePath string) string {
 	return ""
 }
 
-func buildCmdWithTagPlaceholder(dockerBuildCmd []string) []string {
+func buildCmdWithTagsPlaceholder(dockerBuildCmd []string) []string {
 	cmdWithTagPlaceholder := make([]string, len(dockerBuildCmd))
 	copy(cmdWithTagPlaceholder, dockerBuildCmd)
 	for i := 0; i < len(cmdWithTagPlaceholder); i++ {
@@ -164,92 +176,63 @@ func extractRegistryDomain(tag string) string {
 	return "docker.io"
 }
 
-// func ParseBuildCommand(dockerBuildCmd []string) (ParsedBuildCommand, error) {
-// 	log.Debugln("Parsing command:", dockerBuildCmd)
-// 	if len(dockerBuildCmd) < 2 {
-// 		return ParsedBuildCommand{}, fmt.Errorf("not enough arguments for a docker build command")
-// 	}
-
-// 	// Use argsparser logic to check docker and build/buildx
-// 	executable := dockerBuildCmd[0]
-// 	if executable != "docker" {
-// 		return ParsedBuildCommand{}, fmt.Errorf("only 'docker' executable is supported for caching, got: %s", executable)
-// 	}
-// 	args := dockerBuildCmd[1:]
-// 	if len(args) < 1 {
-// 		return ParsedBuildCommand{}, fmt.Errorf("missing docker subcommand")
-// 	}
-// 	firstArg := args[0]
-// 	if firstArg != "build" && firstArg != "buildx" {
-// 		return ParsedBuildCommand{}, fmt.Errorf("only image building is supported")
-// 	}
-
-// 	finalTag, dockerfilePath, _ := extractBuildFlags(args)
-// 	registryDomain := extractRegistryDomain(finalTag)
-// 	contextPath, err := findContextPath(args)
-// 	if err != nil {
-// 		return ParsedBuildCommand{}, err
-// 	}
-
-// 	// Get absolute path for contextPath
-// 	absPath, err := filepath.Abs(contextPath)
-// 	if err == nil {
-// 		contextPath = absPath
-// 	}
-
-// 	dockerfilePath = resolveDockerfilePath(contextPath, dockerfilePath)
-// 	dockerignorePath := findDockerignorePath(contextPath, dockerfilePath)
-
-// 	if finalTag == "" {
-// 		return ParsedBuildCommand{}, fmt.Errorf("cannot find image tag using the -t or --tag option")
-// 	}
-
-// 	cmdWithTagPlaceholder := buildCmdWithTagPlaceholder(dockerBuildCmd)
-
-// 	parsedBuildCommand := ParsedBuildCommand{
-// 		FinalTag:              finalTag,
-// 		ContextPath:           contextPath,
-// 		CmdWithTagPlaceholder: cmdWithTagPlaceholder,
-// 		DockerfilePath:        dockerfilePath,
-// 		DockerignorePath:      dockerignorePath,
-// 		Executable:            executable,
-// 		Args:                  args,
-// 		RegistryDomain:        registryDomain,
-// 	}
-
-// 	if log.IsLevelEnabled(log.DebugLevel) {
-// 		jsonOfParsedCommand, err := json.MarshalIndent(parsedBuildCommand, "", "  ")
-// 		if err == nil {
-// 			log.Debugln("Parsed build command:")
-// 			log.Debugln(string(jsonOfParsedCommand))
-// 		}
-// 	}
-
-// 	return parsedBuildCommand, nil
-// }
-
-func RunCommand(command []string, dryRun bool) int {
-	if dryRun {
-		log.Infoln("> DRY RUN: command would be run:", strings.Join(command, " "))
-		return 0
+func ParseBuildCommand(dockerBuildCmd []string) (configuration.ParsedCommand, error) {
+	log.Debugln("Parsing command:", dockerBuildCmd)
+	if len(dockerBuildCmd) < 2 {
+		return configuration.ParsedCommand{}, fmt.Errorf("not enough arguments for a docker build command")
 	}
 
-	cmd := exec.Command(command[0], command[1:]...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Stdin = os.Stdin
+	// Use argsparser logic to check docker and build/buildx
+	executable := dockerBuildCmd[0]
+	if executable != "docker" {
+		return configuration.ParsedCommand{}, fmt.Errorf("only 'docker' executable is supported for caching, got: %s", executable)
+	}
+	args := dockerBuildCmd[1:]
+	if len(args) < 1 {
+		return configuration.ParsedCommand{}, fmt.Errorf("missing docker subcommand")
+	}
+	firstArg := args[0]
+	if firstArg != "build" && firstArg != "buildx" {
+		return configuration.ParsedCommand{}, fmt.Errorf("only image building is supported")
+	}
 
-	err := cmd.Run()
+	allTags, additionalBuildContexts, dockerfilePath, err := extractBuildFlags(args)
 	if err != nil {
-		log.Errorln("Command failed:", err.Error())
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			if status, ok := exitErr.Sys().(interface{ ExitStatus() int }); ok {
-				// trying to exit the same using the same exit status like docker
-				return status.ExitStatus()
-			}
-		}
-		return 1
+		return configuration.ParsedCommand{}, err
 	}
 
-	return 0
+	contextPath, err := findContextPath(args)
+	if err != nil {
+		return configuration.ParsedCommand{}, err
+	}
+
+	// Get absolute path for contextPath
+	absPath, err := filepath.Abs(contextPath)
+	if err == nil {
+		contextPath = absPath
+	}
+
+	allRegistryDomains := make(map[string]string)
+	for _, tag := range allTags {
+		allRegistryDomains[tag] = extractRegistryDomain(tag)
+	}
+
+	dockerfilePath = resolveDockerfilePath(contextPath, dockerfilePath)
+	dockerignorePath := findDockerignorePath(contextPath, dockerfilePath)
+
+	cmdWithTagPlaceholder := buildCmdWithTagsPlaceholder(dockerBuildCmd)
+
+	return configuration.ParsedCommand{
+		Command: dockerBuildCmd,
+		TagsByTarget: map[string][]string{
+			"default": allTags,
+		},
+		Hash: hasher.HashBuildCommand(hasher.DockerBuildCommand{
+			DockerfilePath:          dockerfilePath,
+			DockerignorePath:        dockerignorePath,
+			AdditionalBuildContexts: additionalBuildContexts,
+			AllRegistryDomains:      allRegistryDomains,
+			CmdWithTagPlaceholder:   cmdWithTagPlaceholder,
+		}),
+	}, nil
 }
