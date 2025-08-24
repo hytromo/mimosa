@@ -1,14 +1,11 @@
 package docker
 
 import (
-	"context"
-	"fmt"
 	"os"
 	"strings"
 
 	composecli "github.com/compose-spec/compose-go/v2/cli"
 	"github.com/docker/buildx/bake"
-	log "github.com/sirupsen/logrus"
 )
 
 var (
@@ -78,67 +75,67 @@ func extractBakeFlags(args []string) (bakeFiles, targetNames, overrides []string
 }
 
 // ParseBakeCommand parses a docker bake command
-func ParseBakeCommand(dockerBakeCmd []string) (ParsedBakeCommand, error) {
-	log.Debugln("Parsing bake command:", dockerBakeCmd)
-	if len(dockerBakeCmd) < 2 {
-		return ParsedBakeCommand{}, fmt.Errorf("not enough arguments for a docker bake command")
-	}
+// func ParseBakeCommand(dockerBakeCmd []string) (ParsedBakeCommand, error) {
+// 	log.Debugln("Parsing bake command:", dockerBakeCmd)
+// 	if len(dockerBakeCmd) < 2 {
+// 		return ParsedBakeCommand{}, fmt.Errorf("not enough arguments for a docker bake command")
+// 	}
 
-	// Check executable
-	executable := dockerBakeCmd[0]
-	if executable != "docker" {
-		return ParsedBakeCommand{}, fmt.Errorf("only 'docker' executable is supported for caching, got: %s", executable)
-	}
+// 	// Check executable
+// 	executable := dockerBakeCmd[0]
+// 	if executable != "docker" {
+// 		return ParsedBakeCommand{}, fmt.Errorf("only 'docker' executable is supported for caching, got: %s", executable)
+// 	}
 
-	args := dockerBakeCmd[1:]
-	if len(args) < 1 {
-		return ParsedBakeCommand{}, fmt.Errorf("missing docker subcommand")
-	}
+// 	args := dockerBakeCmd[1:]
+// 	if len(args) < 1 {
+// 		return ParsedBakeCommand{}, fmt.Errorf("missing docker subcommand")
+// 	}
 
-	firstArg := args[0]
-	if firstArg != "buildx" {
-		return ParsedBakeCommand{}, fmt.Errorf("only buildx is supported for bake commands")
-	}
+// 	firstArg := args[0]
+// 	if firstArg != "buildx" {
+// 		return ParsedBakeCommand{}, fmt.Errorf("only buildx is supported for bake commands")
+// 	}
 
-	if len(args) < 2 || args[1] != "bake" {
-		return ParsedBakeCommand{}, fmt.Errorf("only bake subcommand is supported")
-	}
+// 	if len(args) < 2 || args[1] != "bake" {
+// 		return ParsedBakeCommand{}, fmt.Errorf("only bake subcommand is supported")
+// 	}
 
-	// Extract flags
-	bakeFiles, targetNames, overrides, err := extractBakeFlags(args)
-	if err != nil {
-		return ParsedBakeCommand{}, fmt.Errorf("failed to extract bake flags: %w", err)
-	}
+// 	// Extract flags
+// 	bakeFiles, targetNames, overrides, err := extractBakeFlags(args)
+// 	if err != nil {
+// 		return ParsedBakeCommand{}, fmt.Errorf("failed to extract bake flags: %w", err)
+// 	}
 
-	if len(bakeFiles) == 0 {
-		return ParsedBakeCommand{}, fmt.Errorf("no bake files found")
-	}
+// 	if len(bakeFiles) == 0 {
+// 		return ParsedBakeCommand{}, fmt.Errorf("no bake files found")
+// 	}
 
-	// Read bake files
-	ctx := context.Background()
-	files, err := bake.ReadLocalFiles(bakeFiles, nil, nil)
-	if err != nil {
-		return ParsedBakeCommand{}, fmt.Errorf("failed to read bake files: %w", err)
-	}
+// 	// Read bake files
+// 	ctx := context.Background()
+// 	files, err := bake.ReadLocalFiles(bakeFiles, nil, nil)
+// 	if err != nil {
+// 		return ParsedBakeCommand{}, fmt.Errorf("failed to read bake files: %w", err)
+// 	}
 
-	// Parse targets
-	targets, _, err := bake.ReadTargets(ctx, files, targetNames, overrides, nil, nil)
-	if err != nil {
-		return ParsedBakeCommand{}, fmt.Errorf("failed to parse targets: %w", err)
-	}
+// 	// Parse targets
+// 	targets, _, err := bake.ReadTargets(ctx, files, targetNames, overrides, nil, nil)
+// 	if err != nil {
+// 		return ParsedBakeCommand{}, fmt.Errorf("failed to parse targets: %w", err)
+// 	}
 
-	parsedBakeCommand := ParsedBakeCommand{
-		Targets: targets,
-	}
+// 	parsedBakeCommand := ParsedBakeCommand{
+// 		Targets: targets,
+// 	}
 
-	if log.IsLevelEnabled(log.DebugLevel) {
-		log.Debugln("Parsed bake command:")
-		log.Debugln("  Bake files:", bakeFiles)
-		log.Debugln("  Target names:", targetNames)
-		for name, target := range targets {
-			log.Debugln("  Target:", name, "Tags:", target.Tags)
-		}
-	}
+// 	if log.IsLevelEnabled(log.DebugLevel) {
+// 		log.Debugln("Parsed bake command:")
+// 		log.Debugln("  Bake files:", bakeFiles)
+// 		log.Debugln("  Target names:", targetNames)
+// 		for name, target := range targets {
+// 			log.Debugln("  Target:", name, "Tags:", target.Tags)
+// 		}
+// 	}
 
-	return parsedBakeCommand, nil
-}
+// 	return parsedBakeCommand, nil
+// }

@@ -12,11 +12,11 @@ import (
 
 // Retag an image by fetching its descriptor and pushing it under a new tag.
 // If the image is a manifest list, it will repush all manifests under the new tag
-// previousTag is the full tag of the image to retag
-// newTag is the full new tag to push
-func Retag(previousTag string, newTag string, dryRun bool) error {
+// latestTagByTarget is the map of target->latest cached tag
+// newTagsByTarget is the map of target->new tags to push based on the cached entries
+func Retag(latestTagByTarget map[string]string, newTagsByTarget map[string][]string, dryRun bool) error {
 	if dryRun {
-		log.Infoln("> DRY RUN:", previousTag, "would be retagged to", newTag)
+		log.Infoln("> DRY RUN:", latestTagByTarget, "would be retagged to", newTagsByTarget)
 		return nil
 	}
 

@@ -3,18 +3,19 @@ package actions
 import (
 	"errors"
 
+	"github.com/hytromo/mimosa/internal/configuration"
 	"github.com/hytromo/mimosa/internal/docker"
 )
 
-func (a *Actioner) ParseCommand(command []string) (ParsedCommand, error) {
+func (a *Actioner) ParseCommand(command []string) (configuration.ParsedCommand, error) {
 
 	// "docker build ." is the smallest possible command
 	if len(command) < 3 {
-		return ParsedCommand{}, errors.New("command is too short")
+		return configuration.ParsedCommand{}, errors.New("command is too short")
 	}
 
 	if command[0] != "docker" {
-		return ParsedCommand{}, errors.New("command must start with 'docker'")
+		return configuration.ParsedCommand{}, errors.New("command must start with 'docker'")
 	}
 
 	if command[1] == "build" {
@@ -22,12 +23,12 @@ func (a *Actioner) ParseCommand(command []string) (ParsedCommand, error) {
 	}
 
 	if command[1] != "buildx" {
-		return ParsedCommand{}, errors.New("sub-command must either be 'build' or 'buildx'")
+		return configuration.ParsedCommand{}, errors.New("sub-command must either be 'build' or 'buildx'")
 	}
 
 	// "docker buildx bake/build ." is the smallest possible command for buildx
 	if len(command) < 4 {
-		return ParsedCommand{}, errors.New("command is too short")
+		return configuration.ParsedCommand{}, errors.New("command is too short")
 	}
 
 	if command[2] == "build" {
@@ -36,6 +37,6 @@ func (a *Actioner) ParseCommand(command []string) (ParsedCommand, error) {
 		return docker.ParseBakeCommand(command)
 	}
 
-	return ParsedCommand{}, errors.New("sub-command must either be 'build' or 'bake'")
+	return configuration.ParsedCommand{}, errors.New("sub-command must either be 'build' or 'bake'")
 
 }

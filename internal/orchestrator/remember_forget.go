@@ -48,7 +48,7 @@ func handleRememberOrForgetSubcommands(appOptions configuration.AppOptions, act 
 	return act.SaveCache(cacheEntry, parsedCommand.TagsByTarget, appOptions.Remember.DryRun)
 }
 
-func getCommandHash(appOptions configuration.AppOptions, act actions.Actions) (actions.ParsedCommand, error) {
+func getCommandHash(appOptions configuration.AppOptions, act actions.Actions) (configuration.ParsedCommand, error) {
 	var commandContainer configuration.CommandContainer
 
 	if appOptions.Remember.Enabled {

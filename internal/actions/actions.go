@@ -2,21 +2,12 @@ package actions
 
 import (
 	"github.com/hytromo/mimosa/internal/cacher"
+	"github.com/hytromo/mimosa/internal/configuration"
 )
-
-type ParsedCommand struct {
-	// map of target to tags, default target is "default"
-	// this is because the "bake" command can support multiple targets
-	TagsByTarget map[string][]string
-	// the final hash of the command - includes all the needed information to calculate a unique hash (e.g. command, contexts etc)
-	Hash string
-	// the raw command - we will fallback to actually running this if there is an error during remember mode
-	Command []string
-}
 
 type Actions interface {
 	// hashing
-	ParseCommand(command []string) (ParsedCommand, error)
+	ParseCommand(command []string) (configuration.ParsedCommand, error)
 
 	// command execution
 	RunCommand(command []string) int
@@ -31,7 +22,7 @@ type Actions interface {
 	PrintCacheToEnvValue()
 
 	// docker
-	Retag(cacheEntry cacher.Cache, parsedCommand ParsedCommand, dryRun bool) error
+	Retag(cacheEntry cacher.Cache, parsedCommand configuration.ParsedCommand, dryRun bool) error
 }
 
 // Actioner is a concrete implementation of the Actions interface

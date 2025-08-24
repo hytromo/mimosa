@@ -1,7 +1,6 @@
 package docker
 
 import (
-	"encoding/json"
 	"fmt"
 	"net"
 	"os"
@@ -165,69 +164,69 @@ func extractRegistryDomain(tag string) string {
 	return "docker.io"
 }
 
-func ParseBuildCommand(dockerBuildCmd []string) (ParsedBuildCommand, error) {
-	log.Debugln("Parsing command:", dockerBuildCmd)
-	if len(dockerBuildCmd) < 2 {
-		return ParsedBuildCommand{}, fmt.Errorf("not enough arguments for a docker build command")
-	}
+// func ParseBuildCommand(dockerBuildCmd []string) (ParsedBuildCommand, error) {
+// 	log.Debugln("Parsing command:", dockerBuildCmd)
+// 	if len(dockerBuildCmd) < 2 {
+// 		return ParsedBuildCommand{}, fmt.Errorf("not enough arguments for a docker build command")
+// 	}
 
-	// Use argsparser logic to check docker and build/buildx
-	executable := dockerBuildCmd[0]
-	if executable != "docker" {
-		return ParsedBuildCommand{}, fmt.Errorf("only 'docker' executable is supported for caching, got: %s", executable)
-	}
-	args := dockerBuildCmd[1:]
-	if len(args) < 1 {
-		return ParsedBuildCommand{}, fmt.Errorf("missing docker subcommand")
-	}
-	firstArg := args[0]
-	if firstArg != "build" && firstArg != "buildx" {
-		return ParsedBuildCommand{}, fmt.Errorf("only image building is supported")
-	}
+// 	// Use argsparser logic to check docker and build/buildx
+// 	executable := dockerBuildCmd[0]
+// 	if executable != "docker" {
+// 		return ParsedBuildCommand{}, fmt.Errorf("only 'docker' executable is supported for caching, got: %s", executable)
+// 	}
+// 	args := dockerBuildCmd[1:]
+// 	if len(args) < 1 {
+// 		return ParsedBuildCommand{}, fmt.Errorf("missing docker subcommand")
+// 	}
+// 	firstArg := args[0]
+// 	if firstArg != "build" && firstArg != "buildx" {
+// 		return ParsedBuildCommand{}, fmt.Errorf("only image building is supported")
+// 	}
 
-	finalTag, dockerfilePath, _ := extractBuildFlags(args)
-	registryDomain := extractRegistryDomain(finalTag)
-	contextPath, err := findContextPath(args)
-	if err != nil {
-		return ParsedBuildCommand{}, err
-	}
+// 	finalTag, dockerfilePath, _ := extractBuildFlags(args)
+// 	registryDomain := extractRegistryDomain(finalTag)
+// 	contextPath, err := findContextPath(args)
+// 	if err != nil {
+// 		return ParsedBuildCommand{}, err
+// 	}
 
-	// Get absolute path for contextPath
-	absPath, err := filepath.Abs(contextPath)
-	if err == nil {
-		contextPath = absPath
-	}
+// 	// Get absolute path for contextPath
+// 	absPath, err := filepath.Abs(contextPath)
+// 	if err == nil {
+// 		contextPath = absPath
+// 	}
 
-	dockerfilePath = resolveDockerfilePath(contextPath, dockerfilePath)
-	dockerignorePath := findDockerignorePath(contextPath, dockerfilePath)
+// 	dockerfilePath = resolveDockerfilePath(contextPath, dockerfilePath)
+// 	dockerignorePath := findDockerignorePath(contextPath, dockerfilePath)
 
-	if finalTag == "" {
-		return ParsedBuildCommand{}, fmt.Errorf("cannot find image tag using the -t or --tag option")
-	}
+// 	if finalTag == "" {
+// 		return ParsedBuildCommand{}, fmt.Errorf("cannot find image tag using the -t or --tag option")
+// 	}
 
-	cmdWithTagPlaceholder := buildCmdWithTagPlaceholder(dockerBuildCmd)
+// 	cmdWithTagPlaceholder := buildCmdWithTagPlaceholder(dockerBuildCmd)
 
-	parsedBuildCommand := ParsedBuildCommand{
-		FinalTag:              finalTag,
-		ContextPath:           contextPath,
-		CmdWithTagPlaceholder: cmdWithTagPlaceholder,
-		DockerfilePath:        dockerfilePath,
-		DockerignorePath:      dockerignorePath,
-		Executable:            executable,
-		Args:                  args,
-		RegistryDomain:        registryDomain,
-	}
+// 	parsedBuildCommand := ParsedBuildCommand{
+// 		FinalTag:              finalTag,
+// 		ContextPath:           contextPath,
+// 		CmdWithTagPlaceholder: cmdWithTagPlaceholder,
+// 		DockerfilePath:        dockerfilePath,
+// 		DockerignorePath:      dockerignorePath,
+// 		Executable:            executable,
+// 		Args:                  args,
+// 		RegistryDomain:        registryDomain,
+// 	}
 
-	if log.IsLevelEnabled(log.DebugLevel) {
-		jsonOfParsedCommand, err := json.MarshalIndent(parsedBuildCommand, "", "  ")
-		if err == nil {
-			log.Debugln("Parsed build command:")
-			log.Debugln(string(jsonOfParsedCommand))
-		}
-	}
+// 	if log.IsLevelEnabled(log.DebugLevel) {
+// 		jsonOfParsedCommand, err := json.MarshalIndent(parsedBuildCommand, "", "  ")
+// 		if err == nil {
+// 			log.Debugln("Parsed build command:")
+// 			log.Debugln(string(jsonOfParsedCommand))
+// 		}
+// 	}
 
-	return parsedBuildCommand, nil
-}
+// 	return parsedBuildCommand, nil
+// }
 
 func RunCommand(command []string, dryRun bool) int {
 	if dryRun {
