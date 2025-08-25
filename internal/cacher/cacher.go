@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/elliotchance/orderedmap/v3"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/apparentlymart/go-userdirs/userdirs"
@@ -24,9 +23,11 @@ type CacheFile struct {
 	LastUpdatedAt time.Time           `json:"lastUpdatedAt"`
 }
 
+// Cache represents the final hash of the currently running command and files
+// and the current available in-memory cache entries
 type Cache struct {
-	InMemoryEntries *orderedmap.OrderedMap[string, string] // populated by the MIMOSA_CACHE environment variable and taking precedence over the cache directory
-	Hash            string                                 // the final hash of the current command and files
+	InMemoryEntries *InMemoryCache // populated by the "envVarName" environment variable and taking precedence over the cache directory
+	Hash            string         // the final hash of the current command and files
 }
 
 func (cache *Cache) DataPath() string {
@@ -71,21 +72,21 @@ func (cache *Cache) Remove(dryRun bool) error {
 	return os.Remove(cache.DataPath())
 }
 
-func (cache *Cache) GetInMemoryEntry() (string, bool) {
+func (cache *Cache) GetInMemoryEntry() (CacheFile, bool) {
 	if cache.InMemoryEntries.Len() == 0 {
-		return "", false
+		return CacheFile{}, false
 	}
 
 	z85Hash, err := hasher.HexToZ85(cache.Hash)
 	if err != nil {
 		log.Warnf("Failed to convert final hash to Z85: %v", err)
-		return "", false
+		return CacheFile{}, false
 	}
 	if entry, ok := cache.InMemoryEntries.Get(z85Hash); ok {
 		return entry, true
 	}
 
-	return "", false
+	return CacheFile{}, false
 }
 
 func (cache *Cache) Exists() bool {

@@ -14,6 +14,7 @@ require (
 	github.com/google/go-containerregistry v0.20.6
 	github.com/kalafut/imohash v1.1.0
 	github.com/moby/patternmatcher v0.6.0
+	github.com/samber/lo v1.51.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/tilinna/z85 v1.0.0
 	golang.org/x/term v0.32.0

@@ -2,14 +2,30 @@ package cacher
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/elliotchance/orderedmap/v3"
 	"github.com/hytromo/mimosa/internal/hasher"
 	log "github.com/sirupsen/logrus"
+)
+
+const (
+	// variable is of the form key->cache with optional target name if only one (default)
+	// the cache key is z85 encoded
+	// key1 (target1.1:)value1.1,(target1.2:)value1.2,...
+	// key2 (target2.1:)value2.1,...
+	// ... etc
+	targetAndTagSeparator     = ":"
+	targetsSeparator          = ","
+	cachesSeparator           = "\n"
+	cacheKeyAndValueSeparator = " "
+
+	envVarName = "MIMOSA_CACHE"
 )
 
 type CacheFileWithHash struct {
@@ -17,24 +33,49 @@ type CacheFileWithHash struct {
 	CacheFile
 }
 
-// GetInMemoryEntries retrieves all in-memory cache entries from the MIMOSA_CACHE environment variable.
-func GetAllInMemoryEntries() *orderedmap.OrderedMap[string, string] {
-	inMemoryEntries := orderedmap.NewOrderedMap[string, string]()
+// the cache loaded in memory as key->cache
+type InMemoryCache = orderedmap.OrderedMap[string, CacheFile]
 
-	if mimosaEnvCache := os.Getenv("MIMOSA_CACHE"); mimosaEnvCache != "" {
-		// MIMOSA_CACHE is of the form "key1 value1\nkey2 value2\n...", where keys are z85 encoded and each value is a tag.
-		for _, line := range strings.Split(mimosaEnvCache, "\n") {
+// GetInMemoryEntries retrieves all in-memory cache entries from the environment variable.
+func GetAllInMemoryEntries() *InMemoryCache {
+	inMemoryEntries := orderedmap.NewOrderedMap[string, CacheFile]()
+
+	if mimosaEnvCache := os.Getenv(envVarName); mimosaEnvCache != "" {
+		for _, line := range strings.Split(mimosaEnvCache, cachesSeparator) {
+			line = strings.TrimSpace(line)
 			if line == "" {
 				continue
 			}
-			parts := strings.Split(line, " ")
+
+			parts := strings.Split(line, cacheKeyAndValueSeparator)
 			if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-				log.Warnln("Invalid MIMOSA_CACHE entry:", line)
+				log.Warnln("Invalid", envVarName, "entry:", line)
 				continue
 			}
-			key := parts[0]
-			value := parts[1]
-			inMemoryEntries.Set(key, value)
+			cacheKey, err := hasher.Z85ToHex(parts[0])
+			if err != nil {
+				log.Debugf("Failed to convert Z85 cache key (%v) to string: %v", parts[0], err)
+				continue
+			}
+			allTargetsWithTags := strings.Split(parts[1], targetsSeparator)
+			cacheFile := CacheFile{
+				TagsByTarget:  make(map[string][]string),
+				LastUpdatedAt: time.Now(),
+			}
+			for _, targetWithTag := range allTargetsWithTags {
+				// target name is optional, if there is no : then the target name is "default"
+				targetName := "default"
+				tag := targetWithTag
+				if strings.Contains(targetWithTag, targetAndTagSeparator) {
+					targetName = strings.Split(targetWithTag, targetAndTagSeparator)[0]
+					tag = strings.Split(targetWithTag, targetAndTagSeparator)[1]
+				}
+				trimmedTag := strings.TrimSpace(tag)
+
+				cacheFile.TagsByTarget[targetName] = []string{trimmedTag}
+			}
+
+			inMemoryEntries.Set(cacheKey, cacheFile)
 		}
 		// print json representation of the in-memory entries:
 		if log.IsLevelEnabled(log.DebugLevel) {
@@ -78,7 +119,7 @@ func GetDiskCacheToMemoryEntries() *orderedmap.OrderedMap[string, string] {
 			return nil
 		}
 
-		log.Debugf("Loaded cache file %s with tags: %v", path, cacheFile.Tags)
+		log.Debugf("Cache file: %+v", cacheFile)
 
 		// the cache hash is the filename without the extension
 		hash := strings.TrimSuffix(filepath.Base(path), ".json")
@@ -99,19 +140,35 @@ func GetDiskCacheToMemoryEntries() *orderedmap.OrderedMap[string, string] {
 		return diskEntries[i].LastUpdatedAt.After(diskEntries[j].LastUpdatedAt)
 	})
 
-	inMemoryEntries := orderedmap.NewOrderedMap[string, string]()
+	// convert the disk cache to in-memory cache
+	// key -> cache (both z85 encoded)
+	z85InMemoryEntries := orderedmap.NewOrderedMap[string, string]()
 
 	for _, entry := range diskEntries {
-		latestTag := entry.Tags[len(entry.Tags)-1]
 		z85Hash, err := hasher.HexToZ85(entry.Hash)
 		if err != nil {
 			log.Debugf("Failed to convert hash to z85: %v", err)
 			continue
 		}
 
-		inMemoryEntries.Set(z85Hash, latestTag)
-	}
-	log.Debugf("Loaded %d cache entries from disk and were decoded to %d in-memory entries", len(diskEntries), inMemoryEntries.Len())
+		// Get the latest tag from the first target (assuming single target for now)
+		if _, exists := entry.TagsByTarget["default"]; exists && len(entry.TagsByTarget) == 1 {
+			// only the default target is present, simplest form: z85Hash -> latestTag
+			latestTag := entry.TagsByTarget["default"][len(entry.TagsByTarget["default"])-1]
 
-	return inMemoryEntries
+			z85InMemoryEntries.Set(z85Hash, latestTag)
+		} else {
+			// multiple targets are present, more complex form:
+			// z85Hash -> target1:tag1,target2:tag2,...
+			accumulatingValues := []string{}
+			for targetName, tags := range entry.TagsByTarget {
+				accumulatingValues = append(accumulatingValues, fmt.Sprintf("%s%s%s", targetName, targetAndTagSeparator, tags[len(tags)-1]))
+			}
+			z85InMemoryEntries.Set(z85Hash, strings.Join(accumulatingValues, targetsSeparator))
+		}
+
+	}
+	log.Debugf("Loaded %d cache entries from disk and were decoded to %d in-memory entries", len(diskEntries), z85InMemoryEntries.Len())
+
+	return z85InMemoryEntries
 }
