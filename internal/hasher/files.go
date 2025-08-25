@@ -2,8 +2,6 @@ package hasher
 
 import (
 	"encoding/hex"
-	"math"
-	"runtime"
 	"sort"
 	"sync"
 
@@ -12,13 +10,10 @@ import (
 
 // HashFiles computes a hash of all files in the provided list
 // and returns a single hash representing the unique state of all files.
-func HashFiles(filePaths []string) (string, error) {
+func HashFiles(filePaths []string, nWorkers int) (string, error) {
 	if len(filePaths) == 0 {
 		return "", nil
 	}
-
-	// as many workers as files, up to num of CPUs-1
-	nWorkers := int(math.Min(float64(len(filePaths)), math.Max(float64(runtime.NumCPU()-1), 1)))
 
 	fileChan := make(chan string, len(filePaths))
 	hashChan := make(chan []byte, len(filePaths))

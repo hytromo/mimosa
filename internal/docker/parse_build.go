@@ -9,6 +9,7 @@ import (
 
 	"github.com/hytromo/mimosa/internal/configuration"
 	"github.com/hytromo/mimosa/internal/hasher"
+	"github.com/samber/lo"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -212,9 +213,9 @@ func ParseBuildCommand(dockerBuildCmd []string) (configuration.ParsedCommand, er
 		contextPath = absPath
 	}
 
-	allRegistryDomains := make(map[string]string)
+	allRegistryDomains := []string{}
 	for _, tag := range allTags {
-		allRegistryDomains[tag] = extractRegistryDomain(tag)
+		allRegistryDomains = append(allRegistryDomains, extractRegistryDomain(tag))
 	}
 
 	dockerfilePath = resolveDockerfilePath(contextPath, dockerfilePath)
@@ -234,7 +235,7 @@ func ParseBuildCommand(dockerBuildCmd []string) (configuration.ParsedCommand, er
 			DockerfilePath:        dockerfilePath,
 			DockerignorePath:      dockerignorePath,
 			BuildContexts:         allBuildContexts,
-			AllRegistryDomains:    allRegistryDomains,
+			AllRegistryDomains:    lo.Uniq(allRegistryDomains),
 			CmdWithTagPlaceholder: cmdWithTagPlaceholder,
 		}),
 	}, nil
