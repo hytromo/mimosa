@@ -2,12 +2,12 @@ package docker
 
 import (
 	"fmt"
-	"net"
-	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/hytromo/mimosa/internal/configuration"
+	argparse "github.com/hytromo/mimosa/internal/docker/arg_parse"
+	fileresolution "github.com/hytromo/mimosa/internal/docker/file_resolution"
 	"github.com/hytromo/mimosa/internal/hasher"
 	"github.com/samber/lo"
 	log "github.com/sirupsen/logrus"
@@ -104,38 +104,6 @@ func findContextPath(args []string) (string, error) {
 	return "", fmt.Errorf("context path not found")
 }
 
-func resolveDockerfilePath(cwd, extractFromCommandDokcerfilePath string) string {
-	if extractFromCommandDokcerfilePath == "" {
-		extractFromCommandDokcerfilePath = "Dockerfile"
-	}
-
-	path, err := filepath.Abs(filepath.Join(cwd, extractFromCommandDokcerfilePath))
-
-	if err == nil {
-		return path
-	}
-
-	return filepath.Join(cwd, "Dockerfile")
-}
-
-func findDockerignorePath(contextPath, dockerfilePath string) string {
-	dockerfileDir := filepath.Dir(dockerfilePath)
-	dockerfileBase := filepath.Base(dockerfilePath)
-	dockerignoreCandidate := filepath.Join(dockerfileDir, dockerfileBase+".dockerignore")
-	if fi, err := os.Stat(dockerignoreCandidate); err == nil && !fi.IsDir() {
-		if abs, err := filepath.Abs(dockerignoreCandidate); err == nil {
-			return abs
-		}
-	}
-	contextDockerignore := filepath.Join(contextPath, ".dockerignore")
-	if fi, err := os.Stat(contextDockerignore); err == nil && !fi.IsDir() {
-		if abs, err := filepath.Abs(contextDockerignore); err == nil {
-			return abs
-		}
-	}
-	return ""
-}
-
 func buildCmdWithTagsPlaceholder(dockerBuildCmd []string) []string {
 	cmdWithTagPlaceholder := make([]string, len(dockerBuildCmd))
 	copy(cmdWithTagPlaceholder, dockerBuildCmd)
@@ -154,27 +122,6 @@ func buildCmdWithTagsPlaceholder(dockerBuildCmd []string) []string {
 		}
 	}
 	return cmdWithTagPlaceholder
-}
-
-func extractRegistryDomain(tag string) string {
-	// Split image reference into domain and remainder
-	// Format: [domain/][user/]repo[:tag|@digest]
-	slashParts := strings.SplitN(tag, "/", 2)
-
-	if len(slashParts) == 1 {
-		// No domain, so it's Docker Hub
-		return "docker.io"
-	}
-
-	first := slashParts[0]
-
-	// Check if the first segment looks like a domain or IP
-	if strings.Contains(first, ".") || strings.Contains(first, ":") || net.ParseIP(first) != nil {
-		return first
-	}
-
-	// Otherwise, it's a Docker Hub namespace like "library/ubuntu"
-	return "docker.io"
 }
 
 func ParseBuildCommand(dockerBuildCmd []string) (configuration.ParsedCommand, error) {
@@ -215,11 +162,11 @@ func ParseBuildCommand(dockerBuildCmd []string) (configuration.ParsedCommand, er
 
 	allRegistryDomains := []string{}
 	for _, tag := range allTags {
-		allRegistryDomains = append(allRegistryDomains, extractRegistryDomain(tag))
+		allRegistryDomains = append(allRegistryDomains, argparse.ExtractRegistryDomain(tag))
 	}
 
-	dockerfilePath = resolveDockerfilePath(contextPath, dockerfilePath)
-	dockerignorePath := findDockerignorePath(contextPath, dockerfilePath)
+	dockerfilePath = fileresolution.ResolveDockerfilePath(contextPath, dockerfilePath)
+	dockerignorePath := fileresolution.FindDockerignorePath(contextPath, dockerfilePath)
 
 	cmdWithTagPlaceholder := buildCmdWithTagsPlaceholder(dockerBuildCmd)
 
