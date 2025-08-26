@@ -10,9 +10,10 @@ import (
 
 // HashFiles computes a hash of all files in the provided list
 // and returns a single hash representing the unique state of all files.
-func HashFiles(filePaths []string, nWorkers int) (string, error) {
+// It produces the same hash for the same files, regardless of the order of the files.
+func HashFiles(filePaths []string, nWorkers int) string {
 	if len(filePaths) == 0 {
-		return "", nil
+		return ""
 	}
 
 	fileChan := make(chan string, len(filePaths))
@@ -88,7 +89,7 @@ func HashFiles(filePaths []string, nWorkers int) (string, error) {
 	// Concatenate all hashes and hash the result for a final hash
 	joined := joinHashes(fileHashes)
 	finalHash := imohash.Sum(joined)
-	return hex.EncodeToString(finalHash[:]), nil
+	return hex.EncodeToString(finalHash[:])
 }
 
 func joinHashes(hashes [][]byte) []byte {

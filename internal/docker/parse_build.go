@@ -224,7 +224,7 @@ func ParseBuildCommand(dockerBuildCmd []string) (configuration.ParsedCommand, er
 	cmdWithTagPlaceholder := buildCmdWithTagsPlaceholder(dockerBuildCmd)
 
 	// add the context in all the build contexts:
-	allBuildContexts["$main"] = contextPath
+	allBuildContexts[configuration.MainBuildContextName] = contextPath
 
 	return configuration.ParsedCommand{
 		Command: dockerBuildCmd,

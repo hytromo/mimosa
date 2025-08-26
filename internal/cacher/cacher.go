@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -128,7 +129,7 @@ func GetCache(parsedBuildCommand docker.ParsedBuildCommand) (cache Cache, err er
 		}
 	}
 
-	files, err := docker.IncludedFiles(parsedBuildCommand.ContextPath, parsedBuildCommand.DockerignorePath)
+	files, err := fileutil.IncludedFiles(parsedBuildCommand.ContextPath, parsedBuildCommand.DockerignorePath)
 
 	if err != nil {
 		return cache, err
@@ -142,15 +143,13 @@ func GetCache(parsedBuildCommand docker.ParsedBuildCommand) (cache Cache, err er
 		files = append(files, parsedBuildCommand.DockerfilePath)
 	}
 
-	filesHash, err := hasher.HashFiles(files)
+	filesHash := hasher.HashFiles(files, runtime.NumCPU()-1)
 
 	log.Debugf("Files hash: %v - deducted from %v files", filesHash, len(files))
 
-	if err != nil {
-		return cache, err
-	}
-
 	cache.Hash = hasher.HashStrings([]string{commandHash, filesHash})
+
+	cache.Hash = "TODO"
 
 	log.Debugf("Final hash of command and files: %v", cache.Hash)
 
