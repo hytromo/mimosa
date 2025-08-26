@@ -27,10 +27,7 @@ func createTempFileWithContent(t *testing.T, dir, content string) string {
 }
 
 func TestHashFiles_EmptyInput(t *testing.T) {
-	hash, err := HashFiles([]string{})
-	if err != nil {
-		t.Fatalf("Expected no error, got %v", err)
-	}
+	hash := HashFiles([]string{}, 1)
 	if hash != "" {
 		t.Errorf("Expected empty hash for empty input, got %q", hash)
 	}
@@ -39,10 +36,7 @@ func TestHashFiles_EmptyInput(t *testing.T) {
 func TestHashFiles_SingleFile(t *testing.T) {
 	dir := t.TempDir()
 	file := createTempFileWithContent(t, dir, "hello world")
-	hash1, err := HashFiles([]string{file})
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
+	hash1 := HashFiles([]string{file}, 1)
 	// Hash should be non-empty
 	if hash1 == "" {
 		t.Error("Expected non-empty hash for single file")
@@ -51,10 +45,7 @@ func TestHashFiles_SingleFile(t *testing.T) {
 	if err := os.WriteFile(file, []byte("goodbye world"), 0644); err != nil {
 		t.Fatalf("Failed to overwrite file: %v", err)
 	}
-	hash2, err := HashFiles([]string{file})
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
+	hash2 := HashFiles([]string{file}, 1)
 	if hash1 == hash2 {
 		t.Error("Hash did not change after file content changed")
 	}
@@ -65,15 +56,9 @@ func TestHashFiles_MultipleFiles_Deterministic(t *testing.T) {
 	file1 := createTempFileWithContent(t, dir, "foo")
 	file2 := createTempFileWithContent(t, dir, "bar")
 	files := []string{file1, file2}
-	hash1, err := HashFiles(files)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
+	hash1 := HashFiles(files, 1)
 	// Hash should be same regardless of order
-	hash2, err := HashFiles([]string{file2, file1})
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
+	hash2 := HashFiles([]string{file2, file1}, 1)
 	if hash1 != hash2 {
 		t.Errorf("Hash should be order-independent, got %q and %q", hash1, hash2)
 	}
@@ -81,10 +66,7 @@ func TestHashFiles_MultipleFiles_Deterministic(t *testing.T) {
 	if err := os.WriteFile(file1, []byte("baz"), 0644); err != nil {
 		t.Fatalf("Failed to overwrite file: %v", err)
 	}
-	hash3, err := HashFiles(files)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
+	hash3 := HashFiles(files, 1)
 	if hash1 == hash3 {
 		t.Error("Hash did not change after file content changed")
 	}
@@ -94,14 +76,8 @@ func TestHashFiles_SameContentFiles(t *testing.T) {
 	dir := t.TempDir()
 	file1 := createTempFileWithContent(t, dir, "same")
 	file2 := createTempFileWithContent(t, dir, "same")
-	hash1, err := HashFiles([]string{file1, file2})
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-	hash2, err := HashFiles([]string{file2, file1})
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
+	hash1 := HashFiles([]string{file1, file2}, 1)
+	hash2 := HashFiles([]string{file2, file1}, 1)
 	if hash1 != hash2 {
 		t.Errorf("Hash should be same for same content files regardless of order, got %q and %q", hash1, hash2)
 	}
@@ -112,10 +88,7 @@ func TestHashFiles_NonExistentFile(t *testing.T) {
 	file := filepath.Join(dir, "doesnotexist.txt")
 	log.SetLevel(log.DebugLevel)
 	// Should not panic or error, just skip
-	hash, err := HashFiles([]string{file})
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
+	hash := HashFiles([]string{file}, 1)
 	// Should be empty since no file was hashed
 	if hash != "00000000000000000000000000000000" {
 		t.Fatalf("Expected zero-ed hash for non-existent file, got %q", hash)
@@ -129,10 +102,7 @@ func TestHashFiles_LargeFile(t *testing.T) {
 		largeContent[i] = byte(i % 256)
 	}
 	file := createTempFileWithContent(t, dir, string(largeContent))
-	hash, err := HashFiles([]string{file})
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
+	hash := HashFiles([]string{file}, 1)
 	if hash == "" {
 		t.Error("Expected non-empty hash for large file")
 	}
@@ -141,14 +111,8 @@ func TestHashFiles_LargeFile(t *testing.T) {
 func TestHashFiles_DuplicatePaths(t *testing.T) {
 	dir := t.TempDir()
 	file := createTempFileWithContent(t, dir, "dup")
-	hash1, err := HashFiles([]string{file, file})
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-	hash2, err := HashFiles([]string{file})
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
+	hash1 := HashFiles([]string{file, file}, 1)
+	hash2 := HashFiles([]string{file}, 1)
 	if hash1 == "" || hash2 == "" {
 		t.Error("Expected non-empty hashes")
 	}

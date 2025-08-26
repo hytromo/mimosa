@@ -124,34 +124,36 @@ func buildCmdWithTagsPlaceholder(dockerBuildCmd []string) []string {
 	return cmdWithTagPlaceholder
 }
 
-func ParseBuildCommand(dockerBuildCmd []string) (configuration.ParsedCommand, error) {
+func ParseBuildCommand(dockerBuildCmd []string) (parsedCommand configuration.ParsedCommand, err error) {
 	log.Debugln("Parsing command:", dockerBuildCmd)
+	parsedCommand.Command = dockerBuildCmd
+
 	if len(dockerBuildCmd) < 2 {
-		return configuration.ParsedCommand{}, fmt.Errorf("not enough arguments for a docker build command")
+		return parsedCommand, fmt.Errorf("not enough arguments for a docker build command")
 	}
 
 	// Use argsparser logic to check docker and build/buildx
 	executable := dockerBuildCmd[0]
 	if executable != "docker" {
-		return configuration.ParsedCommand{}, fmt.Errorf("only 'docker' executable is supported for caching, got: %s", executable)
+		return parsedCommand, fmt.Errorf("only 'docker' executable is supported for caching, got: %s", executable)
 	}
 	args := dockerBuildCmd[1:]
 	if len(args) < 1 {
-		return configuration.ParsedCommand{}, fmt.Errorf("missing docker subcommand")
+		return parsedCommand, fmt.Errorf("missing docker subcommand")
 	}
 	firstArg := args[0]
 	if firstArg != "build" && firstArg != "buildx" {
-		return configuration.ParsedCommand{}, fmt.Errorf("only image building is supported")
+		return parsedCommand, fmt.Errorf("only image building is supported")
 	}
 
 	allTags, allBuildContexts, dockerfilePath, err := extractBuildFlags(args)
 	if err != nil {
-		return configuration.ParsedCommand{}, err
+		return parsedCommand, err
 	}
 
 	contextPath, err := findContextPath(args)
 	if err != nil {
-		return configuration.ParsedCommand{}, err
+		return parsedCommand, err
 	}
 
 	// Get absolute path for contextPath
@@ -173,17 +175,16 @@ func ParseBuildCommand(dockerBuildCmd []string) (configuration.ParsedCommand, er
 	// add the context in all the build contexts:
 	allBuildContexts[configuration.MainBuildContextName] = contextPath
 
-	return configuration.ParsedCommand{
-		Command: dockerBuildCmd,
-		TagsByTarget: map[string][]string{
-			"default": allTags,
-		},
-		Hash: hasher.HashBuildCommand(hasher.DockerBuildCommand{
-			DockerfilePath:        dockerfilePath,
-			DockerignorePath:      dockerignorePath,
-			BuildContexts:         allBuildContexts,
-			AllRegistryDomains:    lo.Uniq(allRegistryDomains),
-			CmdWithTagPlaceholder: cmdWithTagPlaceholder,
-		}),
-	}, nil
+	parsedCommand.Hash = hasher.HashBuildCommand(hasher.DockerBuildCommand{
+		DockerfilePath:        dockerfilePath,
+		DockerignorePath:      dockerignorePath,
+		BuildContexts:         allBuildContexts,
+		AllRegistryDomains:    lo.Uniq(allRegistryDomains),
+		CmdWithTagPlaceholder: cmdWithTagPlaceholder,
+	})
+	parsedCommand.TagsByTarget = map[string][]string{
+		"default": allTags,
+	}
+
+	return parsedCommand, nil
 }

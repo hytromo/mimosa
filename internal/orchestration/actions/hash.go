@@ -8,14 +8,18 @@ import (
 )
 
 func (a *Actioner) ParseCommand(command []string) (configuration.ParsedCommand, error) {
+	parsedCommand := configuration.ParsedCommand{
+		// still set the original command so that it can be run if needed
+		Command: command,
+	}
 
 	// "docker build ." is the smallest possible command
 	if len(command) < 3 {
-		return configuration.ParsedCommand{}, errors.New("command is too short")
+		return parsedCommand, errors.New("command is too short")
 	}
 
 	if command[0] != "docker" {
-		return configuration.ParsedCommand{}, errors.New("command must start with 'docker'")
+		return parsedCommand, errors.New("command must start with 'docker'")
 	}
 
 	if command[1] == "build" {
@@ -23,20 +27,21 @@ func (a *Actioner) ParseCommand(command []string) (configuration.ParsedCommand, 
 	}
 
 	if command[1] != "buildx" {
-		return configuration.ParsedCommand{}, errors.New("sub-command must either be 'build' or 'buildx'")
+		return parsedCommand, errors.New("sub-command must either be 'build' or 'buildx'")
 	}
 
 	// "docker buildx bake/build ." is the smallest possible command for buildx
 	if len(command) < 4 {
-		return configuration.ParsedCommand{}, errors.New("command is too short")
+		return parsedCommand, errors.New("command is too short")
 	}
 
-	if command[2] == "build" {
+	switch command[2] {
+	case "build":
 		return docker.ParseBuildCommand(command)
-	} else if command[2] == "bake" {
+	case "bake":
 		return docker.ParseBakeCommand(command)
+	default:
+		return parsedCommand, errors.New("sub-command must either be 'build' or 'bake'")
 	}
-
-	return configuration.ParsedCommand{}, errors.New("sub-command must either be 'build' or 'bake'")
 
 }

@@ -43,12 +43,10 @@ func handleRememberOrForgetSubcommands(appOptions configuration.AppOptions, act 
 		exitCode := act.RunCommand(dryRun, parsedCommand.Command)
 
 		if exitCode != 0 {
+			// not saving cache if command fails
 			act.ExitProcessWithCode(exitCode)
 			return errors.New("error running command - exit code: " + strconv.Itoa(exitCode))
 		}
-
-		act.ExitProcessWithCode(exitCode) // not saving cache if command fails
-		return nil
 	}
 
 	// regardless of whether the cache already exists or not, we need to save/update it
@@ -69,8 +67,8 @@ func getCommandHash(appOptions configuration.AppOptions, act actions.Actions) (c
 	return act.ParseCommand(commandToRun)
 }
 
-func fallbackToExecutingCommandIfRemembering(err error, dryRun bool, remebering bool, act actions.Actions, commandToRun []string) {
-	if !remebering {
+func fallbackToExecutingCommandIfRemembering(err error, dryRun bool, remembering bool, act actions.Actions, commandToRun []string) {
+	if !remembering {
 		// only if we are remembering we need to fallback to actually running the command
 		return
 	}

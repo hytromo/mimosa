@@ -25,7 +25,7 @@ const (
 	cachesSeparator           = "\n"
 	cacheKeyAndValueSeparator = " "
 
-	envVarName = "MIMOSA_CACHE"
+	EnvVarName = "MIMOSA_CACHE"
 )
 
 type CacheFileWithHash struct {
@@ -40,7 +40,7 @@ type InMemoryCache = orderedmap.OrderedMap[string, CacheFile]
 func GetAllInMemoryEntries() *InMemoryCache {
 	inMemoryEntries := orderedmap.NewOrderedMap[string, CacheFile]()
 
-	if mimosaEnvCache := os.Getenv(envVarName); mimosaEnvCache != "" {
+	if mimosaEnvCache := os.Getenv(EnvVarName); mimosaEnvCache != "" {
 		for _, line := range strings.Split(mimosaEnvCache, cachesSeparator) {
 			line = strings.TrimSpace(line)
 			if line == "" {
@@ -49,7 +49,7 @@ func GetAllInMemoryEntries() *InMemoryCache {
 
 			parts := strings.Split(line, cacheKeyAndValueSeparator)
 			if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-				log.Warnln("Invalid", envVarName, "entry:", line)
+				log.Warnln("Invalid", EnvVarName, "entry:", line)
 				continue
 			}
 			cacheKey, err := hasher.Z85ToHex(parts[0])
