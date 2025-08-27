@@ -172,11 +172,15 @@ func (cache *Cache) Save(tagsByTarget map[string][]string, dryRun bool) error {
 
 	var td CacheFile
 
-	// Read existing tags from mimosa-cache.json if it exists
+	// Read existing tags from the cache file if it exists
 	if data, err := os.ReadFile(dataFile); err == nil {
 		if err := json.Unmarshal(data, &td); err != nil {
 			log.Debugf("Failed to unmarshal cache file %s: %v", dataFile, err)
 		}
+	}
+
+	if td.TagsByTarget == nil {
+		td.TagsByTarget = make(map[string][]string)
 	}
 
 	// add the new tags to the existing tags

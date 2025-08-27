@@ -14,6 +14,16 @@ func (a *Actioner) RunCommand(dryRun bool, command []string) int {
 		return 0
 	}
 
+	if len(command) == 0 {
+		log.Errorln("Command is nil or empty")
+		return 1
+	}
+
+	if command[0] == "" {
+		log.Errorln("Command name is empty")
+		return 1
+	}
+
 	cmd := exec.Command(command[0], command[1:]...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

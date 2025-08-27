@@ -75,29 +75,31 @@ func extractBakeFlags(args []string) (bakeFiles, targetNames, overrides []string
 }
 
 // ParseBakeCommand parses a docker bake command
-func ParseBakeCommand(dockerBakeCmd []string) (configuration.ParsedCommand, error) {
+func ParseBakeCommand(dockerBakeCmd []string) (parsedCommand configuration.ParsedCommand, err error) {
 	log.Debugln("Parsing bake command:", dockerBakeCmd)
+	parsedCommand.Command = dockerBakeCmd
+
 	// Extract flags
 	bakeFiles, targetNames, overrides, err := extractBakeFlags(dockerBakeCmd[1:])
 	if err != nil {
-		return configuration.ParsedCommand{}, fmt.Errorf("failed to extract bake flags: %w", err)
+		return parsedCommand, fmt.Errorf("failed to extract bake flags: %w", err)
 	}
 
 	if len(bakeFiles) == 0 {
-		return configuration.ParsedCommand{}, fmt.Errorf("no bake files found")
+		return parsedCommand, fmt.Errorf("no bake files found")
 	}
 
 	// Read bake files
 	ctx := context.Background()
 	files, err := bake.ReadLocalFiles(bakeFiles, nil, nil)
 	if err != nil {
-		return configuration.ParsedCommand{}, fmt.Errorf("failed to read bake files: %w", err)
+		return parsedCommand, fmt.Errorf("failed to read bake files: %w", err)
 	}
 
 	// Parse targets
 	targets, _, err := bake.ReadTargets(ctx, files, targetNames, overrides, nil, nil)
 	if err != nil {
-		return configuration.ParsedCommand{}, fmt.Errorf("failed to parse bake targets: %w", err)
+		return parsedCommand, fmt.Errorf("failed to parse bake targets: %w", err)
 	}
 
 	tagsByTarget := make(map[string][]string)
@@ -114,9 +116,8 @@ func ParseBakeCommand(dockerBakeCmd []string) (configuration.ParsedCommand, erro
 		}
 	}
 
-	return configuration.ParsedCommand{
-		Command:      dockerBakeCmd,
-		TagsByTarget: tagsByTarget,
-		Hash:         hasher.HashBakeTargets(targets),
-	}, nil
+	parsedCommand.TagsByTarget = tagsByTarget
+	parsedCommand.Hash = hasher.HashBakeTargets(targets)
+
+	return parsedCommand, nil
 }
