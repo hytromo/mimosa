@@ -3,7 +3,6 @@ package docker
 import (
 	"errors"
 	"fmt"
-	"strings"
 	"sync"
 
 	"github.com/google/go-containerregistry/pkg/name"
@@ -12,22 +11,44 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+type ParsedTag struct {
+	Ref       name.Reference
+	Registry  string
+	Tag       string
+	ImageName string
+}
+
+func ParseTag(fromTag string) (ParsedTag, error) {
+	if t, err := name.NewTag(fromTag); err == nil {
+		return ParsedTag{Ref: t, Registry: t.Context().Registry.Name(), Tag: t.TagStr(), ImageName: t.Context().RepositoryStr()}, nil
+	}
+	if d, err := name.NewDigest(fromTag); err == nil {
+		return ParsedTag{Ref: d, Registry: d.Context().Registry.Name(), Tag: d.DigestStr(), ImageName: d.Context().RepositoryStr()}, nil
+	}
+
+	return ParsedTag{}, errors.New("invalid image reference")
+}
+
 func RetagSingle(fromTag string, toTag string, dryRun bool) error {
-	ref, err := name.ParseReference(fromTag)
+	fromRef, err := ParseTag(fromTag)
+	if err != nil {
+		return err
+	}
+	toRef, err := ParseTag(toTag)
 	if err != nil {
 		return err
 	}
 
 	// Fetch the descriptor from the remote registry
-	desc, err := Get(ref)
+	fromDesc, err := Get(fromRef.Ref)
 	if err != nil {
 		log.Debugln("Failed to get descriptor for", fromTag, ":", err)
 		return err
 	}
 
 	// Check if it's an index (manifest list)
-	if desc.MediaType == types.OCIImageIndex || desc.MediaType == types.DockerManifestList {
-		index, err := desc.ImageIndex()
+	if fromDesc.MediaType == types.OCIImageIndex || fromDesc.MediaType == types.DockerManifestList {
+		index, err := fromDesc.ImageIndex()
 		if err != nil {
 			log.Debugln("Failed to get image index for", fromTag, ":", err)
 			return err
@@ -46,11 +67,13 @@ func RetagSingle(fromTag string, toTag string, dryRun bool) error {
 		if len(manifestsToRepush) == 0 {
 			return fmt.Errorf("no manifests to repush from %v", fromTag)
 		}
-		bareImageName := strings.Split(fromTag, ":")[0]
-		bareNewTagName := strings.Split(toTag, ":")[1]
 
-		log.Debugln("image with name", bareImageName, "and tag", bareNewTagName, "will be created, using the manifests", manifestsToRepush)
-		err = PublishManifestsUnderTag(bareImageName, bareNewTagName, manifestsToRepush)
+		imageNameWithoutTag := fmt.Sprintf("%s/%s", fromRef.Registry, fromRef.ImageName)
+		bareNewTagName := toRef.Tag
+
+		log.Debugln("image with name", imageNameWithoutTag, "and tag", bareNewTagName, "will be created, using the manifests", manifestsToRepush)
+
+		err = PublishManifestsUnderTag(imageNameWithoutTag, bareNewTagName, manifestsToRepush)
 
 		if err != nil {
 			log.Debugln("Failed to repush manifests for", fromTag, ":", err)
@@ -87,6 +110,8 @@ func Retag(latestTagByTarget map[string]string, newTagsByTarget map[string][]str
 		log.Infoln("> DRY RUN:", fmt.Sprintf("%+v", latestTagByTarget), "would be retagged to", fmt.Sprintf("%+v", newTagsByTarget))
 		return nil
 	}
+
+	log.Infof("Retagging %+v to %+v", latestTagByTarget, newTagsByTarget)
 
 	// each worker will do 1 retag operation, so the total workers needs to be len(newTagsByTarget[*])
 	nWorkers := 0
