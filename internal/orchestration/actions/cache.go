@@ -27,6 +27,11 @@ func (a *Actioner) SaveCache(cacheEntry cacher.Cache, tagsByTarget map[string][]
 func (a *Actioner) ForgetCacheEntriesOlderThan(duration string, autoApprove bool) error {
 	forgetDuration, err := parseDuration("0s") // purge
 
+	if err != nil {
+		log.Errorf("Invalid forget duration: %v", err)
+		return err
+	}
+
 	if duration != "" {
 		forgetDuration, err = parseDuration(duration)
 		if err != nil {
@@ -47,7 +52,7 @@ func (a *Actioner) ForgetCacheEntriesOlderThan(duration string, autoApprove bool
 		}
 	}
 
-	return cacher.ForgetCacheEntriesOlderThan(forgetTime)
+	return cacher.ForgetCacheEntriesOlderThan(forgetTime, cacher.CacheDir)
 }
 
 func (a *Actioner) PrintCacheDir() {
@@ -56,7 +61,7 @@ func (a *Actioner) PrintCacheDir() {
 }
 
 func (a *Actioner) PrintCacheToEnvValue() {
-	diskEntries := cacher.GetDiskCacheToMemoryEntries()
+	diskEntries := cacher.GetDiskCacheToMemoryEntries(cacher.CacheDir)
 	log.Debugln("-- Disk Cache Entries --")
 	for key, value := range diskEntries.AllFromFront() {
 		logger.CleanLog.Infoln(fmt.Sprintf("%s %s", key, value))

@@ -95,9 +95,9 @@ func GetAllInMemoryEntries() *InMemoryCache {
 
 // GetDiskCacheToMemoryEntries retrieves all disk cache entries and returns them in in-memory representation.
 // The entries are ordered from the newest to the oldest and only the latest tag for each hash is kept.
-func GetDiskCacheToMemoryEntries() *orderedmap.OrderedMap[string, string] {
+func GetDiskCacheToMemoryEntries(cacheDir string) *orderedmap.OrderedMap[string, string] {
 	diskEntries := make([]*CacheFileWithHash, 0)
-	err := filepath.Walk(CacheDir, func(path string, info os.FileInfo, err error) error {
+	err := filepath.Walk(cacheDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			log.Debugf("Failed to walk cache directory: %v", err)
 			return nil
@@ -151,18 +151,21 @@ func GetDiskCacheToMemoryEntries() *orderedmap.OrderedMap[string, string] {
 			continue
 		}
 
-		// Get the latest tag from the first target (assuming single target for now)
+		// Get the latest tag from the first target
 		if _, exists := entry.TagsByTarget["default"]; exists && len(entry.TagsByTarget) == 1 {
 			// only the default target is present, simplest form: z85Hash -> latestTag
-			latestTag := entry.TagsByTarget["default"][len(entry.TagsByTarget["default"])-1]
-
-			z85InMemoryEntries.Set(z85Hash, latestTag)
+			if len(entry.TagsByTarget["default"]) > 0 {
+				latestTag := entry.TagsByTarget["default"][len(entry.TagsByTarget["default"])-1]
+				z85InMemoryEntries.Set(z85Hash, latestTag)
+			}
 		} else {
 			// multiple targets are present, more complex form:
 			// z85Hash -> target1:tag1,target2:tag2,...
 			accumulatingValues := []string{}
 			for targetName, tags := range entry.TagsByTarget {
-				accumulatingValues = append(accumulatingValues, fmt.Sprintf("%s%s%s", targetName, targetAndTagSeparator, tags[len(tags)-1]))
+				if len(tags) > 0 {
+					accumulatingValues = append(accumulatingValues, fmt.Sprintf("%s%s%s", targetName, targetAndTagSeparator, tags[len(tags)-1]))
+				}
 			}
 			z85InMemoryEntries.Set(z85Hash, strings.Join(accumulatingValues, targetsSeparator))
 		}

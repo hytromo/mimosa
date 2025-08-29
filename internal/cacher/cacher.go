@@ -5,14 +5,13 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 
+	"github.com/samber/lo"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/apparentlymart/go-userdirs/userdirs"
-	"github.com/hytromo/mimosa/internal/docker"
 	"github.com/hytromo/mimosa/internal/hasher"
 	"github.com/hytromo/mimosa/internal/utils/fileutil"
 )
@@ -28,11 +27,12 @@ type CacheFile struct {
 // and the current available in-memory cache entries
 type Cache struct {
 	InMemoryEntries *InMemoryCache // populated by the "envVarName" environment variable and taking precedence over the cache directory
+	CacheDir        string         // the directory where the cache files are stored - defaults to CacheDir
 	Hash            string         // the final hash of the current command and files
 }
 
 func (cache *Cache) DataPath() string {
-	return filepath.Join(CacheDir, cache.Hash+".json")
+	return filepath.Join(cache.CacheDir, cache.Hash+".json")
 }
 
 func (cache *Cache) GetLatestTagByTarget() (map[string]string, error) {
@@ -51,7 +51,9 @@ func (cache *Cache) GetLatestTagByTarget() (map[string]string, error) {
 	latestTagByTarget := make(map[string]string)
 
 	for target, tags := range cacheFile.TagsByTarget {
-		latestTagByTarget[target] = tags[len(tags)-1]
+		if len(tags) > 0 {
+			latestTagByTarget[target] = tags[len(tags)-1]
+		}
 	}
 
 	return latestTagByTarget, nil
@@ -105,59 +107,6 @@ func (cache *Cache) Exists() bool {
 	return true
 }
 
-func GetCache(parsedBuildCommand docker.ParsedBuildCommand) (cache Cache, err error) {
-	commandInfo := make([]string, len(parsedBuildCommand.CmdWithTagPlaceholder))
-	copy(commandInfo, parsedBuildCommand.CmdWithTagPlaceholder)
-
-	commandInfo = append(commandInfo, parsedBuildCommand.RegistryDomain)
-
-	commandHash := hasher.HashStrings(commandInfo)
-
-	log.Debugf("Command hash: %v - deducted from %v", commandHash, commandInfo)
-
-	if _, err := os.Stat(parsedBuildCommand.ContextPath); errors.Is(err, os.ErrNotExist) {
-		return cache, err
-	}
-
-	if _, err := os.Stat(parsedBuildCommand.DockerfilePath); errors.Is(err, os.ErrNotExist) {
-		return cache, err
-	}
-
-	if parsedBuildCommand.DockerignorePath != "" {
-		if _, err := os.Stat(parsedBuildCommand.DockerignorePath); errors.Is(err, os.ErrNotExist) {
-			return cache, err
-		}
-	}
-
-	files, err := fileutil.IncludedFiles(parsedBuildCommand.ContextPath, parsedBuildCommand.DockerignorePath)
-
-	if err != nil {
-		return cache, err
-	}
-
-	if parsedBuildCommand.DockerignorePath != "" {
-		files = append(files, parsedBuildCommand.DockerignorePath)
-	}
-
-	if parsedBuildCommand.DockerfilePath != "" {
-		files = append(files, parsedBuildCommand.DockerfilePath)
-	}
-
-	filesHash := hasher.HashFiles(files, runtime.NumCPU()-1)
-
-	log.Debugf("Files hash: %v - deducted from %v files", filesHash, len(files))
-
-	cache.Hash = hasher.HashStrings([]string{commandHash, filesHash})
-
-	cache.Hash = "TODO"
-
-	log.Debugf("Final hash of command and files: %v", cache.Hash)
-
-	cache.InMemoryEntries = GetAllInMemoryEntries()
-
-	return cache, nil
-}
-
 func (cache *Cache) Save(tagsByTarget map[string][]string, dryRun bool) error {
 	dataFile := cache.DataPath()
 
@@ -197,6 +146,7 @@ func (cache *Cache) Save(tagsByTarget map[string][]string, dryRun bool) error {
 				td.TagsByTarget[target] = td.TagsByTarget[target][len(td.TagsByTarget[target])-10:]
 			}
 		}
+		td.TagsByTarget[target] = lo.Uniq(td.TagsByTarget[target])
 	}
 
 	td.LastUpdatedAt = time.Now().UTC()
@@ -204,9 +154,7 @@ func (cache *Cache) Save(tagsByTarget map[string][]string, dryRun bool) error {
 	return fileutil.SaveJSON(dataFile, td)
 }
 
-func ForgetCacheEntriesOlderThan(forgetTime time.Time) error {
-	cacheDir := CacheDir
-
+func ForgetCacheEntriesOlderThan(forgetTime time.Time, cacheDir string) error {
 	log.Debugf("Forgetting cache entries older than %s in %s", forgetTime, cacheDir)
 
 	deletedCount := 0
