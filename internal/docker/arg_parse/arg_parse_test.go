@@ -122,12 +122,12 @@ func TestExtractRegistryDomain_InvalidTags(t *testing.T) {
 		{
 			name:     "Empty tag",
 			tag:      "",
-			expected: "docker.io",
+			expected: "index.docker.io",
 		},
 		{
 			name:     "Invalid format",
 			tag:      "invalid:tag:format",
-			expected: "docker.io",
+			expected: "index.docker.io",
 		},
 		{
 			name:     "No tag",
@@ -137,32 +137,32 @@ func TestExtractRegistryDomain_InvalidTags(t *testing.T) {
 		{
 			name:     "Just colon",
 			tag:      ":",
-			expected: "docker.io",
+			expected: "index.docker.io",
 		},
 		{
 			name:     "Multiple colons",
 			tag:      "myapp:tag:extra",
-			expected: "docker.io",
+			expected: "index.docker.io",
 		},
 		{
 			name:     "Special characters",
 			tag:      "my@pp:latest",
-			expected: "docker.io",
+			expected: "index.docker.io",
 		},
 		{
 			name:     "Spaces",
 			tag:      "my app:latest",
-			expected: "docker.io",
+			expected: "index.docker.io",
 		},
 		{
 			name:     "Unicode characters",
 			tag:      "myapp-测试:latest",
-			expected: "docker.io",
+			expected: "index.docker.io",
 		},
 		{
 			name:     "Very long tag",
 			tag:      strings.Repeat("a", 1000) + ":latest",
-			expected: "docker.io",
+			expected: "index.docker.io",
 		},
 	}
 
@@ -188,7 +188,7 @@ func TestExtractRegistryDomain_EdgeCases(t *testing.T) {
 		{
 			name:     "Single character image",
 			tag:      "registry.example.com/a:latest",
-			expected: "docker.io",
+			expected: "index.docker.io",
 		},
 		{
 			name:     "Very long registry name",

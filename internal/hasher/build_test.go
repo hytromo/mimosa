@@ -17,13 +17,13 @@ func TestRegistryDomainsHash_EmptyInput(t *testing.T) {
 }
 
 func TestRegistryDomainsHash_SingleDomain(t *testing.T) {
-	domains := []string{"docker.io"}
+	domains := []string{"index.docker.io"}
 	assert.NotEqual(t, registryDomainsHash(domains), "", "Expected non-empty hash for single domain")
 }
 
 func TestRegistryDomainsHash_MultipleDomains_Deterministic(t *testing.T) {
-	domains1 := []string{"docker.io", "gcr.io", "quay.io"}
-	domains2 := []string{"quay.io", "docker.io", "gcr.io"}
+	domains1 := []string{"index.docker.io", "gcr.io", "quay.io"}
+	domains2 := []string{"quay.io", "index.docker.io", "gcr.io"}
 
 	hash1 := registryDomainsHash(domains1)
 	hash2 := registryDomainsHash(domains2)
@@ -32,10 +32,10 @@ func TestRegistryDomainsHash_MultipleDomains_Deterministic(t *testing.T) {
 }
 
 func TestRegistryDomainsHash_DuplicateDomains(t *testing.T) {
-	domains := []string{"docker.io", "gcr.io", "docker.io"}
+	domains := []string{"index.docker.io", "gcr.io", "index.docker.io"}
 	hash := registryDomainsHash(domains)
 	assert.NotEqual(t, hash, "", "Expected non-empty hash for domains with duplicates")
-	domainsNoDuplicates := []string{"docker.io", "gcr.io"}
+	domainsNoDuplicates := []string{"index.docker.io", "gcr.io"}
 	hashNoDuplicates := registryDomainsHash(domainsNoDuplicates)
 	assert.Equal(t, hash, hashNoDuplicates, "Expected same hash for domains with duplicates")
 }
@@ -47,7 +47,7 @@ func TestHashBuildCommand_EmptyCommand(t *testing.T) {
 
 func TestHashBuildCommand_WithRegistryDomains(t *testing.T) {
 	command := DockerBuildCommand{
-		AllRegistryDomains:    []string{"docker.io", "gcr.io"},
+		AllRegistryDomains:    []string{"index.docker.io", "gcr.io"},
 		CmdWithTagPlaceholder: []string{"docker", "buildx", "build", "."},
 	}
 	hash := HashBuildCommand(command)
@@ -299,7 +299,7 @@ func TestHashBuildCommand_Deterministic(t *testing.T) {
 		BuildContexts: map[string]string{
 			configuration.MainBuildContextName: dir,
 		},
-		AllRegistryDomains:    []string{"docker.io"},
+		AllRegistryDomains:    []string{"index.docker.io"},
 		CmdWithTagPlaceholder: []string{"docker", "buildx", "build", "."},
 	}
 
@@ -349,7 +349,7 @@ func TestHashBuildCommand_DifferentRegistryDomains_DifferentHashes(t *testing.T)
 		BuildContexts: map[string]string{
 			configuration.MainBuildContextName: dir,
 		},
-		AllRegistryDomains:    []string{"docker.io"},
+		AllRegistryDomains:    []string{"index.docker.io"},
 		CmdWithTagPlaceholder: []string{"docker", "buildx", "build", "-t", "TAG", "--push", "."},
 	}
 
@@ -447,7 +447,7 @@ func TestHashBuildCommand_WithNilCommandString(t *testing.T) {
 		BuildContexts: map[string]string{
 			configuration.MainBuildContextName: dir,
 		},
-		AllRegistryDomains:    []string{"docker.io"},
+		AllRegistryDomains:    []string{"index.docker.io"},
 		CmdWithTagPlaceholder: nil,
 	}
 	hash := HashBuildCommand(command)

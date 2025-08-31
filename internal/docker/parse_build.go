@@ -3,6 +3,7 @@ package docker
 import (
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/hytromo/mimosa/internal/configuration"
@@ -86,15 +87,20 @@ func extractBuildFlags(args []string) (allTags []string, additionalBuildContexts
 }
 
 // assumes the context path does not start with "-"
-func findContextPath(args []string) (string, error) {
+func findContextPath(dockerBuildArgs []string) (string, error) {
 	var previousArgument string
 
-	for i := 1; i < len(args); i++ {
-		arg := args[i]
+	log.Infof("All arguments are: %v", dockerBuildArgs)
+	// skip docker build/docker buildx build args
+	hasBuildx := slices.Contains(dockerBuildArgs, "buildx")
+	firstIndex := 2
+	if hasBuildx {
+		firstIndex = 3
+	}
 
-		if (arg == "buildx" || arg == "build") && i < 2 {
-			continue
-		}
+	for i := firstIndex; i < len(dockerBuildArgs); i++ {
+		arg := dockerBuildArgs[i]
+		log.Infof("Starting from argument %d: %s", i, arg)
 
 		// If the current argument starts with '-', it's a flag / normal argument (could be --file, -t, --no-cache, etc.)
 		if strings.HasPrefix(arg, "-") {
@@ -105,9 +111,11 @@ func findContextPath(args []string) (string, error) {
 		// If the previous argument was a flag (and didn't include '='), assume this is its value
 		if strings.HasPrefix(previousArgument, "-") && !strings.Contains(previousArgument, "=") {
 			// This argument is being used as the value of the previous flag, so skip it
-			previousArgument = "" // Reset previous to avoid confusion on next iteration
+			previousArgument = arg
 			continue
 		}
+
+		log.Infof("FOUND Context path: %s with previous argument: %s", arg, previousArgument)
 
 		// If we reach here, the argument:
 		// - doesn't start with '-'
@@ -167,16 +175,18 @@ func ParseBuildCommand(dockerBuildCmd []string) (parsedCommand configuration.Par
 		return parsedCommand, err
 	}
 
-	contextPath, err := findContextPath(args)
+	contextPath, err := findContextPath(dockerBuildCmd)
+	log.Infof("FOUND Context path: %s", contextPath)
 	if err != nil {
 		return parsedCommand, err
 	}
 
 	// Get absolute path for contextPath
 	absPath, err := filepath.Abs(contextPath)
-	if err == nil {
-		contextPath = absPath
+	if err != nil {
+		return parsedCommand, err
 	}
+	contextPath = absPath
 
 	allRegistryDomains := []string{}
 	for _, tag := range allTags {

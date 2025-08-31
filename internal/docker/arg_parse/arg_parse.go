@@ -10,5 +10,5 @@ func ExtractRegistryDomain(tag string) string {
 	}
 
 	// If parsing fails, fall back to Docker Hub
-	return "docker.io"
+	return "index.docker.io"
 }
