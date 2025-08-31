@@ -1,10 +1,8 @@
 package actions
 
 import (
-	"crypto/rand"
 	"encoding/json"
 	"fmt"
-	"math/big"
 	"net/http"
 	"os"
 	"os/exec"
@@ -18,125 +16,37 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/hytromo/mimosa/internal/cacher"
 	"github.com/hytromo/mimosa/internal/configuration"
-	"github.com/hytromo/mimosa/internal/docker"
+	"github.com/hytromo/mimosa/internal/testutils"
+	"github.com/hytromo/mimosa/internal/utils/dockerutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-var (
-	sharedRegistry *testRegistry
-)
-
-// generateTestID generates a unique test identifier to avoid conflicts between tests
-func generateTestID() string {
-	// Generate 8 random bytes and encode as hex
-	bytes := make([]byte, 8)
-	_, err := rand.Read(bytes)
-	if err != nil {
-		panic(fmt.Sprintf("failed to generate test ID: %v", err))
-	}
-	return fmt.Sprintf("%x", bytes)
-}
-
-type testRegistry struct {
-	port int
-	name string
-	url  string
-}
-
-// startSharedRegistry starts a single Docker registry that will be shared across all tests
-func startSharedRegistry() (*testRegistry, error) {
-	// Generate a random port between 5000-65535
-	portRange := big.NewInt(60535) // 65535 - 5000
-	randomPort, err := rand.Int(rand.Reader, portRange)
-	if err != nil {
-		return nil, err
-	}
-	port := int(randomPort.Int64()) + 5000
-
-	// Generate a unique container name
-	name := fmt.Sprintf("mimosa_registry_%d", randomPort.Int64())
-	url := fmt.Sprintf("localhost:%d", port)
-
-	// Start the registry
-	cmd := exec.Command("docker", "run", "-d", "--rm",
-		"-p", fmt.Sprintf("%d:5000", port),
-		"--name", name,
-		"registry:3")
-
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return nil, fmt.Errorf("failed to start registry: %s", string(output))
-	}
-
-	// Wait for registry to be ready
-	timeoutSeconds := 30
-	timeout := time.Now().Add(time.Duration(timeoutSeconds) * time.Second)
-	for time.Now().Before(timeout) {
-		resp, err := http.Get(fmt.Sprintf("http://%s/v2/", url))
-		if err == nil {
-			resp.Body.Close()
-			if resp.StatusCode == http.StatusOK {
-				return &testRegistry{
-					port: port,
-					name: name,
-					url:  url,
-				}, nil
-			}
-		}
-		time.Sleep(1 * time.Second)
-	}
-
-	return nil, fmt.Errorf("registry failed to start within %d seconds", timeoutSeconds)
-}
+// Global variable to hold the shared registry for tests
+var sharedRegistry *testutils.TestRegistry
 
 func TestMain(m *testing.M) {
-	// Start shared registry before running tests
-	registry, err := startSharedRegistry()
+	// Get shared registry before running tests
+	registry, err := testutils.GetSharedRegistry()
 
 	if err != nil || registry == nil {
-		fmt.Printf("Failed to start shared registry: %v\n", err)
+		fmt.Printf("Failed to get shared registry: %v\n", err)
 		os.Exit(1)
 		return
 	}
-
-	fmt.Printf("Shared test registry started on port %d with name %s\n", registry.port, registry.name)
 
 	sharedRegistry = registry
 
 	exitCode := m.Run()
 
 	// Clean up before exiting
-	registry.cleanup(nil)
+	testutils.CleanupSharedRegistry()
 	os.Exit(exitCode)
 }
 
-// cleanup stops and removes the test registry container
-func (tr *testRegistry) cleanup(t *testing.T) {
-	if tr.name == "" {
-		return
-	}
-
-	killCmd := exec.Command("docker", "kill", "-s", "9", tr.name)
-	killOutput, killErr := killCmd.CombinedOutput()
-	if killErr != nil {
-		if t != nil {
-			t.Logf("Failed to stop/kill registry container: %s, %s", string(killOutput), string(killOutput))
-		} else {
-			fmt.Printf("Failed to stop/kill registry container: %s, %s\n", string(killOutput), string(killOutput))
-		}
-	}
-
-	if t != nil {
-		t.Logf("Shared test registry cleaned up: %s", tr.name)
-	} else {
-		fmt.Printf("Shared test registry cleaned up: %s\n", tr.name)
-	}
-}
-
 // createTestImage creates a simple test image and pushes it to the registry
-func createTestImage(t *testing.T, registry *testRegistry, imageName, tag string) string {
-	fullImageName := fmt.Sprintf("%s/%s:%s", registry.url, imageName, tag)
+func createTestImage(t *testing.T, registry *testutils.TestRegistry, imageName, tag string) string {
+	fullImageName := fmt.Sprintf("%s/%s:%s", registry.Url, imageName, tag)
 
 	// Create a simple Dockerfile
 	dockerfile := `FROM alpine:latest
@@ -172,19 +82,8 @@ CMD ["cat", "/test.txt"]`
 
 // createMockCacheEntry creates a mock cache entry for testing
 func createMockCacheEntry(t *testing.T, hash string, tagsByTarget map[string][]string) cacher.Cache {
-	// Create temporary cache directory
-	tempCacheDir, err := os.MkdirTemp("", "mimosa_cache_test_*")
-	require.NoError(t, err)
+	tempCacheDir := t.TempDir()
 
-	// Override cache directory for test
-	originalCacheDir := cacher.CacheDir
-	cacher.CacheDir = tempCacheDir
-	t.Cleanup(func() {
-		cacher.CacheDir = originalCacheDir
-		os.RemoveAll(tempCacheDir)
-	})
-
-	// Create cache file
 	cacheFile := cacher.CacheFile{
 		TagsByTarget:  tagsByTarget,
 		LastUpdatedAt: time.Now(),
@@ -199,6 +98,7 @@ func createMockCacheEntry(t *testing.T, hash string, tagsByTarget map[string][]s
 
 	return cacher.Cache{
 		Hash:            hash,
+		CacheDir:        tempCacheDir,
 		InMemoryEntries: cacher.GetAllInMemoryEntries(),
 	}
 }
@@ -266,7 +166,7 @@ func TestRetag_SingleTarget(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			actioner := New()
-			testID := generateTestID()
+			testID := testutils.GenerateTestID()
 
 			// Create test image
 			var originalImage string
@@ -287,8 +187,8 @@ func TestRetag_SingleTarget(t *testing.T) {
 			parsedCommand := configuration.ParsedCommand{
 				TagsByTarget: map[string][]string{
 					"default": {
-						fmt.Sprintf("%s/%s-%s:v1.1.0", sharedRegistry.url, tc.imageName, testID),
-						fmt.Sprintf("%s/%s-%s:latest", sharedRegistry.url, tc.imageName, testID),
+						fmt.Sprintf("%s/%s-%s:v1.1.0", sharedRegistry.Url, tc.imageName, testID),
+						fmt.Sprintf("%s/%s-%s:latest", sharedRegistry.Url, tc.imageName, testID),
 					},
 				},
 				Hash:    hash,
@@ -338,7 +238,7 @@ func TestRetag_MultipleTargets(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			actioner := New()
-			testID := generateTestID()
+			testID := testutils.GenerateTestID()
 
 			// Create test images for multiple targets
 			var backendImage, frontendImage string
@@ -362,12 +262,12 @@ func TestRetag_MultipleTargets(t *testing.T) {
 			parsedCommand := configuration.ParsedCommand{
 				TagsByTarget: map[string][]string{
 					"backend": {
-						fmt.Sprintf("%s/backend-%s:v1.1.0", sharedRegistry.url, testID),
-						fmt.Sprintf("%s/backend-%s:latest", sharedRegistry.url, testID),
+						fmt.Sprintf("%s/backend-%s:v1.1.0", sharedRegistry.Url, testID),
+						fmt.Sprintf("%s/backend-%s:latest", sharedRegistry.Url, testID),
 					},
 					"frontend": {
-						fmt.Sprintf("%s/frontend-%s:v1.1.0", sharedRegistry.url, testID),
-						fmt.Sprintf("%s/frontend-%s:latest", sharedRegistry.url, testID),
+						fmt.Sprintf("%s/frontend-%s:v1.1.0", sharedRegistry.Url, testID),
+						fmt.Sprintf("%s/frontend-%s:latest", sharedRegistry.Url, testID),
 					},
 				},
 				Hash:    hash,
@@ -403,7 +303,7 @@ func TestRetag_MultipleTargets(t *testing.T) {
 
 func TestRetag_NonExistentCache(t *testing.T) {
 	actioner := New()
-	testID := generateTestID()
+	testID := testutils.GenerateTestID()
 
 	// Create cache entry that doesn't exist on disk
 	hash := fmt.Sprintf("non_existent_hash_%s", testID)
@@ -414,7 +314,7 @@ func TestRetag_NonExistentCache(t *testing.T) {
 
 	parsedCommand := configuration.ParsedCommand{
 		TagsByTarget: map[string][]string{
-			"default": {fmt.Sprintf("%s/testapp-%s:v1.0.0", sharedRegistry.url, testID)},
+			"default": {fmt.Sprintf("%s/testapp-%s:v1.0.0", sharedRegistry.Url, testID)},
 		},
 		Hash:    hash,
 		Command: []string{"docker", "retag"},
@@ -428,7 +328,7 @@ func TestRetag_NonExistentCache(t *testing.T) {
 
 func TestRetag_MismatchedTargets(t *testing.T) {
 	actioner := New()
-	testID := generateTestID()
+	testID := testutils.GenerateTestID()
 
 	// Create test image
 	originalImage := createTestImage(t, sharedRegistry, fmt.Sprintf("testapp-%s", testID), "v1.0.0")
@@ -442,7 +342,7 @@ func TestRetag_MismatchedTargets(t *testing.T) {
 	// Create parsed command with different target
 	parsedCommand := configuration.ParsedCommand{
 		TagsByTarget: map[string][]string{
-			"different_target": {fmt.Sprintf("%s/testapp-%s:v1.1.0", sharedRegistry.url, testID)},
+			"different_target": {fmt.Sprintf("%s/testapp-%s:v1.1.0", sharedRegistry.Url, testID)},
 		},
 		Hash:    hash,
 		Command: []string{"docker", "retag"},
@@ -475,7 +375,7 @@ func TestRetag_DryRun(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			actioner := New()
-			testID := generateTestID()
+			testID := testutils.GenerateTestID()
 
 			// Create test image
 			var originalImage string
@@ -495,7 +395,7 @@ func TestRetag_DryRun(t *testing.T) {
 			// Create parsed command
 			parsedCommand := configuration.ParsedCommand{
 				TagsByTarget: map[string][]string{
-					"default": {fmt.Sprintf("%s/%s-%s:v1.1.0", sharedRegistry.url, tc.imageName, testID)},
+					"default": {fmt.Sprintf("%s/%s-%s:v1.1.0", sharedRegistry.Url, tc.imageName, testID)},
 				},
 				Hash:    hash,
 				Command: []string{"docker", "retag"},
@@ -515,7 +415,7 @@ func TestRetag_DryRun(t *testing.T) {
 
 func TestRetag_InvalidImage(t *testing.T) {
 	actioner := New()
-	testID := generateTestID()
+	testID := testutils.GenerateTestID()
 
 	// Create mock cache entry with invalid image
 	hash := fmt.Sprintf("test_hash_invalid_%s", testID)
@@ -525,7 +425,7 @@ func TestRetag_InvalidImage(t *testing.T) {
 
 	parsedCommand := configuration.ParsedCommand{
 		TagsByTarget: map[string][]string{
-			"default": {fmt.Sprintf("%s/testapp-%s:v1.0.0", sharedRegistry.url, testID)},
+			"default": {fmt.Sprintf("%s/testapp-%s:v1.0.0", sharedRegistry.Url, testID)},
 		},
 		Hash:    hash,
 		Command: []string{"docker", "retag"},
@@ -537,8 +437,8 @@ func TestRetag_InvalidImage(t *testing.T) {
 }
 
 // createMultiPlatformTestImage creates a multi-platform test image and pushes it to the registry
-func createMultiPlatformTestImage(t *testing.T, registry *testRegistry, imageName, tag string, platforms []string) string {
-	fullImageName := fmt.Sprintf("%s/%s:%s", registry.url, imageName, tag)
+func createMultiPlatformTestImage(t *testing.T, registry *testutils.TestRegistry, imageName, tag string, platforms []string) string {
+	fullImageName := fmt.Sprintf("%s/%s:%s", registry.Url, imageName, tag)
 
 	// Create a simple Dockerfile
 	dockerfile := `FROM alpine:latest
@@ -556,7 +456,7 @@ CMD ["cat", "/test.txt"]`
 	require.NoError(t, err)
 
 	// Create a dedicated ephemeral builder for this test
-	builderName := fmt.Sprintf("test_builder_%s", generateTestID())
+	builderName := fmt.Sprintf("test_builder_%s", testutils.GenerateTestID())
 	createCmd := exec.Command("docker", "buildx", "create", "--name", builderName, "--driver", "docker-container", "--driver-opt", "network=host", "--use")
 	output, err := createCmd.CombinedOutput()
 	require.NoError(t, err, "Failed to create test builder: %s", string(output))
@@ -587,7 +487,7 @@ CMD ["cat", "/test.txt"]`
 func checkMultiPlatformManifest(t *testing.T, imageTag string, originalImageTag string) {
 	// Helper function to get manifest list from image tag
 	getManifestList := func(tag string, description string) (*name.Reference, *v1.IndexManifest) {
-		parsed, err := docker.ParseTag(tag)
+		parsed, err := dockerutil.ParseTag(tag)
 		if err != nil {
 			t.Fatalf("failed to parse %s image tag %s: %v", description, tag, err)
 		}
@@ -630,7 +530,7 @@ func checkMultiPlatformManifest(t *testing.T, imageTag string, originalImageTag 
 		"Retagged image %s should have at least 2 manifests, but has %d", *ref, len(indexManifest.Manifests))
 
 	// Parse the new image for digest verification
-	parsed, err := docker.ParseTag(imageTag)
+	parsed, err := dockerutil.ParseTag(imageTag)
 	require.NoError(t, err, "Failed to parse retagged image tag %s", imageTag)
 
 	// Check that all original digests are present
@@ -654,6 +554,4 @@ func checkMultiPlatformManifest(t *testing.T, imageTag string, originalImageTag 
 			"Original digest %s not found in retagged image %s. Found digests: %v",
 			originalDigest, *ref, foundDigests)
 	}
-
-	t.Logf("Multi-platform image %s contains all original digests: %v", *ref, originalDigests)
 }

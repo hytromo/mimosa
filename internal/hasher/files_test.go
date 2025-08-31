@@ -1,6 +1,7 @@
 package hasher
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -119,5 +120,173 @@ func TestHashFiles_DuplicatePaths(t *testing.T) {
 	// Hashes should be different because the file is included twice
 	if hash1 == hash2 {
 		t.Error("Hash should differ when file is included twice")
+	}
+}
+
+func TestHashFiles_MultipleWorkers(t *testing.T) {
+	dir := t.TempDir()
+
+	// Create multiple files
+	files := make([]string, 10)
+	for i := 0; i < 10; i++ {
+		files[i] = createTempFileWithContent(t, dir, fmt.Sprintf("content %d", i))
+	}
+
+	// Test with different numbers of workers
+	hash1 := HashFiles(files, 1)
+	hash2 := HashFiles(files, 4)
+	hash3 := HashFiles(files, 8)
+
+	// All hashes should be the same regardless of worker count
+	if hash1 != hash2 || hash2 != hash3 {
+		t.Errorf("Hashes should be the same regardless of worker count: %q, %q, %q", hash1, hash2, hash3)
+	}
+}
+
+func TestHashFiles_ZeroWorkers(t *testing.T) {
+	dir := t.TempDir()
+	file := createTempFileWithContent(t, dir, "test")
+
+	// Test with zero workers
+	hash := HashFiles([]string{file}, 0)
+	if hash == "" {
+		t.Error("Expected non-empty hash with zero workers")
+	}
+}
+
+func TestHashFiles_NegativeWorkers(t *testing.T) {
+	dir := t.TempDir()
+	file := createTempFileWithContent(t, dir, "test")
+	HashFiles([]string{file}, -1)
+}
+
+func TestHashFiles_MixedExistentAndNonExistent(t *testing.T) {
+	dir := t.TempDir()
+	existingFile := createTempFileWithContent(t, dir, "exists")
+	nonExistentFile := filepath.Join(dir, "doesnotexist.txt")
+
+	hash := HashFiles([]string{existingFile, nonExistentFile}, 1)
+	if hash == "" {
+		t.Error("Expected non-empty hash when at least one file exists")
+	}
+}
+
+func TestHashFiles_AllNonExistent(t *testing.T) {
+	dir := t.TempDir()
+	nonExistentFile1 := filepath.Join(dir, "doesnotexist1.txt")
+	nonExistentFile2 := filepath.Join(dir, "doesnotexist2.txt")
+
+	hash := HashFiles([]string{nonExistentFile1, nonExistentFile2}, 1)
+	if hash != "00000000000000000000000000000000" {
+		t.Errorf("Expected zero-ed hash for all non-existent files, got %q", hash)
+	}
+}
+
+func TestHashFiles_EmptyFile(t *testing.T) {
+	dir := t.TempDir()
+	emptyFile := createTempFileWithContent(t, dir, "")
+
+	hash := HashFiles([]string{emptyFile}, 1)
+	if hash == "" {
+		t.Error("Expected non-empty hash for empty file")
+	}
+}
+
+func TestHashFiles_SpecialCharactersInPath(t *testing.T) {
+	dir := t.TempDir()
+
+	// Create a file with special characters in the name
+	specialName := "file with spaces and special chars!@#$%^&*().txt"
+	specialFile := filepath.Join(dir, specialName)
+	if err := os.WriteFile(specialFile, []byte("special content"), 0644); err != nil {
+		t.Fatalf("Failed to create file with special name: %v", err)
+	}
+
+	hash := HashFiles([]string{specialFile}, 1)
+	if hash == "" {
+		t.Error("Expected non-empty hash for file with special characters in name")
+	}
+}
+
+func TestHashFiles_ConcurrentAccess(t *testing.T) {
+	dir := t.TempDir()
+
+	// Create multiple files
+	files := make([]string, 5)
+	for i := 0; i < 5; i++ {
+		files[i] = createTempFileWithContent(t, dir, fmt.Sprintf("content %d", i))
+	}
+
+	// Test concurrent access to HashFiles
+	done := make(chan bool, 3)
+	for i := 0; i < 3; i++ {
+		go func() {
+			hash := HashFiles(files, 2)
+			if hash == "" {
+				t.Error("Expected non-empty hash in concurrent access")
+			}
+			done <- true
+		}()
+	}
+
+	// Wait for all goroutines to complete
+	for i := 0; i < 3; i++ {
+		<-done
+	}
+}
+
+func TestJoinHashes_EmptySlice(t *testing.T) {
+	result := joinHashes([][]byte{})
+	if len(result) != 0 {
+		t.Errorf("Expected empty result for empty slice, got %d bytes", len(result))
+	}
+}
+
+func TestJoinHashes_SingleHash(t *testing.T) {
+	hash := []byte{1, 2, 3, 4}
+	result := joinHashes([][]byte{hash})
+	if len(result) != 4 {
+		t.Errorf("Expected 4 bytes, got %d", len(result))
+	}
+	for i, b := range hash {
+		if result[i] != b {
+			t.Errorf("Expected byte %d to be %d, got %d", i, b, result[i])
+		}
+	}
+}
+
+func TestJoinHashes_MultipleHashes(t *testing.T) {
+	hash1 := []byte{1, 2, 3}
+	hash2 := []byte{4, 5, 6}
+	hash3 := []byte{7, 8, 9}
+
+	result := joinHashes([][]byte{hash1, hash2, hash3})
+	expected := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9}
+
+	if len(result) != len(expected) {
+		t.Errorf("Expected %d bytes, got %d", len(expected), len(result))
+	}
+	for i, b := range expected {
+		if result[i] != b {
+			t.Errorf("Expected byte %d to be %d, got %d", i, b, result[i])
+		}
+	}
+}
+
+func TestJoinHashes_EmptyHashes(t *testing.T) {
+	hash1 := []byte{}
+	hash2 := []byte{1, 2, 3}
+	hash3 := []byte{}
+
+	result := joinHashes([][]byte{hash1, hash2, hash3})
+	expected := []byte{1, 2, 3}
+
+	if len(result) != len(expected) {
+		t.Errorf("Expected %d bytes, got %d", len(expected), len(result))
+	}
+	for i, b := range expected {
+		if result[i] != b {
+			t.Errorf("Expected byte %d to be %d, got %d", i, b, result[i])
+		}
 	}
 }

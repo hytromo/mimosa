@@ -2,10 +2,12 @@ package hasher
 
 import (
 	"encoding/hex"
+	"math"
 	"sort"
 	"sync"
 
 	"github.com/kalafut/imohash"
+	log "github.com/sirupsen/logrus"
 )
 
 // HashFiles computes a hash of all files in the provided list
@@ -18,10 +20,11 @@ func HashFiles(filePaths []string, nWorkers int) string {
 
 	fileChan := make(chan string, len(filePaths))
 	hashChan := make(chan []byte, len(filePaths))
+	finalWorkerCount := int(math.Max(1, float64(nWorkers)))
 	workerCountChan := make(chan struct {
 		workerID int
 		count    int
-	}, nWorkers)
+	}, finalWorkerCount)
 	var wg sync.WaitGroup
 
 	// Worker function
@@ -33,6 +36,8 @@ func HashFiles(filePaths []string, nWorkers int) string {
 			if err == nil {
 				hashChan <- hash[:]
 				count++
+			} else {
+				log.Debugf("Error hashing file %s: %v", path, err)
 			}
 		}
 		workerCountChan <- struct {
@@ -41,8 +46,8 @@ func HashFiles(filePaths []string, nWorkers int) string {
 		}{id, count}
 	}
 
-	wg.Add(nWorkers)
-	for i := 0; i < nWorkers; i++ {
+	wg.Add(finalWorkerCount)
+	for i := 0; i < finalWorkerCount; i++ {
 		go worker(i)
 	}
 
@@ -62,24 +67,24 @@ func HashFiles(filePaths []string, nWorkers int) string {
 	}
 
 	// Collect worker stats
-	workerStats := make([]int, nWorkers)
+	workerStats := make([]int, finalWorkerCount)
 	for stat := range workerCountChan {
 		workerStats[stat.workerID] = stat.count
 	}
 
-	// if log.IsLevelEnabled(log.DebugLevel) {
-	// 	// Print the number of files and their paths
-	// 	log.Debugf("Deducting file hash from %d files:", len(filePaths))
-	// 	for _, path := range filePaths {
-	// 		log.Debugln(path)
-	// 	}
-	// 	log.Debugf("Files hashed per worker (%v total workers):", nWorkers)
-	// 	for i, c := range workerStats {
-	// 		if c > 0 {
-	// 			log.Debugf("  Worker %d: %d files", i, c)
-	// 		}
-	// 	}
-	// }
+	if log.IsLevelEnabled(log.DebugLevel) {
+		// Print the number of files and their paths
+		log.Debugf("Deducting file hash from %d files:", len(filePaths))
+		for _, path := range filePaths {
+			log.Debugln(path)
+		}
+		log.Debugf("Files hashed per worker (%v total workers):", nWorkers)
+		for i, c := range workerStats {
+			if c > 0 {
+				log.Debugf("  Worker %d: %d files", i, c)
+			}
+		}
+	}
 
 	// Sort the hashes to ensure consistent order
 	sort.Slice(fileHashes, func(i, j int) bool {
