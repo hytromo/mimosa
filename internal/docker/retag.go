@@ -8,33 +8,16 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/types"
+	"github.com/hytromo/mimosa/internal/utils/dockerutil"
 	log "github.com/sirupsen/logrus"
 )
 
-type ParsedTag struct {
-	Ref       name.Reference
-	Registry  string
-	Tag       string
-	ImageName string
-}
-
-func ParseTag(fromTag string) (ParsedTag, error) {
-	if t, err := name.NewTag(fromTag); err == nil {
-		return ParsedTag{Ref: t, Registry: t.Context().Registry.Name(), Tag: t.TagStr(), ImageName: t.Context().RepositoryStr()}, nil
-	}
-	if d, err := name.NewDigest(fromTag); err == nil {
-		return ParsedTag{Ref: d, Registry: d.Context().Registry.Name(), Tag: d.DigestStr(), ImageName: d.Context().RepositoryStr()}, nil
-	}
-
-	return ParsedTag{}, errors.New("invalid image reference")
-}
-
 func RetagSingle(fromTag string, toTag string, dryRun bool) error {
-	fromRef, err := ParseTag(fromTag)
+	fromRef, err := dockerutil.ParseTag(fromTag)
 	if err != nil {
 		return err
 	}
-	toRef, err := ParseTag(toTag)
+	toRef, err := dockerutil.ParseTag(toTag)
 	if err != nil {
 		return err
 	}
@@ -43,7 +26,13 @@ func RetagSingle(fromTag string, toTag string, dryRun bool) error {
 	fromDesc, err := Get(fromRef.Ref)
 	if err != nil {
 		log.Debugln("Failed to get descriptor for", fromTag, ":", err)
-		return err
+		return fmt.Errorf("failed to get descriptor: %w", err)
+	}
+
+	// If dry run, just return success without doing anything
+	if dryRun {
+		log.Debugln("DRY RUN: Would retag", fromTag, "to", toTag)
+		return nil
 	}
 
 	// Check if it's an index (manifest list)
@@ -163,20 +152,20 @@ func SimpleRetag(source, target string) error {
 	srcRef, err := name.ParseReference(source)
 	if err != nil {
 		log.Debugln("Failed to parse source reference:", err)
-		return err
+		return fmt.Errorf("failed to parse source reference: %w", err)
 	}
 
 	dstRef, err := name.ParseReference(target)
 	if err != nil {
 		log.Debugln("Failed to parse destination reference:", err)
-		return err
+		return fmt.Errorf("failed to parse destination reference: %w", err)
 	}
 
 	// Get the image from the source tag
 	img, err := remote.Image(srcRef, remote.WithAuthFromKeychain(Keychain))
 	if err != nil {
 		log.Debugln("Failed to get image from source reference:", err)
-		return err
+		return fmt.Errorf("failed to get image from source reference: %w", err)
 	}
 
 	// Write the same image to the new tag

@@ -3,14 +3,20 @@ package fileresolution
 import (
 	"os"
 	"path/filepath"
+
+	log "github.com/sirupsen/logrus"
 )
 
-func ResolveDockerfilePath(cwd, extractFromCommandDokcerfilePath string) string {
-	if extractFromCommandDokcerfilePath == "" {
-		extractFromCommandDokcerfilePath = "Dockerfile"
+func ResolveAbsoluteDockerfilePath(cwd, absOrRelativeDockerfilePath string) string {
+	if filepath.IsAbs(absOrRelativeDockerfilePath) {
+		return absOrRelativeDockerfilePath
 	}
 
-	path, err := filepath.Abs(filepath.Join(cwd, extractFromCommandDokcerfilePath))
+	if absOrRelativeDockerfilePath == "" {
+		absOrRelativeDockerfilePath = "Dockerfile"
+	}
+
+	path, err := filepath.Abs(filepath.Join(cwd, absOrRelativeDockerfilePath))
 
 	if err == nil {
 		return path
@@ -19,16 +25,19 @@ func ResolveDockerfilePath(cwd, extractFromCommandDokcerfilePath string) string 
 	return filepath.Join(cwd, "Dockerfile")
 }
 
-func FindDockerignorePath(contextPath, dockerfilePath string) string {
-	dockerfileDir := filepath.Dir(dockerfilePath)
-	dockerfileBase := filepath.Base(dockerfilePath)
+func ResolveAbsoluteDockerIgnorePath(contextPathAbs, dockerfilePathAbs string) string {
+	dockerfileDir := filepath.Dir(dockerfilePathAbs)
+	dockerfileBase := filepath.Base(dockerfilePathAbs)
 	dockerignoreCandidate := filepath.Join(dockerfileDir, dockerfileBase+".dockerignore")
 	if fi, err := os.Stat(dockerignoreCandidate); err == nil && !fi.IsDir() {
 		if abs, err := filepath.Abs(dockerignoreCandidate); err == nil {
 			return abs
+		} else {
+			log.Infof("Failed to get absolute path for dockerignore candidate: %s", err)
 		}
 	}
-	contextDockerignore := filepath.Join(contextPath, ".dockerignore")
+
+	contextDockerignore := filepath.Join(contextPathAbs, ".dockerignore")
 	if fi, err := os.Stat(contextDockerignore); err == nil && !fi.IsDir() {
 		if abs, err := filepath.Abs(contextDockerignore); err == nil {
 			return abs

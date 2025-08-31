@@ -1,6 +1,7 @@
 package orchestrator
 
 import (
+	"github.com/hytromo/mimosa/internal/cacher"
 	"github.com/hytromo/mimosa/internal/configuration"
 	"github.com/hytromo/mimosa/internal/orchestration/actions"
 )
@@ -16,7 +17,7 @@ func handleCacheSubcommand(appOptions configuration.AppOptions, act actions.Acti
 	}
 
 	if appOptions.Cache.ToEnvValue {
-		act.PrintCacheToEnvValue()
+		act.PrintCacheToEnvValue(cacher.CacheDir)
 		return nil
 	}
 

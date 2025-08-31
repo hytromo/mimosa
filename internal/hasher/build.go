@@ -11,6 +11,7 @@ import (
 
 	"github.com/hytromo/mimosa/internal/configuration"
 	"github.com/hytromo/mimosa/internal/utils/fileutil"
+	"github.com/samber/lo"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -24,8 +25,15 @@ type DockerBuildCommand struct {
 }
 
 func registryDomainsHash(registryDomains []string) string {
-	slices.Sort(registryDomains)
-	return HashStrings(registryDomains)
+	// Create a copy to avoid modifying the original slice
+	domains := make([]string, len(registryDomains))
+	copy(domains, registryDomains)
+
+	// Remove duplicates and sort
+	domains = lo.Uniq(domains)
+	slices.Sort(domains)
+
+	return HashStrings(domains)
 }
 
 func HashBuildCommand(command DockerBuildCommand) string {
@@ -79,18 +87,18 @@ func HashBuildCommand(command DockerBuildCommand) string {
 				// Get all included files for this context
 				includedFiles, err := fileutil.IncludedFiles(contextPath, dockerIgnorePath)
 
+				if err != nil {
+					log.Errorf("Error getting included files for context %s: %v", contextName, err)
+					includedFilesChan <- []string{}
+					continue
+				}
+
 				if contextName == configuration.MainBuildContextName {
 					// need to include dockerfile and dockerignore in the to-be-hashed files
 					includedFiles = append(includedFiles, command.DockerfilePath)
 					if command.DockerignorePath != "" {
 						includedFiles = append(includedFiles, command.DockerignorePath)
 					}
-				}
-
-				if err != nil {
-					log.Errorf("Error getting included files for context %s: %v", contextName, err)
-					includedFilesChan <- []string{}
-					continue
 				}
 
 				// Hash the context files

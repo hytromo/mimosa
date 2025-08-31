@@ -61,8 +61,8 @@ func (m *MockActions) PrintCacheDir() {
 	m.Called()
 }
 
-func (m *MockActions) PrintCacheToEnvValue() {
-	m.Called()
+func (m *MockActions) PrintCacheToEnvValue(cacheDir string) {
+	m.Called(cacheDir)
 }
 
 func (m *MockActions) Retag(cacheEntry cacher.Cache, parsedCommand configuration.ParsedCommand, dryRun bool) error {

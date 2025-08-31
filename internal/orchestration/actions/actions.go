@@ -19,7 +19,7 @@ type Actions interface {
 	SaveCache(cacheEntry cacher.Cache, tagsByTarget map[string][]string, dryRun bool) error
 	ForgetCacheEntriesOlderThan(duration string, autoApprove bool) error
 	PrintCacheDir()
-	PrintCacheToEnvValue()
+	PrintCacheToEnvValue(cacheDir string)
 
 	// docker
 	Retag(cacheEntry cacher.Cache, parsedCommand configuration.ParsedCommand, dryRun bool) error

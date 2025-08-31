@@ -60,8 +60,8 @@ func (a *Actioner) PrintCacheDir() {
 	logger.CleanLog.Info(cacher.CacheDir)
 }
 
-func (a *Actioner) PrintCacheToEnvValue() {
-	diskEntries := cacher.GetDiskCacheToMemoryEntries(cacher.CacheDir)
+func (a *Actioner) PrintCacheToEnvValue(cacheDir string) {
+	diskEntries := cacher.GetDiskCacheToMemoryEntries(cacheDir)
 	log.Debugln("-- Disk Cache Entries --")
 	for key, value := range diskEntries.AllFromFront() {
 		logger.CleanLog.Infoln(fmt.Sprintf("%s %s", key, value))
