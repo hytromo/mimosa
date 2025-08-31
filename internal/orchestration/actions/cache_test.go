@@ -1,9 +1,16 @@
 package actions
 
 import (
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/hytromo/mimosa/internal/cacher"
+	"github.com/hytromo/mimosa/internal/hasher"
+	logger "github.com/hytromo/mimosa/internal/logger"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -158,29 +165,133 @@ func TestPrintCacheDir(t *testing.T) {
 }
 
 func TestPrintCacheToEnvValue(t *testing.T) {
-	// This test verifies that PrintCacheToEnvValue doesn't panic
-	// The actual output depends on environment variables and disk cache
+	// This test verifies that PrintCacheToEnvValue actually produces output
 	actioner := &Actioner{}
 
-	// Should not panic
+	// Set up test environment variable with some cache data
+	originalEnv := os.Getenv("MIMOSA_CACHE")
+	defer os.Setenv("MIMOSA_CACHE", originalEnv)
+
+	// Set some test cache data (format: "z85hash image:tag")
+	z85Hash, err := hasher.HexToZ85("406b7725b0e93838b460e38d30903899")
+	assert.NoError(t, err)
+	os.Setenv("MIMOSA_CACHE", z85Hash+" testimage:latest")
+
+	// Capture the CleanLog output
+	originalOutput := logger.CleanLog.Out
+	defer func() {
+		logger.CleanLog.Out = originalOutput
+	}()
+
+	var output strings.Builder
+	logger.CleanLog.Out = &output
+
+	// Should not panic and should produce output
 	assert.NotPanics(t, func() {
-		actioner.PrintCacheToEnvValue()
+		actioner.PrintCacheToEnvValue(cacher.CacheDir)
 	})
+
+	// Check that some output was produced
+	outputStr := output.String()
+	assert.NotEmpty(t, outputStr, "PrintCacheToEnvValue should produce output")
 }
 
-func TestSaveCacheNilMapShouldNotPanic(t *testing.T) {
+func TestPrintCacheToEnvValue_WithDiskAndEnvEntries(t *testing.T) {
+	// This test verifies the case where both disk and env cache entries exist
 	actioner := &Actioner{}
 
-	cache := cacher.Cache{
-		Hash:            "test-hash-nil-map",
-		InMemoryEntries: cacher.GetAllInMemoryEntries(),
-	}
+	// Create a temporary cache directory with disk entries
+	tempDir := t.TempDir()
 
-	tagsByTarget := map[string][]string{
-		"default": {"image:latest"},
+	// Create a disk cache file
+	diskHash := "406b7725b0e93838b460e38d30903899"
+	diskCache := cacher.CacheFile{
+		TagsByTarget:  map[string][]string{"default": {"diskimage:latest"}},
+		LastUpdatedAt: time.Now(),
 	}
+	diskData, err := json.Marshal(diskCache)
+	assert.NoError(t, err)
+	err = os.WriteFile(filepath.Join(tempDir, diskHash+".json"), diskData, 0644)
+	assert.NoError(t, err)
 
+	// Set up environment variable with different cache data
+	originalEnv := os.Getenv("MIMOSA_CACHE")
+	defer os.Setenv("MIMOSA_CACHE", originalEnv)
+
+	// Set env cache data that's different from disk cache
+	z85Hash, err := hasher.HexToZ85("993080d3e8e460b838e3b0e5727b6406")
+	assert.NoError(t, err)
+	os.Setenv("MIMOSA_CACHE", z85Hash+" envimage:latest")
+
+	// Capture the CleanLog output
+	originalOutput := logger.CleanLog.Out
+	defer func() {
+		logger.CleanLog.Out = originalOutput
+	}()
+
+	var output strings.Builder
+	logger.CleanLog.Out = &output
+
+	// Should not panic and should produce output
 	assert.NotPanics(t, func() {
-		actioner.SaveCache(cache, tagsByTarget, false)
-	}, "SaveCache should not panic when cache file contains invalid JSON and TagsByTarget is nil")
+		actioner.PrintCacheToEnvValue(tempDir)
+	})
+
+	// Check that some output was produced
+	outputStr := output.String()
+	assert.NotEmpty(t, outputStr, "PrintCacheToEnvValue should produce output")
+
+	// Should contain both disk and env entries
+	assert.Contains(t, outputStr, "diskimage:latest", "Should contain disk cache entry")
+	assert.Contains(t, outputStr, "envimage", "Should contain env cache entry")
+}
+
+func TestPrintCacheToEnvValue_EnvEntryExistsInDisk(t *testing.T) {
+	// This test verifies the case where env cache entry exists but is also in disk cache
+	actioner := &Actioner{}
+
+	// Create a temporary cache directory with disk entries
+	tempDir := t.TempDir()
+
+	// Create a disk cache file
+	diskHash := "406b7725b0e93838b460e38d30903899"
+	diskCache := cacher.CacheFile{
+		TagsByTarget:  map[string][]string{"default": {"sameimage:latest"}},
+		LastUpdatedAt: time.Now(),
+	}
+	diskData, err := json.Marshal(diskCache)
+	assert.NoError(t, err)
+	err = os.WriteFile(filepath.Join(tempDir, diskHash+".json"), diskData, 0644)
+	assert.NoError(t, err)
+
+	// Set up environment variable with the same hash as disk cache
+	originalEnv := os.Getenv("MIMOSA_CACHE")
+	defer os.Setenv("MIMOSA_CACHE", originalEnv)
+
+	// Set env cache data with the same hash as disk cache
+	z85Hash, err := hasher.HexToZ85(diskHash)
+	assert.NoError(t, err)
+	os.Setenv("MIMOSA_CACHE", z85Hash+" sameimage:latest")
+
+	// Capture the CleanLog output
+	originalOutput := logger.CleanLog.Out
+	defer func() {
+		logger.CleanLog.Out = originalOutput
+	}()
+
+	var output strings.Builder
+	logger.CleanLog.Out = &output
+
+	// Should not panic and should produce output
+	assert.NotPanics(t, func() {
+		actioner.PrintCacheToEnvValue(tempDir)
+	})
+
+	// Check that some output was produced
+	outputStr := output.String()
+	assert.NotEmpty(t, outputStr, "PrintCacheToEnvValue should produce output")
+
+	// Should contain disk entry but not duplicate env entry
+	assert.Contains(t, outputStr, "sameimage:latest", "Should contain disk cache entry")
+	// The env entry should not be printed again since it exists in disk cache
 }

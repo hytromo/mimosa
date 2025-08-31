@@ -79,6 +79,11 @@ func ParseBakeCommand(dockerBakeCmd []string) (parsedCommand configuration.Parse
 	log.Debugln("Parsing bake command:", dockerBakeCmd)
 	parsedCommand.Command = dockerBakeCmd
 
+	// Check if command has enough elements
+	if len(dockerBakeCmd) < 2 {
+		return parsedCommand, fmt.Errorf("failed to extract bake flags: invalid command")
+	}
+
 	// Extract flags
 	bakeFiles, targetNames, overrides, err := extractBakeFlags(dockerBakeCmd[1:])
 	if err != nil {
@@ -117,7 +122,7 @@ func ParseBakeCommand(dockerBakeCmd []string) (parsedCommand configuration.Parse
 	}
 
 	parsedCommand.TagsByTarget = tagsByTarget
-	parsedCommand.Hash = hasher.HashBakeTargets(targets)
+	parsedCommand.Hash = hasher.HashBakeTargets(targets, bakeFiles)
 
 	return parsedCommand, nil
 }

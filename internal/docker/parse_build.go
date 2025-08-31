@@ -34,7 +34,7 @@ const (
 func extractBuildFlags(args []string) (allTags []string, additionalBuildContexts map[string]string, dockerfilePath string, err error) {
 	allTags = []string{}
 	dockerfilePath = ""
-	additionalBuildContexts = make(map[string]string)
+	additionalBuildContexts = make(map[string]string) // context name -> context path/value
 	for i := 1; i < len(args); i++ {
 		if args[i] == "--tag" || args[i] == "-t" {
 			if i+1 < len(args) {
@@ -56,8 +56,24 @@ func extractBuildFlags(args []string) (allTags []string, additionalBuildContexts
 			dockerfilePath = args[i][len(fileShortFlagEq):]
 		} else if args[i] == "--build-context" {
 			if i+1 < len(args) {
-				additionalBuildContexts[args[i+1]] = args[i+2]
-				i++ // skip next
+				// Handle: --build-context name=VALUE
+				contextArg := args[i+1]
+				if strings.Contains(contextArg, "=") {
+					parts := strings.SplitN(contextArg, "=", 2)
+					if len(parts) == 2 {
+						additionalBuildContexts[parts[0]] = parts[1]
+					}
+				}
+				i++ // skip the context argument
+			}
+		} else if strings.HasPrefix(args[i], "--build-context=") {
+			// Handle: --build-context=name=VALUE
+			contextArg := args[i][len("--build-context="):]
+			if strings.Contains(contextArg, "=") {
+				parts := strings.SplitN(contextArg, "=", 2)
+				if len(parts) == 2 {
+					additionalBuildContexts[parts[0]] = parts[1]
+				}
 			}
 		}
 	}
@@ -167,8 +183,8 @@ func ParseBuildCommand(dockerBuildCmd []string) (parsedCommand configuration.Par
 		allRegistryDomains = append(allRegistryDomains, argparse.ExtractRegistryDomain(tag))
 	}
 
-	dockerfilePath = fileresolution.ResolveDockerfilePath(contextPath, dockerfilePath)
-	dockerignorePath := fileresolution.FindDockerignorePath(contextPath, dockerfilePath)
+	dockerfilePath = fileresolution.ResolveAbsoluteDockerfilePath(contextPath, dockerfilePath)
+	dockerignorePath := fileresolution.ResolveAbsoluteDockerIgnorePath(contextPath, dockerfilePath)
 
 	cmdWithTagPlaceholder := buildCmdWithTagsPlaceholder(dockerBuildCmd)
 

@@ -14,35 +14,47 @@ func constructTemplatedDockerBuildCommand(target *bake.Target) []string {
 	args := []string{"docker", "buildx", "build"}
 
 	// Add annotations
-	for _, annotation := range target.Annotations {
-		args = append(args, "--annotation", annotation)
+	if target.Annotations != nil {
+		for _, annotation := range target.Annotations {
+			args = append(args, "--annotation", annotation)
+		}
 	}
 
 	// Add attestations
-	for _, attest := range target.Attest {
-		args = append(args, "--attest", attest.String())
+	if target.Attest != nil {
+		for _, attest := range target.Attest {
+			args = append(args, "--attest", attest.String())
+		}
 	}
 
 	// Add build contexts
-	for name, context := range target.Contexts {
-		args = append(args, "--build-context", fmt.Sprintf("%s=%s", name, context))
+	if target.Contexts != nil {
+		for name, context := range target.Contexts {
+			args = append(args, "--build-context", fmt.Sprintf("%s=%s", name, context))
+		}
 	}
 
 	// Add build args
-	for key, value := range target.Args {
-		if value != nil {
-			args = append(args, "--build-arg", fmt.Sprintf("%s=%s", key, *value))
+	if target.Args != nil {
+		for key, value := range target.Args {
+			if value != nil {
+				args = append(args, "--build-arg", fmt.Sprintf("%s=%s", key, *value))
+			}
 		}
 	}
 
 	// Add cache-from options
-	for _, cacheFrom := range target.CacheFrom {
-		args = append(args, "--cache-from", cacheFrom.String())
+	if target.CacheFrom != nil {
+		for _, cacheFrom := range target.CacheFrom {
+			args = append(args, "--cache-from", cacheFrom.String())
+		}
 	}
 
 	// Add cache-to options
-	for _, cacheTo := range target.CacheTo {
-		args = append(args, "--cache-to", cacheTo.String())
+	if target.CacheTo != nil {
+		for _, cacheTo := range target.CacheTo {
+			args = append(args, "--cache-to", cacheTo.String())
+		}
 	}
 
 	// Add dockerfile
@@ -51,9 +63,11 @@ func constructTemplatedDockerBuildCommand(target *bake.Target) []string {
 	}
 
 	// Add labels
-	for key, value := range target.Labels {
-		if value != nil {
-			args = append(args, "--label", fmt.Sprintf("%s=%s", key, *value))
+	if target.Labels != nil {
+		for key, value := range target.Labels {
+			if value != nil {
+				args = append(args, "--label", fmt.Sprintf("%s=%s", key, *value))
+			}
 		}
 	}
 
@@ -68,13 +82,17 @@ func constructTemplatedDockerBuildCommand(target *bake.Target) []string {
 	}
 
 	// Add no-cache-filter
-	for _, filter := range target.NoCacheFilter {
-		args = append(args, "--no-cache-filter", filter)
+	if target.NoCacheFilter != nil {
+		for _, filter := range target.NoCacheFilter {
+			args = append(args, "--no-cache-filter", filter)
+		}
 	}
 
 	// Add platforms
-	for _, platform := range target.Platforms {
-		args = append(args, "--platform", platform)
+	if target.Platforms != nil {
+		for _, platform := range target.Platforms {
+			args = append(args, "--platform", platform)
+		}
 	}
 
 	// Add pull
@@ -83,8 +101,10 @@ func constructTemplatedDockerBuildCommand(target *bake.Target) []string {
 	}
 
 	// Add secrets
-	for _, secret := range target.Secrets {
-		args = append(args, "--secret", secret.String())
+	if target.Secrets != nil {
+		for _, secret := range target.Secrets {
+			args = append(args, "--secret", secret.String())
+		}
 	}
 
 	// Add shm-size
@@ -93,8 +113,10 @@ func constructTemplatedDockerBuildCommand(target *bake.Target) []string {
 	}
 
 	// Add SSH keys
-	for _, ssh := range target.SSH {
-		args = append(args, "--ssh", ssh.String())
+	if target.SSH != nil {
+		for _, ssh := range target.SSH {
+			args = append(args, "--ssh", ssh.String())
+		}
 	}
 
 	// Add target
@@ -103,30 +125,40 @@ func constructTemplatedDockerBuildCommand(target *bake.Target) []string {
 	}
 
 	// Add ulimits
-	for _, ulimit := range target.Ulimits {
-		args = append(args, "--ulimit", ulimit)
+	if target.Ulimits != nil {
+		for _, ulimit := range target.Ulimits {
+			args = append(args, "--ulimit", ulimit)
+		}
 	}
 
 	// Add entitlements
-	for _, entitlement := range target.Entitlements {
-		args = append(args, "--allow", entitlement)
+	if target.Entitlements != nil {
+		for _, entitlement := range target.Entitlements {
+			args = append(args, "--allow", entitlement)
+		}
 	}
 
 	// Add extra hosts
-	for host, ip := range target.ExtraHosts {
-		if ip != nil {
-			args = append(args, "--add-host", fmt.Sprintf("%s:%s", host, *ip))
+	if target.ExtraHosts != nil {
+		for host, ip := range target.ExtraHosts {
+			if ip != nil {
+				args = append(args, "--add-host", fmt.Sprintf("%s:%s", host, *ip))
+			}
 		}
 	}
 
 	// Add outputs
-	for _, output := range target.Outputs {
-		args = append(args, "--output", output.String())
+	if target.Outputs != nil {
+		for _, output := range target.Outputs {
+			args = append(args, "--output", output.String())
+		}
 	}
 
 	// Add tags as placeholders
-	for range target.Tags {
-		args = append(args, "--tag", "TAG")
+	if target.Tags != nil {
+		for range target.Tags {
+			args = append(args, "--tag", "TAG")
+		}
 	}
 
 	// Add context path
@@ -140,14 +172,16 @@ func constructTemplatedDockerBuildCommand(target *bake.Target) []string {
 	return args
 }
 
-// TODO: need to include the bake files themselves in this calculation
-func HashBakeTargets(targets map[string]*bake.Target) string {
-	// each target is basically its own docker build
-	// we need to reuse HashBuildCommand for each target and sum the hashes:
+func HashBakeTargets(targets map[string]*bake.Target, bakeFiles []string) string {
+	// each target is basically its own docker build - so we reuse HashBuildCommand for each target and sum the hashes:
 
 	hashes := []string{}
 	for _, target := range targets {
-		dockerIgnorePath := fileresolution.FindDockerignorePath(*target.Context, *target.Dockerfile)
+		if target.Context == nil || target.Dockerfile == nil {
+			continue
+		}
+
+		dockerIgnorePath := fileresolution.ResolveAbsoluteDockerIgnorePath(*target.Context, *target.Dockerfile)
 		allRegistryDomains := []string{}
 		for _, tag := range target.Tags {
 			allRegistryDomains = append(allRegistryDomains, argparse.ExtractRegistryDomain(tag))
@@ -166,6 +200,8 @@ func HashBakeTargets(targets map[string]*bake.Target) string {
 		hash := HashBuildCommand(correspondingDockerBuildCommand)
 		hashes = append(hashes, hash)
 	}
+
+	hashes = append(hashes, HashFiles(bakeFiles, 1))
 
 	slices.Sort(hashes)
 

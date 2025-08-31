@@ -647,7 +647,7 @@ func TestRun_CacheEnabled_ToEnvValue(t *testing.T) {
 
 	mockActions := &MockActions{}
 
-	mockActions.On("PrintCacheToEnvValue").Return()
+	mockActions.On("PrintCacheToEnvValue", cacher.CacheDir).Return()
 
 	err := Run(appOptions, mockActions)
 

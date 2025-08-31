@@ -41,17 +41,13 @@ func HashBuildCommand(command DockerBuildCommand) string {
 
 	allLocalContexts := map[string]string{} // context name -> context path
 	// find all the included files of the build contexts that are local (not https://, not docker-image://, not oci-layout://)
-	for _, context := range command.BuildContexts {
-		parts := strings.Split(context, "=")
-		if len(parts) != 2 {
-			continue
-		}
-		contextName := parts[0]
-		contextPath := parts[1]
+	for contextName, contextPath := range command.BuildContexts {
 		if !strings.HasPrefix(contextPath, "https://") && !strings.HasPrefix(contextPath, "docker-image://") && !strings.HasPrefix(contextPath, "oci-layout://") {
 			allLocalContexts[contextName] = contextPath
 		}
 	}
+
+	log.Debugf("All local contexts: %v", allLocalContexts)
 
 	// up to num of CPUs-1
 	nWorkers := int(math.Max(float64(runtime.NumCPU()-1), 1))
