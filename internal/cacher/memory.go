@@ -29,11 +29,11 @@ const (
 )
 
 type CacheFileWithHash struct {
-	Hash string `json:"hash"`
+	HexHash string `json:"hash"`
 	CacheFile
 }
 
-// the cache loaded in memory as key->cache
+// the cache loaded in memory as z85 key->cache
 type InMemoryCache = orderedmap.OrderedMap[string, CacheFile]
 
 // GetInMemoryEntries retrieves all in-memory cache entries from the environment variable.
@@ -52,11 +52,7 @@ func GetAllInMemoryEntries() *InMemoryCache {
 				log.Warnln("Invalid", EnvVarName, "entry:", line)
 				continue
 			}
-			cacheKey, err := hasher.Z85ToHex(parts[0])
-			if err != nil {
-				log.Debugf("Failed to convert Z85 cache key (%v) to string: %v", parts[0], err)
-				continue
-			}
+			z85CacheKey := parts[0]
 			allTargetsWithTags := strings.Split(parts[1], targetsSeparator)
 			cacheFile := CacheFile{
 				TagsByTarget:  make(map[string][]string),
@@ -75,17 +71,17 @@ func GetAllInMemoryEntries() *InMemoryCache {
 				cacheFile.TagsByTarget[targetName] = []string{trimmedTag}
 			}
 
-			inMemoryEntries.Set(cacheKey, cacheFile)
+			inMemoryEntries.Set(z85CacheKey, cacheFile)
 		}
-		// print json representation of the in-memory entries:
+
 		if log.IsLevelEnabled(log.DebugLevel) {
-			for key, value := range inMemoryEntries.AllFromFront() {
-				hexKey, err := hasher.Z85ToHex(key)
+			for z85CacheKey, value := range inMemoryEntries.AllFromFront() {
+				hexKey, err := hasher.Z85ToHex(z85CacheKey)
 				if err != nil {
 					log.Warnf("Failed to convert key to hex: %v", err)
 					continue
 				}
-				log.Debugf("In-memory cache entry: %s (%s) -> %s", key, hexKey, value)
+				log.Debugf("In-memory cache entry: %s (%s) -> %s", z85CacheKey, hexKey, value)
 			}
 		}
 	}
@@ -121,10 +117,10 @@ func GetDiskCacheToMemoryEntries(cacheDir string) *orderedmap.OrderedMap[string,
 
 		log.Debugf("Cache file: %+v", cacheFile)
 
-		// the cache hash is the filename without the extension
-		hash := strings.TrimSuffix(filepath.Base(path), ".json")
+		// the cache hexHash is the filename without the extension
+		hexHash := strings.TrimSuffix(filepath.Base(path), ".json")
 		diskEntries = append(diskEntries, &CacheFileWithHash{
-			Hash:      hash,
+			HexHash:   hexHash,
 			CacheFile: cacheFile,
 		})
 
@@ -141,11 +137,11 @@ func GetDiskCacheToMemoryEntries(cacheDir string) *orderedmap.OrderedMap[string,
 	})
 
 	// convert the disk cache to in-memory cache
-	// key -> cache (both z85 encoded)
+	// z85Key -> cache
 	z85InMemoryEntries := orderedmap.NewOrderedMap[string, string]()
 
 	for _, entry := range diskEntries {
-		z85Hash, err := hasher.HexToZ85(entry.Hash)
+		z85Hash, err := hasher.HexToZ85(entry.HexHash)
 		if err != nil {
 			log.Debugf("Failed to convert hash to z85: %v", err)
 			continue
@@ -167,7 +163,9 @@ func GetDiskCacheToMemoryEntries(cacheDir string) *orderedmap.OrderedMap[string,
 					accumulatingValues = append(accumulatingValues, fmt.Sprintf("%s%s%s", targetName, targetAndTagSeparator, tags[len(tags)-1]))
 				}
 			}
-			z85InMemoryEntries.Set(z85Hash, strings.Join(accumulatingValues, targetsSeparator))
+			if len(accumulatingValues) > 0 {
+				z85InMemoryEntries.Set(z85Hash, strings.Join(accumulatingValues, targetsSeparator))
+			}
 		}
 
 	}
