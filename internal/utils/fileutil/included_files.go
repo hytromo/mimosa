@@ -40,6 +40,7 @@ func IncludedFiles(contextDir string, dockerignorePath string) ([]string, error)
 		return includedFiles, nil
 	}
 
+	log.Debugf("Reading dockerignore file: %s", dockerignorePath)
 	dockerignoreContent, err := os.ReadFile(dockerignorePath)
 	if err != nil {
 		log.Debugln(err)
@@ -52,6 +53,7 @@ func IncludedFiles(contextDir string, dockerignorePath string) ([]string, error)
 		log.Debugln(err)
 		return includedFiles, err
 	}
+	log.Debugf("Parsed patterns: %v", patterns)
 
 	// Compile matcher
 	pm, err := patternmatcher.New(patterns)
@@ -82,6 +84,8 @@ func IncludedFiles(contextDir string, dockerignorePath string) ([]string, error)
 				return err
 			}
 			includedFiles = append(includedFiles, absPath)
+		} else {
+			log.Debugf("Excluded file: %s", path)
 		}
 		return nil
 	})
