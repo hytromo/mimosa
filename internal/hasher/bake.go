@@ -2,9 +2,11 @@ package hasher
 
 import (
 	"fmt"
+	"path/filepath"
 	"slices"
 
 	"github.com/docker/buildx/bake"
+	"github.com/hytromo/mimosa/internal/configuration"
 	argparse "github.com/hytromo/mimosa/internal/docker/arg_parse"
 	fileresolution "github.com/hytromo/mimosa/internal/docker/file_resolution"
 	log "github.com/sirupsen/logrus"
@@ -176,7 +178,7 @@ func HashBakeTargets(targets map[string]*bake.Target, bakeFiles []string) string
 	// each target is basically its own docker build - so we reuse HashBuildCommand for each target and sum the hashes:
 
 	hashes := []string{}
-	for _, target := range targets {
+	for targetName, target := range targets {
 		if target.Context == nil || target.Dockerfile == nil {
 			continue
 		}
@@ -187,15 +189,32 @@ func HashBakeTargets(targets map[string]*bake.Target, bakeFiles []string) string
 			allRegistryDomains = append(allRegistryDomains, argparse.ExtractRegistryDomain(tag))
 		}
 
+		// copy target.Contexts to allContexts as shortly as possible:
+		allContexts := make(map[string]string)
+		for k, v := range target.Contexts {
+			allContexts[k] = v
+		}
+		allContexts[configuration.MainBuildContextName] = *target.Context
+
+		// if dockerfile already not absolute, then it is relative to the context
+		absoluteDockerfilePath := *target.Dockerfile
+		var err error
+		if !filepath.IsAbs(absoluteDockerfilePath) {
+			absoluteDockerfilePath, err = filepath.Abs(filepath.Join(*target.Context, *target.Dockerfile))
+			if err != nil {
+				log.Errorf("Error getting absolute path for dockerfile: %v", err)
+			}
+		}
+
 		correspondingDockerBuildCommand := DockerBuildCommand{
-			DockerfilePath:        *target.Dockerfile,
+			DockerfilePath:        absoluteDockerfilePath,
 			DockerignorePath:      dockerIgnorePath,
-			BuildContexts:         target.Contexts,
+			BuildContexts:         allContexts,
 			AllRegistryDomains:    allRegistryDomains,
 			CmdWithTagPlaceholder: constructTemplatedDockerBuildCommand(target),
 		}
 
-		log.Debugf("Corresponding docker build command for target %s: %v", target.Name, correspondingDockerBuildCommand)
+		log.Debugf("Corresponding docker build command for target %s: %#v\n", targetName, correspondingDockerBuildCommand)
 
 		hash := HashBuildCommand(correspondingDockerBuildCommand)
 		hashes = append(hashes, hash)

@@ -91,9 +91,19 @@ func HashBuildCommand(command DockerBuildCommand) string {
 
 				if contextName == configuration.MainBuildContextName {
 					// need to include dockerfile and dockerignore in the to-be-hashed files
-					includedFiles = append(includedFiles, command.DockerfilePath)
+					dockerfileAbsolutePath, err := filepath.Abs(command.DockerfilePath)
+					if err != nil {
+						log.Errorf("Error getting absolute path for dockerfile: %v", err)
+					} else {
+						includedFiles = append(includedFiles, dockerfileAbsolutePath)
+					}
 					if command.DockerignorePath != "" {
-						includedFiles = append(includedFiles, command.DockerignorePath)
+						dockerIgnoreAbsolutePath, err := filepath.Abs(command.DockerignorePath)
+						if err != nil {
+							log.Errorf("Error getting absolute path for dockerignore: %v", err)
+						} else {
+							includedFiles = append(includedFiles, dockerIgnoreAbsolutePath)
+						}
 					}
 				}
 

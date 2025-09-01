@@ -25,6 +25,8 @@ func handleRememberOrForgetSubcommands(appOptions configuration.AppOptions, act 
 		return err
 	}
 
+	log.Debugf("Final calculated command hash: %s", parsedCommand.Hash)
+
 	cacheEntry := act.GetCacheEntry(parsedCommand.Hash)
 
 	if appOptions.Forget.Enabled {
