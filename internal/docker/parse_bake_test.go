@@ -276,6 +276,48 @@ func TestExtractBakeFlags(t *testing.T) {
 			expectedTargets:   []string{"app"},
 			expectedOverrides: []string{},
 		},
+		{
+			name:              "Bake with flags that we do not care about",
+			args:              []string{"bake", "app", "--builder", "mybuilder", "--file", "docker-bake.json"},
+			expectedFiles:     []string{"docker-bake.json"},
+			expectedTargets:   []string{"app"},
+			expectedOverrides: []string{},
+		},
+		{
+			name:              "Bake with multiple unknown flags",
+			args:              []string{"bake", "--no-cache", "--pull", "--debug", "app", "--file", "docker-bake.json"},
+			expectedFiles:     []string{"docker-bake.json"},
+			expectedTargets:   []string{"app"},
+			expectedOverrides: []string{},
+		},
+		{
+			name:              "Bake with unknown flags with equals syntax",
+			args:              []string{"bake", "--progress=plain", "--builder=mybuilder", "app", "db"},
+			expectedFiles:     []string{},
+			expectedTargets:   []string{"app", "db"},
+			expectedOverrides: []string{},
+		},
+		{
+			name:              "Bake with mixed known and unknown flags",
+			args:              []string{"bake", "--set", "*.platform=linux/amd64", "--load", "--push", "--file", "docker-bake.json", "app"},
+			expectedFiles:     []string{"docker-bake.json"},
+			expectedTargets:   []string{"app"},
+			expectedOverrides: []string{"*.platform=linux/amd64"},
+		},
+		{
+			name:              "Bake with unknown flags between targets",
+			args:              []string{"bake", "app", "--allow", "network=host", "db", "--file", "docker-bake.json"},
+			expectedFiles:     []string{"docker-bake.json"},
+			expectedTargets:   []string{"app", "db"},
+			expectedOverrides: []string{},
+		},
+		{
+			name:              "Bake with shorthand flags that should be ignored",
+			args:              []string{"bake", "-D", "--load", "app", "-f", "docker-bake.json"},
+			expectedFiles:     []string{"docker-bake.json"},
+			expectedTargets:   []string{"app"},
+			expectedOverrides: []string{},
+		},
 	}
 
 	for _, tc := range testCases {

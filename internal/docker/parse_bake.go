@@ -30,6 +30,21 @@ func extractBakeFlags(args []string) (bakeFiles, targetNames, overrides []string
 	targetNames = []string{}
 	overrides = []string{}
 
+	// Define flags that take values (not boolean flags)
+	flagsWithValueFollowingThem := map[string]bool{
+		"--file":          true,
+		"-f":              true,
+		"--set":           true,
+		"--builder":       true,
+		"--allow":         true,
+		"--call":          true,
+		"--list":          true,
+		"--metadata-file": true,
+		"--progress":      true,
+		"--provenance":    true,
+		"--sbom":          true,
+	}
+
 	for i := 1; i < len(args); i++ {
 		arg := args[i]
 
@@ -50,6 +65,18 @@ func extractBakeFlags(args []string) (bakeFiles, targetNames, overrides []string
 			}
 		case strings.HasPrefix(arg, "--set="):
 			overrides = append(overrides, strings.TrimPrefix(arg, "--set="))
+		case strings.HasPrefix(arg, "-"):
+			// Handle unknown flags
+			if !strings.Contains(arg, "=") {
+				// Check if this flag takes a value
+				if flagsWithValueFollowingThem[arg] {
+					if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
+						i++ // skip the value of this flag
+					}
+				}
+				// For all unknown flags, just continue (ignore them)
+				continue
+			}
 		case !strings.HasPrefix(arg, "-"):
 			// If it doesn't start with -, it's a target name
 			targetNames = append(targetNames, arg)

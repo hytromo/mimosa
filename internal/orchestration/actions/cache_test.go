@@ -85,6 +85,7 @@ func TestSaveCache(t *testing.T) {
 			actioner := &Actioner{}
 			cache := cacher.Cache{
 				Hash:            "test-hash",
+				CacheDir:        t.TempDir(),
 				InMemoryEntries: cacher.GetAllInMemoryEntries(),
 			}
 

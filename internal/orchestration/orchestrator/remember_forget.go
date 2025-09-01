@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/hytromo/mimosa/internal/configuration"
+	"github.com/hytromo/mimosa/internal/logger"
 	"github.com/hytromo/mimosa/internal/orchestration/actions"
 	log "github.com/sirupsen/logrus"
 )
@@ -29,9 +30,11 @@ func handleRememberOrForgetSubcommands(appOptions configuration.AppOptions, act 
 	if appOptions.Forget.Enabled {
 		return act.RemoveCacheEntry(cacheEntry, dryRun)
 	}
-
 	// remember branch
-	if cacheEntry.Exists() {
+
+	cacheHit := cacheEntry.Exists()
+
+	if cacheHit {
 		// retag
 		err = act.Retag(cacheEntry, parsedCommand, dryRun)
 		if err != nil {
@@ -48,6 +51,8 @@ func handleRememberOrForgetSubcommands(appOptions configuration.AppOptions, act 
 			return errors.New("error running command - exit code: " + strconv.Itoa(exitCode))
 		}
 	}
+
+	logger.CleanLog.Infof("mimosa-cache-hit: %t", cacheHit)
 
 	// regardless of whether the cache already exists or not, we need to save/update it
 	return act.SaveCache(cacheEntry, parsedCommand.TagsByTarget, dryRun)
@@ -73,7 +78,7 @@ func fallbackToExecutingCommandIfRemembering(err error, dryRun bool, remembering
 		return
 	}
 
-	log.Errorf("Falling back to command execution: %s due to error: %s", commandToRun, err.Error())
+	log.Errorf("Falling back to plain command execution: %s due to error: %s", commandToRun, err.Error())
 
 	exitCode := act.RunCommand(dryRun, commandToRun)
 

@@ -117,6 +117,10 @@ func Retag(latestTagByTarget map[string]string, newTagsByTarget map[string][]str
 	// Worker function
 	worker := func(fromTag string, toTag string) {
 		defer wg.Done()
+		if fromTag == toTag {
+			log.Infof("Skipping retagging of %s to itself", fromTag)
+			return
+		}
 		if err := RetagSingle(fromTag, toTag, dryRun); err != nil {
 			errChan <- err
 		}

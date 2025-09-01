@@ -309,6 +309,7 @@ func TestRetag_NonExistentCache(t *testing.T) {
 	hash := fmt.Sprintf("non_existent_hash_%s", testID)
 	cacheEntry := cacher.Cache{
 		Hash:            hash,
+		CacheDir:        t.TempDir(),
 		InMemoryEntries: cacher.GetAllInMemoryEntries(),
 	}
 

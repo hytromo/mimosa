@@ -12,6 +12,7 @@ import (
 func (a *Actioner) GetCacheEntry(hash string) cacher.Cache {
 	return cacher.Cache{
 		Hash:            hash,
+		CacheDir:        cacher.CacheDir,
 		InMemoryEntries: cacher.GetAllInMemoryEntries(),
 	}
 }
