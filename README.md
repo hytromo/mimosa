@@ -34,30 +34,6 @@ Just prepend your docker build commands like this: `mimosa remember -- docker bu
 * All without downloading or reuploading the image - that's what makes it fast.  
 * If it hasn't seen the hash before, it builds the image as normal - no tricks. The hash is then saved to the cache for future use.
 
-- [What does it do](#what-does-it-do)
-- [How does it do it](#how-does-it-do-it)
-- [Key Features](#key-features)
-- [Installation](#installation)
-  - [Inside GitHub Actions](#inside-github-actions)
-  - [On your system](#on-your-system)
-- [CLI usage](#cli-usage)
-  - [Remember](#remember)
-  - [Cache](#cache)
-    - [Cache Management](#cache-management)
-  - [Advanced usage](#advanced-usage)
-    - [Log level](#log-level)
-    - [Inject Cache via Env Variable](#inject-cache-via-env-variable)
-- [FAQ](#faq)
-  - [What about multi-platform builds?](#what-about-multi-platform-builds)
-  - [What about custom build contexts?](#what-about-custom-build-contexts)
-  - [What about custom Dockerfile locations?](#what-about-custom-dockerfile-locations)
-  - [What about custom `.dockerignore` files?](#what-about-custom-dockerignore-files)
-  - [Can I use normal docker build commands?](#can-i-use-normal-docker-build-commands)
-  - [Isn't this just yet another way for my build to fail?](#isnt-this-just-yet-another-way-for-my-build-to-fail)
-  - [What's up with the name?](#whats-up-with-the-name)
-- [Contributing](#contributing)
-
-
 # Key Features
 
 - **Seamless docker Integration:**  
@@ -119,11 +95,11 @@ mimosa cache --show # Show where the cache is being saved
 # forget cache associated with a specific build - this influences the local cache only, it doesn't touch the remote registry
 mimosa forget -- docker buildx build --build-arg MYARG=MYVALUE --platform linux/amd64,linux/arm64 --push -t hytromo/mimosa-example:v1 .
 
-mimosa cache --forget 6M # Forget entries older than 6 months
-mimosa cache --forget 24h # Forget entries older than 24 hours
+mimosa forget --older-than 6M # Forget entries older than 6 months
+mimosa forget --older-than 24h # Forget entries older than 24 hours
 
-mimosa cache --forget 1y --yes # No user prompt
-mimosa cache --purge # Delete all entries
+mimosa forget --older-than 1y --yes # No user prompt
+mimosa forget --everything # Delete all entries
 ```
 
 ## Advanced usage
