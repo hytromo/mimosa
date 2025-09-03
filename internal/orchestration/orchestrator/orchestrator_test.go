@@ -93,23 +93,20 @@ func createTestCache(hexHash string, shouldExist bool) cacher.Cache {
 }
 
 func TestRun_NoSubcommandsEnabled(t *testing.T) {
-	appOptions := configuration.AppOptions{}
 	mockActions := &MockActions{}
 
-	err := Run(appOptions, mockActions)
+	err := HandleRememberOrForgetSubcommands(configuration.RememberSubcommandOptions{}, configuration.ForgetSubcommandOptions{}, mockActions)
 
-	assert.NoError(t, err)
+	assert.Error(t, err)
 	mockActions.AssertExpectations(t)
 }
 
 func TestRun_RememberEnabled_CacheExists_RetagSucceeds_SaveCacheSucceeds_Duplicate(t *testing.T) {
 	// This test now verifies that when cache exists in memory, retag is called
-	appOptions := configuration.AppOptions{
-		Remember: configuration.RememberSubcommandOptions{
-			Enabled:      true,
-			CommandToRun: []string{"docker", "build", "."},
-			DryRun:       false,
-		},
+	rememberOptions := configuration.RememberSubcommandOptions{
+		Enabled:      true,
+		CommandToRun: []string{"docker", "build", "."},
+		DryRun:       false,
 	}
 
 	mockActions := &MockActions{}
@@ -126,18 +123,16 @@ func TestRun_RememberEnabled_CacheExists_RetagSucceeds_SaveCacheSucceeds_Duplica
 	mockActions.On("Retag", cache, parsedCommand, false).Return(nil)
 	mockActions.On("SaveCache", cache, map[string][]string{"default": {"latest"}}, false).Return(nil)
 
-	err := Run(appOptions, mockActions)
+	err := HandleRememberOrForgetSubcommands(rememberOptions, configuration.ForgetSubcommandOptions{}, mockActions)
 
 	assert.NoError(t, err)
 	mockActions.AssertExpectations(t)
 }
 func TestRun_RememberEnabled_NoCacheExists_CommandFails(t *testing.T) {
-	appOptions := configuration.AppOptions{
-		Remember: configuration.RememberSubcommandOptions{
-			Enabled:      true,
-			CommandToRun: []string{"docker", "build", "."},
-			DryRun:       false,
-		},
+	rememberOptions := configuration.RememberSubcommandOptions{
+		Enabled:      true,
+		CommandToRun: []string{"docker", "build", "."},
+		DryRun:       false,
 	}
 
 	mockActions := &MockActions{}
@@ -154,7 +149,7 @@ func TestRun_RememberEnabled_NoCacheExists_CommandFails(t *testing.T) {
 	mockActions.On("RunCommand", false, []string{"docker", "build", "."}).Return(1)
 	mockActions.On("ExitProcessWithCode", 1).Return()
 
-	err := Run(appOptions, mockActions)
+	err := HandleRememberOrForgetSubcommands(rememberOptions, configuration.ForgetSubcommandOptions{}, mockActions)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "error running command - exit code: 1")
@@ -162,12 +157,10 @@ func TestRun_RememberEnabled_NoCacheExists_CommandFails(t *testing.T) {
 }
 
 func TestRun_RememberEnabled_ParseCommandError_FallbackFails(t *testing.T) {
-	appOptions := configuration.AppOptions{
-		Remember: configuration.RememberSubcommandOptions{
-			Enabled:      true,
-			CommandToRun: []string{"invalid", "command"},
-			DryRun:       false,
-		},
+	rememberOptions := configuration.RememberSubcommandOptions{
+		Enabled:      true,
+		CommandToRun: []string{"invalid", "command"},
+		DryRun:       false,
 	}
 
 	mockActions := &MockActions{}
@@ -178,7 +171,7 @@ func TestRun_RememberEnabled_ParseCommandError_FallbackFails(t *testing.T) {
 	mockActions.On("RunCommand", false, []string{"invalid", "command"}).Return(1)
 	mockActions.On("ExitProcessWithCode", 1).Return()
 
-	err := Run(appOptions, mockActions)
+	err := HandleRememberOrForgetSubcommands(rememberOptions, configuration.ForgetSubcommandOptions{}, mockActions)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "parse error")
@@ -186,12 +179,10 @@ func TestRun_RememberEnabled_ParseCommandError_FallbackFails(t *testing.T) {
 }
 
 func TestRun_RememberEnabled_NoCacheExists_CommandSucceeds(t *testing.T) {
-	appOptions := configuration.AppOptions{
-		Remember: configuration.RememberSubcommandOptions{
-			Enabled:      true,
-			CommandToRun: []string{"docker", "build", "."},
-			DryRun:       false,
-		},
+	rememberOptions := configuration.RememberSubcommandOptions{
+		Enabled:      true,
+		CommandToRun: []string{"docker", "build", "."},
+		DryRun:       false,
 	}
 
 	mockActions := &MockActions{}
@@ -208,19 +199,17 @@ func TestRun_RememberEnabled_NoCacheExists_CommandSucceeds(t *testing.T) {
 	mockActions.On("RunCommand", false, []string{"docker", "build", "."}).Return(0)
 	mockActions.On("SaveCache", cache, map[string][]string{"default": {"latest"}}, false).Return(nil)
 
-	err := Run(appOptions, mockActions)
+	err := HandleRememberOrForgetSubcommands(rememberOptions, configuration.ForgetSubcommandOptions{}, mockActions)
 
 	assert.NoError(t, err)
 	mockActions.AssertExpectations(t)
 }
 
 func TestRun_RememberEnabled_CacheExists_RetagSucceeds_SaveCacheFails(t *testing.T) {
-	appOptions := configuration.AppOptions{
-		Remember: configuration.RememberSubcommandOptions{
-			Enabled:      true,
-			CommandToRun: []string{"docker", "build", "."},
-			DryRun:       false,
-		},
+	rememberOptions := configuration.RememberSubcommandOptions{
+		Enabled:      true,
+		CommandToRun: []string{"docker", "build", "."},
+		DryRun:       false,
 	}
 
 	mockActions := &MockActions{}
@@ -238,7 +227,7 @@ func TestRun_RememberEnabled_CacheExists_RetagSucceeds_SaveCacheFails(t *testing
 	mockActions.On("Retag", cache, parsedCommand, false).Return(nil)
 	mockActions.On("SaveCache", cache, map[string][]string{"default": {"latest"}}, false).Return(errors.New("save error"))
 
-	err := Run(appOptions, mockActions)
+	err := HandleRememberOrForgetSubcommands(rememberOptions, configuration.ForgetSubcommandOptions{}, mockActions)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "save error")
@@ -246,12 +235,10 @@ func TestRun_RememberEnabled_CacheExists_RetagSucceeds_SaveCacheFails(t *testing
 }
 
 func TestRun_RememberEnabled_CacheExists_RetagFails(t *testing.T) {
-	appOptions := configuration.AppOptions{
-		Remember: configuration.RememberSubcommandOptions{
-			Enabled:      true,
-			CommandToRun: []string{"docker", "build", "."},
-			DryRun:       false,
-		},
+	rememberOptions := configuration.RememberSubcommandOptions{
+		Enabled:      true,
+		CommandToRun: []string{"docker", "build", "."},
+		DryRun:       false,
 	}
 
 	mockActions := &MockActions{}
@@ -270,7 +257,7 @@ func TestRun_RememberEnabled_CacheExists_RetagFails(t *testing.T) {
 	mockActions.On("RunCommand", false, []string{"docker", "build", "."}).Return(1)
 	mockActions.On("ExitProcessWithCode", 1).Return()
 
-	err := Run(appOptions, mockActions)
+	err := HandleRememberOrForgetSubcommands(rememberOptions, configuration.ForgetSubcommandOptions{}, mockActions)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "retag error")
@@ -278,12 +265,10 @@ func TestRun_RememberEnabled_CacheExists_RetagFails(t *testing.T) {
 }
 
 func TestRun_RememberEnabled_NoCacheExists_CommandSucceeds_SaveCacheFails(t *testing.T) {
-	appOptions := configuration.AppOptions{
-		Remember: configuration.RememberSubcommandOptions{
-			Enabled:      true,
-			CommandToRun: []string{"docker", "build", "."},
-			DryRun:       false,
-		},
+	rememberOptions := configuration.RememberSubcommandOptions{
+		Enabled:      true,
+		CommandToRun: []string{"docker", "build", "."},
+		DryRun:       false,
 	}
 
 	mockActions := &MockActions{}
@@ -300,7 +285,7 @@ func TestRun_RememberEnabled_NoCacheExists_CommandSucceeds_SaveCacheFails(t *tes
 	mockActions.On("RunCommand", false, []string{"docker", "build", "."}).Return(0)
 	mockActions.On("SaveCache", cache, map[string][]string{"default": {"latest"}}, false).Return(errors.New("save cache error"))
 
-	err := Run(appOptions, mockActions)
+	err := HandleRememberOrForgetSubcommands(rememberOptions, configuration.ForgetSubcommandOptions{}, mockActions)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "save cache error")
@@ -308,12 +293,10 @@ func TestRun_RememberEnabled_NoCacheExists_CommandSucceeds_SaveCacheFails(t *tes
 }
 
 func TestRun_RememberEnabled_ParseCommandError_FallbackSucceeds(t *testing.T) {
-	appOptions := configuration.AppOptions{
-		Remember: configuration.RememberSubcommandOptions{
-			Enabled:      true,
-			CommandToRun: []string{"invalid", "command"},
-			DryRun:       false,
-		},
+	rememberOptions := configuration.RememberSubcommandOptions{
+		Enabled:      true,
+		CommandToRun: []string{"invalid", "command"},
+		DryRun:       false,
 	}
 
 	mockActions := &MockActions{}
@@ -324,7 +307,7 @@ func TestRun_RememberEnabled_ParseCommandError_FallbackSucceeds(t *testing.T) {
 	mockActions.On("RunCommand", false, []string{"invalid", "command"}).Return(0)
 	mockActions.On("ExitProcessWithCode", 0).Return()
 
-	err := Run(appOptions, mockActions)
+	err := HandleRememberOrForgetSubcommands(rememberOptions, configuration.ForgetSubcommandOptions{}, mockActions)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "parse error")
@@ -332,12 +315,10 @@ func TestRun_RememberEnabled_ParseCommandError_FallbackSucceeds(t *testing.T) {
 }
 
 func TestRun_RememberEnabled_WithDifferentTags(t *testing.T) {
-	appOptions := configuration.AppOptions{
-		Remember: configuration.RememberSubcommandOptions{
-			Enabled:      true,
-			CommandToRun: []string{"docker", "build", "-t", "myapp:v1", "."},
-			DryRun:       false,
-		},
+	rememberOptions := configuration.RememberSubcommandOptions{
+		Enabled:      true,
+		CommandToRun: []string{"docker", "build", "-t", "myapp:v1", "."},
+		DryRun:       false,
 	}
 
 	mockActions := &MockActions{}
@@ -354,19 +335,17 @@ func TestRun_RememberEnabled_WithDifferentTags(t *testing.T) {
 	mockActions.On("RunCommand", false, []string{"docker", "build", "-t", "myapp:v1", "."}).Return(0)
 	mockActions.On("SaveCache", cache, map[string][]string{"default": {"myapp:v1"}}, false).Return(nil)
 
-	err := Run(appOptions, mockActions)
+	err := HandleRememberOrForgetSubcommands(rememberOptions, configuration.ForgetSubcommandOptions{}, mockActions)
 
 	assert.NoError(t, err)
 	mockActions.AssertExpectations(t)
 }
 
 func TestRun_RememberEnabled_WithMultipleTargets(t *testing.T) {
-	appOptions := configuration.AppOptions{
-		Remember: configuration.RememberSubcommandOptions{
-			Enabled:      true,
-			CommandToRun: []string{"docker", "buildx", "build", "--target", "frontend", "--target", "backend", "."},
-			DryRun:       false,
-		},
+	rememberOptions := configuration.RememberSubcommandOptions{
+		Enabled:      true,
+		CommandToRun: []string{"docker", "buildx", "build", "--target", "frontend", "--target", "backend", "."},
+		DryRun:       false,
 	}
 
 	mockActions := &MockActions{}
@@ -389,19 +368,17 @@ func TestRun_RememberEnabled_WithMultipleTargets(t *testing.T) {
 		"backend":  {"backend:latest"},
 	}, false).Return(nil)
 
-	err := Run(appOptions, mockActions)
+	err := HandleRememberOrForgetSubcommands(rememberOptions, configuration.ForgetSubcommandOptions{}, mockActions)
 
 	assert.NoError(t, err)
 	mockActions.AssertExpectations(t)
 }
 
 func TestRun_ForgetEnabled(t *testing.T) {
-	appOptions := configuration.AppOptions{
-		Forget: configuration.ForgetSubcommandOptions{
-			Enabled:      true,
-			CommandToRun: []string{"docker", "build", "."},
-			DryRun:       false,
-		},
+	forgetOptions := configuration.ForgetSubcommandOptions{
+		Enabled:      true,
+		CommandToRun: []string{"docker", "build", "."},
+		DryRun:       false,
 	}
 
 	mockActions := &MockActions{}
@@ -417,19 +394,17 @@ func TestRun_ForgetEnabled(t *testing.T) {
 	mockActions.On("GetCacheEntry", TestHash).Return(cache)
 	mockActions.On("RemoveCacheEntry", cache, false).Return(nil)
 
-	err := Run(appOptions, mockActions)
+	err := HandleRememberOrForgetSubcommands(configuration.RememberSubcommandOptions{}, forgetOptions, mockActions)
 
 	assert.NoError(t, err)
 	mockActions.AssertExpectations(t)
 }
 
 func TestRun_ForgetEnabled_RemoveError(t *testing.T) {
-	appOptions := configuration.AppOptions{
-		Forget: configuration.ForgetSubcommandOptions{
-			Enabled:      true,
-			CommandToRun: []string{"docker", "build", "."},
-			DryRun:       false,
-		},
+	forgetOptions := configuration.ForgetSubcommandOptions{
+		Enabled:      true,
+		CommandToRun: []string{"docker", "build", "."},
+		DryRun:       false,
 	}
 
 	mockActions := &MockActions{}
@@ -445,7 +420,7 @@ func TestRun_ForgetEnabled_RemoveError(t *testing.T) {
 	mockActions.On("GetCacheEntry", TestHash).Return(cache)
 	mockActions.On("RemoveCacheEntry", cache, false).Return(errors.New("remove error"))
 
-	err := Run(appOptions, mockActions)
+	err := HandleRememberOrForgetSubcommands(configuration.RememberSubcommandOptions{}, forgetOptions, mockActions)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "remove error")
@@ -453,12 +428,10 @@ func TestRun_ForgetEnabled_RemoveError(t *testing.T) {
 }
 
 func TestRun_ForgetEnabled_EmptyCommand(t *testing.T) {
-	appOptions := configuration.AppOptions{
-		Forget: configuration.ForgetSubcommandOptions{
-			Enabled:      true,
-			CommandToRun: []string{},
-			DryRun:       false,
-		},
+	forgetOptions := configuration.ForgetSubcommandOptions{
+		Enabled:      true,
+		CommandToRun: []string{},
+		DryRun:       false,
 	}
 
 	mockActions := &MockActions{}
@@ -467,7 +440,7 @@ func TestRun_ForgetEnabled_EmptyCommand(t *testing.T) {
 		Command: []string{},
 	}, errors.New("empty command error"))
 
-	err := Run(appOptions, mockActions)
+	err := HandleRememberOrForgetSubcommands(configuration.RememberSubcommandOptions{}, forgetOptions, mockActions)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "empty command error")
@@ -475,12 +448,10 @@ func TestRun_ForgetEnabled_EmptyCommand(t *testing.T) {
 }
 
 func TestRun_RememberEnabled_EmptyCommand(t *testing.T) {
-	appOptions := configuration.AppOptions{
-		Remember: configuration.RememberSubcommandOptions{
-			Enabled:      true,
-			CommandToRun: []string{},
-			DryRun:       false,
-		},
+	rememberOptions := configuration.RememberSubcommandOptions{
+		Enabled:      true,
+		CommandToRun: []string{},
+		DryRun:       false,
 	}
 
 	mockActions := &MockActions{}
@@ -491,7 +462,7 @@ func TestRun_RememberEnabled_EmptyCommand(t *testing.T) {
 	mockActions.On("RunCommand", false, []string{}).Return(1)
 	mockActions.On("ExitProcessWithCode", 1).Return()
 
-	err := Run(appOptions, mockActions)
+	err := HandleRememberOrForgetSubcommands(rememberOptions, configuration.ForgetSubcommandOptions{}, mockActions)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "empty command error")
@@ -499,12 +470,10 @@ func TestRun_RememberEnabled_EmptyCommand(t *testing.T) {
 }
 
 func TestRun_RememberEnabled_WithNilCache(t *testing.T) {
-	appOptions := configuration.AppOptions{
-		Remember: configuration.RememberSubcommandOptions{
-			Enabled:      true,
-			CommandToRun: []string{"docker", "build", "."},
-			DryRun:       false,
-		},
+	rememberOptions := configuration.RememberSubcommandOptions{
+		Enabled:      true,
+		CommandToRun: []string{"docker", "build", "."},
+		DryRun:       false,
 	}
 
 	mockActions := &MockActions{}
@@ -525,7 +494,7 @@ func TestRun_RememberEnabled_WithNilCache(t *testing.T) {
 	mockActions.On("RunCommand", false, []string{"docker", "build", "."}).Return(0)
 	mockActions.On("SaveCache", cache, map[string][]string{"default": {"latest"}}, false).Return(nil)
 
-	err := Run(appOptions, mockActions)
+	err := HandleRememberOrForgetSubcommands(rememberOptions, configuration.ForgetSubcommandOptions{}, mockActions)
 
 	assert.NoError(t, err)
 	mockActions.AssertExpectations(t)
@@ -534,12 +503,10 @@ func TestRun_RememberEnabled_WithNilCache(t *testing.T) {
 func TestRun_RememberEnabled_WithLongCommand(t *testing.T) {
 	longCommand := []string{"docker", "build", "--build-arg", "VERY_LONG_ARGUMENT=" + string(make([]byte, 1000)), "."}
 
-	appOptions := configuration.AppOptions{
-		Remember: configuration.RememberSubcommandOptions{
-			Enabled:      true,
-			CommandToRun: longCommand,
-			DryRun:       false,
-		},
+	rememberOptions := configuration.RememberSubcommandOptions{
+		Enabled:      true,
+		CommandToRun: longCommand,
+		DryRun:       false,
 	}
 
 	mockActions := &MockActions{}
@@ -556,45 +523,41 @@ func TestRun_RememberEnabled_WithLongCommand(t *testing.T) {
 	mockActions.On("RunCommand", false, longCommand).Return(0)
 	mockActions.On("SaveCache", cache, map[string][]string{"default": {"latest"}}, false).Return(nil)
 
-	err := Run(appOptions, mockActions)
+	err := HandleRememberOrForgetSubcommands(rememberOptions, configuration.ForgetSubcommandOptions{}, mockActions)
 
 	assert.NoError(t, err)
 	mockActions.AssertExpectations(t)
 }
 
 func TestRun_CacheEnabled_Forget(t *testing.T) {
-	appOptions := configuration.AppOptions{
-		Cache: configuration.CacheSubcommandOptions{
-			Enabled:   true,
-			Forget:    "24h",
-			ForgetYes: true,
-		},
+	forgetOptions := configuration.ForgetSubcommandOptions{
+		Enabled: true,
+		Period:  "24h",
+		AutoYes: true,
 	}
 
 	mockActions := &MockActions{}
 
 	mockActions.On("ForgetCacheEntriesOlderThan", "24h", true).Return(nil)
 
-	err := Run(appOptions, mockActions)
+	err := HandleForgetPeriodOrEverything(forgetOptions, mockActions)
 
 	assert.NoError(t, err)
 	mockActions.AssertExpectations(t)
 }
 
 func TestRun_CacheEnabled_ForgetError(t *testing.T) {
-	appOptions := configuration.AppOptions{
-		Cache: configuration.CacheSubcommandOptions{
-			Enabled:   true,
-			Forget:    "24h",
-			ForgetYes: true,
-		},
+	forgetOptions := configuration.ForgetSubcommandOptions{
+		Enabled: true,
+		Period:  "24h",
+		AutoYes: true,
 	}
 
 	mockActions := &MockActions{}
 
 	mockActions.On("ForgetCacheEntriesOlderThan", "24h", true).Return(errors.New("forget error"))
 
-	err := Run(appOptions, mockActions)
+	err := HandleForgetPeriodOrEverything(forgetOptions, mockActions)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "forget error")
@@ -602,86 +565,76 @@ func TestRun_CacheEnabled_ForgetError(t *testing.T) {
 }
 
 func TestRun_CacheEnabled_Purge(t *testing.T) {
-	appOptions := configuration.AppOptions{
-		Cache: configuration.CacheSubcommandOptions{
-			Enabled: true,
-			Purge:   true,
-		},
+	forgetOptions := configuration.ForgetSubcommandOptions{
+		Enabled:    true,
+		Everything: true,
 	}
 
 	mockActions := &MockActions{}
 
 	mockActions.On("ForgetCacheEntriesOlderThan", "", false).Return(nil)
 
-	err := Run(appOptions, mockActions)
+	err := HandleForgetPeriodOrEverything(forgetOptions, mockActions)
 
 	assert.NoError(t, err)
 	mockActions.AssertExpectations(t)
 }
 
 func TestRun_CacheEnabled_Show(t *testing.T) {
-	appOptions := configuration.AppOptions{
-		Cache: configuration.CacheSubcommandOptions{
-			Enabled: true,
-			Show:    true,
-		},
+	cacheOptions := configuration.CacheSubcommandOptions{
+		Enabled: true,
+		Show:    true,
 	}
 
 	mockActions := &MockActions{}
 
 	mockActions.On("PrintCacheDir").Return()
 
-	err := Run(appOptions, mockActions)
+	err := HandleCacheSubcommand(cacheOptions, mockActions)
 
 	assert.NoError(t, err)
 	mockActions.AssertExpectations(t)
 }
 
 func TestRun_CacheEnabled_ToEnvValue(t *testing.T) {
-	appOptions := configuration.AppOptions{
-		Cache: configuration.CacheSubcommandOptions{
-			Enabled:    true,
-			ToEnvValue: true,
-		},
+	cacheOptions := configuration.CacheSubcommandOptions{
+		Enabled:    true,
+		ToEnvValue: true,
 	}
 
 	mockActions := &MockActions{}
 
 	mockActions.On("PrintCacheToEnvValue", cacher.CacheDir).Return()
 
-	err := Run(appOptions, mockActions)
+	err := HandleCacheSubcommand(cacheOptions, mockActions)
 
 	assert.NoError(t, err)
 	mockActions.AssertExpectations(t)
 }
 
 func TestRun_CacheEnabled_NoSpecificAction(t *testing.T) {
-	appOptions := configuration.AppOptions{
-		Cache: configuration.CacheSubcommandOptions{
-			Enabled: true,
-		},
+	cacheOptions := configuration.CacheSubcommandOptions{
+		Enabled: true,
 	}
 
 	mockActions := &MockActions{}
 
-	err := Run(appOptions, mockActions)
+	err := HandleCacheSubcommand(cacheOptions, mockActions)
 
 	assert.NoError(t, err)
 	mockActions.AssertExpectations(t)
 }
 
 func TestRun_RememberAndForgetBothEnabled_PrioritizesForget(t *testing.T) {
-	appOptions := configuration.AppOptions{
-		Remember: configuration.RememberSubcommandOptions{
-			Enabled:      true,
-			CommandToRun: []string{"docker", "build", "."},
-			DryRun:       false,
-		},
-		Forget: configuration.ForgetSubcommandOptions{
-			Enabled:      true,
-			CommandToRun: []string{"docker", "build", "."},
-			DryRun:       false,
-		},
+	rememberOptions := configuration.RememberSubcommandOptions{
+		Enabled:      true,
+		CommandToRun: []string{"docker", "build", "."},
+		DryRun:       false,
+	}
+	forgetOptions := configuration.ForgetSubcommandOptions{
+		Enabled:      true,
+		CommandToRun: []string{"docker", "build", "."},
+		DryRun:       false,
 	}
 
 	mockActions := &MockActions{}
@@ -698,19 +651,17 @@ func TestRun_RememberAndForgetBothEnabled_PrioritizesForget(t *testing.T) {
 	// Since Forget is enabled, it takes priority over Remember, so we expect Forget behavior
 	mockActions.On("RemoveCacheEntry", cache, false).Return(nil)
 
-	err := Run(appOptions, mockActions)
+	err := HandleRememberOrForgetSubcommands(rememberOptions, forgetOptions, mockActions)
 
 	assert.NoError(t, err)
 	mockActions.AssertExpectations(t)
 }
 
 func TestRun_DryRunMode(t *testing.T) {
-	appOptions := configuration.AppOptions{
-		Remember: configuration.RememberSubcommandOptions{
-			Enabled:      true,
-			CommandToRun: []string{"docker", "build", "."},
-			DryRun:       true,
-		},
+	rememberOptions := configuration.RememberSubcommandOptions{
+		Enabled:      true,
+		CommandToRun: []string{"docker", "build", "."},
+		DryRun:       true,
 	}
 
 	mockActions := &MockActions{}
@@ -727,19 +678,17 @@ func TestRun_DryRunMode(t *testing.T) {
 	mockActions.On("RunCommand", true, []string{"docker", "build", "."}).Return(0)
 	mockActions.On("SaveCache", cache, map[string][]string{"default": {"latest"}}, true).Return(nil)
 
-	err := Run(appOptions, mockActions)
+	err := HandleRememberOrForgetSubcommands(rememberOptions, configuration.ForgetSubcommandOptions{}, mockActions)
 
 	assert.NoError(t, err)
 	mockActions.AssertExpectations(t)
 }
 
 func TestRun_ForgetDryRunMode(t *testing.T) {
-	appOptions := configuration.AppOptions{
-		Forget: configuration.ForgetSubcommandOptions{
-			Enabled:      true,
-			CommandToRun: []string{"docker", "build", "."},
-			DryRun:       true,
-		},
+	forgetOptions := configuration.ForgetSubcommandOptions{
+		Enabled:      true,
+		CommandToRun: []string{"docker", "build", "."},
+		DryRun:       true,
 	}
 
 	mockActions := &MockActions{}
@@ -755,7 +704,7 @@ func TestRun_ForgetDryRunMode(t *testing.T) {
 	mockActions.On("GetCacheEntry", TestHash).Return(cache)
 	mockActions.On("RemoveCacheEntry", cache, true).Return(nil)
 
-	err := Run(appOptions, mockActions)
+	err := HandleRememberOrForgetSubcommands(configuration.RememberSubcommandOptions{}, forgetOptions, mockActions)
 
 	assert.NoError(t, err)
 	mockActions.AssertExpectations(t)

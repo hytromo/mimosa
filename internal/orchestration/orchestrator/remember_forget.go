@@ -10,18 +10,23 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func handleRememberOrForgetSubcommands(appOptions configuration.AppOptions, act actions.Actions) error {
-	parsedCommand, err := getCommandHash(appOptions, act)
-
+func HandleRememberOrForgetSubcommands(rememberOptions configuration.RememberSubcommandOptions, forgetOptions configuration.ForgetSubcommandOptions, act actions.Actions) error {
+	var commandContainer configuration.CommandContainer
 	dryRun := false
-	if appOptions.Remember.Enabled {
-		dryRun = appOptions.Remember.DryRun
-	} else if appOptions.Forget.Enabled {
-		dryRun = appOptions.Forget.DryRun
+	if rememberOptions.Enabled {
+		dryRun = rememberOptions.DryRun
+		commandContainer = rememberOptions
+	} else if forgetOptions.Enabled {
+		dryRun = forgetOptions.DryRun
+		commandContainer = forgetOptions
+	} else {
+		return errors.New("no subcommand enabled")
 	}
 
+	parsedCommand, err := getCommandHash(commandContainer, act)
+
 	if err != nil {
-		fallbackToExecutingCommandIfRemembering(err, dryRun, appOptions.Remember.Enabled, act, parsedCommand.Command)
+		fallbackToExecutingCommandIfRemembering(err, dryRun, rememberOptions.Enabled, act, parsedCommand.Command)
 		return err
 	}
 
@@ -29,7 +34,7 @@ func handleRememberOrForgetSubcommands(appOptions configuration.AppOptions, act 
 
 	cacheEntry := act.GetCacheEntry(parsedCommand.Hash)
 
-	if appOptions.Forget.Enabled {
+	if forgetOptions.Enabled {
 		return act.RemoveCacheEntry(cacheEntry, dryRun)
 	}
 	// remember branch
@@ -40,7 +45,7 @@ func handleRememberOrForgetSubcommands(appOptions configuration.AppOptions, act 
 		// retag
 		err = act.Retag(cacheEntry, parsedCommand, dryRun)
 		if err != nil {
-			fallbackToExecutingCommandIfRemembering(err, dryRun, appOptions.Remember.Enabled, act, parsedCommand.Command)
+			fallbackToExecutingCommandIfRemembering(err, dryRun, rememberOptions.Enabled, act, parsedCommand.Command)
 			return err
 		}
 	} else {
@@ -60,18 +65,8 @@ func handleRememberOrForgetSubcommands(appOptions configuration.AppOptions, act 
 	return act.SaveCache(cacheEntry, parsedCommand.TagsByTarget, dryRun)
 }
 
-func getCommandHash(appOptions configuration.AppOptions, act actions.Actions) (configuration.ParsedCommand, error) {
-	var commandContainer configuration.CommandContainer
-
-	if appOptions.Remember.Enabled {
-		commandContainer = appOptions.Remember
-	} else {
-		commandContainer = appOptions.Forget
-	}
-
-	commandToRun := commandContainer.GetCommandToRun()
-
-	return act.ParseCommand(commandToRun)
+func getCommandHash(commandContainer configuration.CommandContainer, act actions.Actions) (configuration.ParsedCommand, error) {
+	return act.ParseCommand(commandContainer.GetCommandToRun())
 }
 
 func fallbackToExecutingCommandIfRemembering(err error, dryRun bool, remembering bool, act actions.Actions, commandToRun []string) {

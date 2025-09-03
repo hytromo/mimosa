@@ -18,6 +18,9 @@ func (r RememberSubcommandOptions) GetCommandToRun() []string {
 type ForgetSubcommandOptions struct {
 	Enabled      bool
 	CommandToRun []string
+	Period       string
+	AutoYes      bool
+	Everything   bool
 	DryRun       bool
 }
 
@@ -28,10 +31,7 @@ func (f ForgetSubcommandOptions) GetCommandToRun() []string {
 // CacheSubcommandOptions defines the options of the cache subcommand
 type CacheSubcommandOptions struct {
 	Enabled    bool
-	Forget     string
-	ForgetYes  bool
 	Show       bool
-	Purge      bool
 	ToEnvValue bool
 }
 
