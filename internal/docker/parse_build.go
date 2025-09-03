@@ -15,14 +15,14 @@ import (
 )
 
 type ParsedBuildCommand struct {
-	FinalTag              string
-	ContextPath           string   // Absolute path to the build context dir
-	CmdWithTagPlaceholder []string // The docker build command with the tag replaced by "TAG" - useful for stable caching with tag differences
-	DockerfilePath        string   // Absolute path to the Dockerfile used
-	DockerignorePath      string   // Absolute path to the dockerignore file used, if any
-	Executable            string   // the docker executable
-	Args                  []string // the raw docker command arguments
-	RegistryDomain        string   // the full domain name of the registry, e.g. docker.io - extracted from the tag
+	FinalTag               string
+	ContextPath            string   // Absolute path to the build context dir
+	CmdWithoutTagArguments []string // The docker build command without any tag-related arguments that could influence the hash
+	DockerfilePath         string   // Absolute path to the Dockerfile used
+	DockerignorePath       string   // Absolute path to the dockerignore file used, if any
+	Executable             string   // the docker executable
+	Args                   []string // the raw docker command arguments
+	RegistryDomain         string   // the full domain name of the registry, e.g. docker.io - extracted from the tag
 }
 
 const (
@@ -128,24 +128,20 @@ func findContextPath(dockerBuildArgs []string) (string, error) {
 	return "", fmt.Errorf("context path not found")
 }
 
-func buildCmdWithTagsPlaceholder(dockerBuildCmd []string) []string {
-	cmdWithTagPlaceholder := make([]string, len(dockerBuildCmd))
-	copy(cmdWithTagPlaceholder, dockerBuildCmd)
-	for i := 0; i < len(cmdWithTagPlaceholder); i++ {
-		if cmdWithTagPlaceholder[i] == "--tag" || cmdWithTagPlaceholder[i] == "-t" {
-			if i+1 < len(cmdWithTagPlaceholder) {
-				cmdWithTagPlaceholder[i+1] = "TAG"
-				break
-			}
-		} else if len(cmdWithTagPlaceholder[i]) > len(tagFlagEq)-1 && cmdWithTagPlaceholder[i][:len(tagFlagEq)] == tagFlagEq {
-			cmdWithTagPlaceholder[i] = tagFlagEq + "TAG"
-			break
-		} else if len(cmdWithTagPlaceholder[i]) > len(tagShortFlagEq)-1 && cmdWithTagPlaceholder[i][:len(tagShortFlagEq)] == tagShortFlagEq {
-			cmdWithTagPlaceholder[i] = tagShortFlagEq + "TAG"
-			break
+func buildCommandWithoutTagArguments(dockerBuildCmd []string) []string {
+	var cmdWithoutTagArguments []string
+	for i := 0; i < len(dockerBuildCmd); i++ {
+		if dockerBuildCmd[i] == "--tag" || dockerBuildCmd[i] == "-t" {
+			i++ // skip this and the next argument (--tag/-t <TAG>)
+			continue
+		} else if strings.HasPrefix(dockerBuildCmd[i], tagFlagEq) || strings.HasPrefix(dockerBuildCmd[i], tagShortFlagEq) {
+			continue // skip this argument (--tag/-t=<TAG>)
 		}
+
+		// non-tag argument - add to the command
+		cmdWithoutTagArguments = append(cmdWithoutTagArguments, dockerBuildCmd[i])
 	}
-	return cmdWithTagPlaceholder
+	return cmdWithoutTagArguments
 }
 
 func ParseBuildCommand(dockerBuildCmd []string) (parsedCommand configuration.ParsedCommand, err error) {
@@ -196,17 +192,15 @@ func ParseBuildCommand(dockerBuildCmd []string) (parsedCommand configuration.Par
 	dockerfilePath = fileresolution.ResolveAbsoluteDockerfilePath(contextPath, dockerfilePath)
 	dockerignorePath := fileresolution.ResolveAbsoluteDockerIgnorePath(contextPath, dockerfilePath)
 
-	cmdWithTagPlaceholder := buildCmdWithTagsPlaceholder(dockerBuildCmd)
-
 	// add the context in all the build contexts:
 	allBuildContexts[configuration.MainBuildContextName] = contextPath
 
 	parsedCommand.Hash = hasher.HashBuildCommand(hasher.DockerBuildCommand{
-		DockerfilePath:        dockerfilePath,
-		DockerignorePath:      dockerignorePath,
-		BuildContexts:         allBuildContexts,
-		AllRegistryDomains:    lo.Uniq(allRegistryDomains),
-		CmdWithTagPlaceholder: cmdWithTagPlaceholder,
+		DockerfilePath:         dockerfilePath,
+		DockerignorePath:       dockerignorePath,
+		BuildContexts:          allBuildContexts,
+		AllRegistryDomains:     lo.Uniq(allRegistryDomains),
+		CmdWithoutTagArguments: buildCommandWithoutTagArguments(dockerBuildCmd),
 	})
 	parsedCommand.TagsByTarget = map[string][]string{
 		"default": allTags,

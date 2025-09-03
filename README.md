@@ -102,6 +102,16 @@ mimosa forget --older-than 1y --yes # No user prompt
 mimosa forget --everything # Delete all entries
 ```
 
+## Shell completion
+
+Enable completion for all the popular shells, by following the information under the `completion` command:
+
+```bash
+mimosa completion --help
+mimosa completion zsh --help
+mimosa completion <your-shell> --help
+``` 
+
 ## Advanced usage
 
 ### Log level

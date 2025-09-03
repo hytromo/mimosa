@@ -47,8 +47,8 @@ func TestHashBuildCommand_EmptyCommand(t *testing.T) {
 
 func TestHashBuildCommand_WithRegistryDomains(t *testing.T) {
 	command := DockerBuildCommand{
-		AllRegistryDomains:    []string{"index.docker.io", "gcr.io"},
-		CmdWithTagPlaceholder: []string{"docker", "buildx", "build", "."},
+		AllRegistryDomains:     []string{"index.docker.io", "gcr.io"},
+		CmdWithoutTagArguments: []string{"docker", "buildx", "build", "."},
 	}
 	hash := HashBuildCommand(command)
 	assert.NotEqual(t, hash, "", "Expected non-empty hash for command with registry domains")
@@ -66,7 +66,7 @@ func TestHashBuildCommand_WithBuildContexts_Local(t *testing.T) {
 		BuildContexts: map[string]string{
 			configuration.MainBuildContextName: contextDir,
 		},
-		CmdWithTagPlaceholder: []string{"docker", "buildx", "build", "."},
+		CmdWithoutTagArguments: []string{"docker", "buildx", "build", "."},
 	}
 	hash := HashBuildCommand(command)
 	assert.NotEqual(t, hash, "", "Expected non-empty hash for command with local build context")
@@ -84,14 +84,14 @@ func TestHashBuildCommand_WithBuildContexts_Remote(t *testing.T) {
 		BuildContexts: map[string]string{
 			"remote": "https://github.com/user/repo.git",
 		},
-		CmdWithTagPlaceholder: []string{"docker", "buildx", "build", "."},
+		CmdWithoutTagArguments: []string{"docker", "buildx", "build", "."},
 	}
 	hash := HashBuildCommand(command)
 	assert.NotEqual(t, hash, "", "Expected non-empty hash for command with remote build context")
 	// expect the same hash for the same command without the remote context
 	commandWithoutRemote := DockerBuildCommand{
-		BuildContexts:         map[string]string{},
-		CmdWithTagPlaceholder: []string{"docker", "buildx", "build", "."},
+		BuildContexts:          map[string]string{},
+		CmdWithoutTagArguments: []string{"docker", "buildx", "build", "."},
 	}
 	hashWithoutRemote := HashBuildCommand(commandWithoutRemote)
 	assert.Equal(t, hash, hashWithoutRemote, "Expected same hash for command with and without remote build context")
@@ -102,14 +102,14 @@ func TestHashBuildCommand_WithBuildContexts_DockerImage(t *testing.T) {
 		BuildContexts: map[string]string{
 			"image": "docker-image://alpine:latest",
 		},
-		CmdWithTagPlaceholder: []string{"docker", "buildx", "build", "."},
+		CmdWithoutTagArguments: []string{"docker", "buildx", "build", "."},
 	}
 	hash := HashBuildCommand(command)
 	assert.NotEqual(t, hash, "", "Expected non-empty hash for command with docker-image build context")
 	// expect the same hash for the same command without the docker-image context
 	commandWithoutDockerImage := DockerBuildCommand{
-		BuildContexts:         map[string]string{},
-		CmdWithTagPlaceholder: []string{"docker", "buildx", "build", "."},
+		BuildContexts:          map[string]string{},
+		CmdWithoutTagArguments: []string{"docker", "buildx", "build", "."},
 	}
 	hashWithoutDockerImage := HashBuildCommand(commandWithoutDockerImage)
 	assert.Equal(t, hash, hashWithoutDockerImage, "Expected same hash for command with and without docker-image build context")
@@ -120,14 +120,14 @@ func TestHashBuildCommand_WithBuildContexts_OCILayout(t *testing.T) {
 		BuildContexts: map[string]string{
 			"oci": "oci-layout:///path/to/oci",
 		},
-		CmdWithTagPlaceholder: []string{"docker", "buildx", "build", "."},
+		CmdWithoutTagArguments: []string{"docker", "buildx", "build", "."},
 	}
 	hash := HashBuildCommand(command)
 	assert.NotEqual(t, hash, "", "Expected non-empty hash for command with oci-layout build context")
 	// expect the same hash for the same command without the oci-layout context
 	commandWithoutOCILayout := DockerBuildCommand{
-		BuildContexts:         map[string]string{},
-		CmdWithTagPlaceholder: []string{"docker", "buildx", "build", "."},
+		BuildContexts:          map[string]string{},
+		CmdWithoutTagArguments: []string{"docker", "buildx", "build", "."},
 	}
 	hashWithoutOCILayout := HashBuildCommand(commandWithoutOCILayout)
 	assert.Equal(t, hash, hashWithoutOCILayout, "Expected same hash for command with and without oci-layout build context")
@@ -147,7 +147,7 @@ func TestHashBuildCommand_WithBuildContexts_Mixed(t *testing.T) {
 			"remote":                           "https://github.com/user/repo.git",
 			"image":                            "docker-image://alpine:latest",
 		},
-		CmdWithTagPlaceholder: []string{"docker", "buildx", "build", "."},
+		CmdWithoutTagArguments: []string{"docker", "buildx", "build", "."},
 	}
 	hash := HashBuildCommand(command)
 	assert.NotEqual(t, hash, "", "Expected non-empty hash for command with mixed build contexts")
@@ -156,7 +156,7 @@ func TestHashBuildCommand_WithBuildContexts_Mixed(t *testing.T) {
 		BuildContexts: map[string]string{
 			configuration.MainBuildContextName: dir,
 		},
-		CmdWithTagPlaceholder: []string{"docker", "buildx", "build", "."},
+		CmdWithoutTagArguments: []string{"docker", "buildx", "build", "."},
 	}
 	hashWithoutMixed := HashBuildCommand(commandWithoutMixed)
 	assert.Equal(t, hash, hashWithoutMixed, "Expected same hash for command with and without mixed build contexts")
@@ -175,7 +175,7 @@ func TestHashBuildCommand_WithBuildContexts_Malformed(t *testing.T) {
 		BuildContexts: map[string]string{
 			"malformed": "invalid=context=path",
 		},
-		CmdWithTagPlaceholder: []string{"docker", "buildx", "build", "."},
+		CmdWithoutTagArguments: []string{"docker", "buildx", "build", "."},
 	}
 	hash := HashBuildCommand(command)
 	assert.NotEqual(t, hash, "", "Expected non-empty hash for command with malformed build context")
@@ -202,7 +202,7 @@ func TestHashBuildCommand_WithDockerfileAndDockerignore(t *testing.T) {
 		BuildContexts: map[string]string{
 			configuration.MainBuildContextName: dir,
 		},
-		CmdWithTagPlaceholder: []string{"docker", "buildx", "build", "."},
+		CmdWithoutTagArguments: []string{"docker", "buildx", "build", "."},
 	}
 	hash := HashBuildCommand(command)
 	assert.NotEqual(t, hash, "", "Expected non-empty hash for command with Dockerfile and .dockerignore")
@@ -233,7 +233,7 @@ func TestHashBuildCommand_WithDockerfileOnly(t *testing.T) {
 		BuildContexts: map[string]string{
 			configuration.MainBuildContextName: dir,
 		},
-		CmdWithTagPlaceholder: []string{"docker", "buildx", "build", "."},
+		CmdWithoutTagArguments: []string{"docker", "buildx", "build", "."},
 	}
 	hash := HashBuildCommand(command)
 	assert.NotEqual(t, hash, "", "Expected non-empty hash for command with Dockerfile only")
@@ -253,7 +253,7 @@ func TestHashBuildCommand_WithNonMainContext_NoDockerignore(t *testing.T) {
 		BuildContexts: map[string]string{
 			"frontend": dir,
 		},
-		CmdWithTagPlaceholder: []string{"docker", "buildx", "build", "."},
+		CmdWithoutTagArguments: []string{"docker", "buildx", "build", "."},
 	}
 	hash := HashBuildCommand(command)
 	assert.NotEqual(t, hash, "", "Expected non-empty hash for command with non-main context without .dockerignore")
@@ -279,7 +279,7 @@ func TestHashBuildCommand_WithMultipleLocalContexts(t *testing.T) {
 			"frontend": dir1,
 			"backend":  dir2,
 		},
-		CmdWithTagPlaceholder: []string{"docker", "buildx", "build", "."},
+		CmdWithoutTagArguments: []string{"docker", "buildx", "build", "."},
 	}
 	hash := HashBuildCommand(command)
 	if hash == "" {
@@ -299,8 +299,8 @@ func TestHashBuildCommand_Deterministic(t *testing.T) {
 		BuildContexts: map[string]string{
 			configuration.MainBuildContextName: dir,
 		},
-		AllRegistryDomains:    []string{"index.docker.io"},
-		CmdWithTagPlaceholder: []string{"docker", "buildx", "build", "."},
+		AllRegistryDomains:     []string{"index.docker.io"},
+		CmdWithoutTagArguments: []string{"docker", "buildx", "build", "."},
 	}
 
 	hash1 := HashBuildCommand(command)
@@ -321,14 +321,14 @@ func TestHashBuildCommand_DifferentCommands_DifferentHashes(t *testing.T) {
 		BuildContexts: map[string]string{
 			configuration.MainBuildContextName: dir,
 		},
-		CmdWithTagPlaceholder: []string{"docker", "buildx", "build", "."},
+		CmdWithoutTagArguments: []string{"docker", "buildx", "build", "."},
 	}
 
 	command2 := DockerBuildCommand{
 		BuildContexts: map[string]string{
 			configuration.MainBuildContextName: dir,
 		},
-		CmdWithTagPlaceholder: []string{"docker", "buildx", "build", "--no-cache", "."},
+		CmdWithoutTagArguments: []string{"docker", "buildx", "build", "--no-cache", "."},
 	}
 
 	hash1 := HashBuildCommand(command1)
@@ -349,16 +349,16 @@ func TestHashBuildCommand_DifferentRegistryDomains_DifferentHashes(t *testing.T)
 		BuildContexts: map[string]string{
 			configuration.MainBuildContextName: dir,
 		},
-		AllRegistryDomains:    []string{"index.docker.io"},
-		CmdWithTagPlaceholder: []string{"docker", "buildx", "build", "-t", "TAG", "--push", "."},
+		AllRegistryDomains:     []string{"index.docker.io"},
+		CmdWithoutTagArguments: []string{"docker", "buildx", "build", "--push", "."},
 	}
 
 	command2 := DockerBuildCommand{
 		BuildContexts: map[string]string{
 			configuration.MainBuildContextName: dir,
 		},
-		AllRegistryDomains:    []string{"gcr.io"},
-		CmdWithTagPlaceholder: []string{"docker", "buildx", "build", "-t", "TAG", "--push", "."},
+		AllRegistryDomains:     []string{"gcr.io"},
+		CmdWithoutTagArguments: []string{"docker", "buildx", "build", "--push", "."},
 	}
 
 	hash1 := HashBuildCommand(command1)
@@ -380,8 +380,8 @@ func TestHashBuildCommand_WithLargeNumberOfContexts(t *testing.T) {
 	}
 
 	command := DockerBuildCommand{
-		BuildContexts:         contexts,
-		CmdWithTagPlaceholder: []string{"docker", "buildx", "build", "."},
+		BuildContexts:          contexts,
+		CmdWithoutTagArguments: []string{"docker", "buildx", "build", "."},
 	}
 	hash := HashBuildCommand(command)
 	assert.NotEqual(t, hash, "", "Expected non-empty hash for command with many contexts")
@@ -418,7 +418,7 @@ func TestHashBuildCommand_WithContextContainingSpecialFiles(t *testing.T) {
 		BuildContexts: map[string]string{
 			configuration.MainBuildContextName: dir,
 		},
-		CmdWithTagPlaceholder: []string{"docker", "buildx", "build", "."},
+		CmdWithoutTagArguments: []string{"docker", "buildx", "build", "."},
 	}
 	hash := HashBuildCommand(command)
 	assert.NotEqual(t, hash, "", "Expected non-empty hash for command with special files")
@@ -447,8 +447,8 @@ func TestHashBuildCommand_WithNilCommandString(t *testing.T) {
 		BuildContexts: map[string]string{
 			configuration.MainBuildContextName: dir,
 		},
-		AllRegistryDomains:    []string{"index.docker.io"},
-		CmdWithTagPlaceholder: nil,
+		AllRegistryDomains:     []string{"index.docker.io"},
+		CmdWithoutTagArguments: nil,
 	}
 	hash := HashBuildCommand(command)
 	assert.NotEqual(t, hash, "", "Expected non-empty hash for command with nil command string")
@@ -459,7 +459,7 @@ func TestHashBuildCommand_WithContextPathStartingWithEquals(t *testing.T) {
 		BuildContexts: map[string]string{
 			"=context": "=path",
 		},
-		CmdWithTagPlaceholder: []string{"docker", "buildx", "build", "."},
+		CmdWithoutTagArguments: []string{"docker", "buildx", "build", "."},
 	}
 	hash := HashBuildCommand(command)
 	assert.NotEqual(t, hash, "", "Expected non-empty hash for command with context path starting with equals")
@@ -470,7 +470,7 @@ func TestHashBuildCommand_WithContextPathEndingWithEquals(t *testing.T) {
 		BuildContexts: map[string]string{
 			"context=": "path=",
 		},
-		CmdWithTagPlaceholder: []string{"docker", "buildx", "build", "."},
+		CmdWithoutTagArguments: []string{"docker", "buildx", "build", "."},
 	}
 	hash := HashBuildCommand(command)
 	assert.NotEqual(t, hash, "", "Expected non-empty hash for command with context path ending with equals")
@@ -481,7 +481,7 @@ func TestHashBuildCommand_WithContextPathMultipleEquals(t *testing.T) {
 		BuildContexts: map[string]string{
 			"name=with=multiple=equals": "path=with=multiple=equals",
 		},
-		CmdWithTagPlaceholder: []string{"docker", "buildx", "build", "."},
+		CmdWithoutTagArguments: []string{"docker", "buildx", "build", "."},
 	}
 	hash := HashBuildCommand(command)
 	assert.NotEqual(t, hash, "", "Expected non-empty hash for command with context path multiple equals")
@@ -492,7 +492,7 @@ func TestHashBuildCommand_WithContextPathSpecialCharacters(t *testing.T) {
 		BuildContexts: map[string]string{
 			"context-with-special-chars": "path/with/special/chars/and/spaces and more",
 		},
-		CmdWithTagPlaceholder: []string{"docker", "buildx", "build", "."},
+		CmdWithoutTagArguments: []string{"docker", "buildx", "build", "."},
 	}
 	hash := HashBuildCommand(command)
 	assert.NotEqual(t, hash, "", "Expected non-empty hash for command with context path special characters")
@@ -513,7 +513,7 @@ func TestHashBuildCommand_WithContextPathUnicode(t *testing.T) {
 		BuildContexts: map[string]string{
 			"context-with-unicode": innerDirWithUnicode,
 		},
-		CmdWithTagPlaceholder: []string{"docker", "buildx", "build", "."},
+		CmdWithoutTagArguments: []string{"docker", "buildx", "build", "."},
 	}
 	hash := HashBuildCommand(command)
 	assert.NotEqual(t, hash, "", "Expected non-empty hash for command with context path unicode")
@@ -531,7 +531,7 @@ func TestHashBuildCommand_WithContextPathWhitespace(t *testing.T) {
 		BuildContexts: map[string]string{
 			"   context   ": "   path   ",
 		},
-		CmdWithTagPlaceholder: []string{"docker", "buildx", "build", "."},
+		CmdWithoutTagArguments: []string{"docker", "buildx", "build", "."},
 	}
 	hash := HashBuildCommand(command)
 	assert.NotEqual(t, hash, "", "Expected non-empty hash for command with whitespace in context path")
@@ -542,7 +542,7 @@ func TestHashBuildCommand_WithContextPathNewlines(t *testing.T) {
 		BuildContexts: map[string]string{
 			"context\nwith\nnewlines": "path\nwith\nnewlines",
 		},
-		CmdWithTagPlaceholder: []string{"docker", "buildx", "build", "."},
+		CmdWithoutTagArguments: []string{"docker", "buildx", "build", "."},
 	}
 	hash := HashBuildCommand(command)
 	assert.NotEqual(t, hash, "", "Expected non-empty hash for command with newlines in context path")
@@ -553,7 +553,7 @@ func TestHashBuildCommand_WithContextPathControlCharacters(t *testing.T) {
 		BuildContexts: map[string]string{
 			"context\x01\x02\x03with\x04\x05\x06control": "path\x01\x02\x03with\x04\x05\x06control",
 		},
-		CmdWithTagPlaceholder: []string{"docker", "buildx", "build", "."},
+		CmdWithoutTagArguments: []string{"docker", "buildx", "build", "."},
 	}
 	hash := HashBuildCommand(command)
 	assert.NotEqual(t, hash, "", "Expected non-empty hash for command with control characters in context path")
@@ -564,7 +564,7 @@ func TestHashBuildCommand_WithContextPathBackslashes(t *testing.T) {
 		BuildContexts: map[string]string{
 			"context\\with\\backslashes": "path\\with\\backslashes",
 		},
-		CmdWithTagPlaceholder: []string{"docker", "buildx", "build", "."},
+		CmdWithoutTagArguments: []string{"docker", "buildx", "build", "."},
 	}
 	hash := HashBuildCommand(command)
 	assert.NotEqual(t, hash, "", "Expected non-empty hash for command with backslashes in context path")

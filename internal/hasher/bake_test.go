@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/docker/buildx/bake"
@@ -187,7 +188,7 @@ func TestHashBakeTargets_WithBakeFiles(t *testing.T) {
 
 func TestConstructTemplatedDockerBuildCommand_EmptyTarget(t *testing.T) {
 	target := &bake.Target{}
-	args := constructTemplatedDockerBuildCommand(target)
+	args := constructDockerBuildCommandWithoutTags(target)
 
 	expected := []string{"docker", "buildx", "build", "."}
 	if len(args) != len(expected) {
@@ -204,7 +205,7 @@ func TestConstructTemplatedDockerBuildCommand_WithAnnotations(t *testing.T) {
 	target := &bake.Target{
 		Annotations: []string{"key1=value1", "key2=value2"},
 	}
-	args := constructTemplatedDockerBuildCommand(target)
+	args := constructDockerBuildCommandWithoutTags(target)
 
 	// Check that annotations are included
 	found := 0
@@ -235,7 +236,7 @@ func TestConstructTemplatedDockerBuildCommand_WithBuildContexts(t *testing.T) {
 			"backend":  "./backend",
 		},
 	}
-	args := constructTemplatedDockerBuildCommand(target)
+	args := constructDockerBuildCommandWithoutTags(target)
 
 	// Check that build contexts are included
 	found := 0
@@ -263,7 +264,7 @@ func TestConstructTemplatedDockerBuildCommand_WithBuildArgs(t *testing.T) {
 			"ARG2": &arg2,
 		},
 	}
-	args := constructTemplatedDockerBuildCommand(target)
+	args := constructDockerBuildCommandWithoutTags(target)
 
 	// Check that build args are included
 	found := 0
@@ -289,7 +290,7 @@ func TestConstructTemplatedDockerBuildCommand_WithNilBuildArgs(t *testing.T) {
 			"ARG2": nil,
 		},
 	}
-	args := constructTemplatedDockerBuildCommand(target)
+	args := constructDockerBuildCommandWithoutTags(target)
 
 	// Check that nil build args are not included
 	for i := 0; i < len(args)-1; i++ {
@@ -314,7 +315,7 @@ func TestConstructTemplatedDockerBuildCommand_WithDockerfile(t *testing.T) {
 	target := &bake.Target{
 		Dockerfile: &dockerfile,
 	}
-	args := constructTemplatedDockerBuildCommand(target)
+	args := constructDockerBuildCommandWithoutTags(target)
 
 	// Check that dockerfile is included
 	found := false
@@ -338,7 +339,7 @@ func TestConstructTemplatedDockerBuildCommand_WithLabels(t *testing.T) {
 			"LABEL2": &label2,
 		},
 	}
-	args := constructTemplatedDockerBuildCommand(target)
+	args := constructDockerBuildCommandWithoutTags(target)
 
 	// Check that labels are included
 	found := 0
@@ -364,7 +365,7 @@ func TestConstructTemplatedDockerBuildCommand_WithNilLabels(t *testing.T) {
 			"LABEL2": nil,
 		},
 	}
-	args := constructTemplatedDockerBuildCommand(target)
+	args := constructDockerBuildCommandWithoutTags(target)
 
 	// Check that nil labels are not included
 	for i := 0; i < len(args)-1; i++ {
@@ -379,7 +380,7 @@ func TestConstructTemplatedDockerBuildCommand_WithNetworkMode(t *testing.T) {
 	target := &bake.Target{
 		NetworkMode: &network,
 	}
-	args := constructTemplatedDockerBuildCommand(target)
+	args := constructDockerBuildCommandWithoutTags(target)
 
 	// Check that network mode is included
 	found := false
@@ -399,7 +400,7 @@ func TestConstructTemplatedDockerBuildCommand_WithNoCache(t *testing.T) {
 	target := &bake.Target{
 		NoCache: &noCache,
 	}
-	args := constructTemplatedDockerBuildCommand(target)
+	args := constructDockerBuildCommandWithoutTags(target)
 
 	// Check that no-cache is included
 	found := false
@@ -419,7 +420,7 @@ func TestConstructTemplatedDockerBuildCommand_WithNoCacheFalse(t *testing.T) {
 	target := &bake.Target{
 		NoCache: &noCache,
 	}
-	args := constructTemplatedDockerBuildCommand(target)
+	args := constructDockerBuildCommandWithoutTags(target)
 
 	// Check that no-cache is not included when false
 	for _, arg := range args {
@@ -433,7 +434,7 @@ func TestConstructTemplatedDockerBuildCommand_WithNoCacheFilter(t *testing.T) {
 	target := &bake.Target{
 		NoCacheFilter: []string{"*.tmp", "*.log"},
 	}
-	args := constructTemplatedDockerBuildCommand(target)
+	args := constructDockerBuildCommandWithoutTags(target)
 
 	// Check that no-cache-filter options are included
 	found := 0
@@ -456,7 +457,7 @@ func TestConstructTemplatedDockerBuildCommand_WithPlatforms(t *testing.T) {
 	target := &bake.Target{
 		Platforms: []string{"linux/amd64", "linux/arm64"},
 	}
-	args := constructTemplatedDockerBuildCommand(target)
+	args := constructDockerBuildCommandWithoutTags(target)
 
 	// Check that platforms are included
 	found := 0
@@ -480,7 +481,7 @@ func TestConstructTemplatedDockerBuildCommand_WithPull(t *testing.T) {
 	target := &bake.Target{
 		Pull: &pull,
 	}
-	args := constructTemplatedDockerBuildCommand(target)
+	args := constructDockerBuildCommandWithoutTags(target)
 
 	// Check that pull is included
 	found := false
@@ -500,7 +501,7 @@ func TestConstructTemplatedDockerBuildCommand_WithPullFalse(t *testing.T) {
 	target := &bake.Target{
 		Pull: &pull,
 	}
-	args := constructTemplatedDockerBuildCommand(target)
+	args := constructDockerBuildCommandWithoutTags(target)
 
 	// Check that pull is not included when false
 	for _, arg := range args {
@@ -520,7 +521,7 @@ func TestConstructTemplatedDockerBuildCommand_WithShmSize(t *testing.T) {
 	target := &bake.Target{
 		ShmSize: &shmSize,
 	}
-	args := constructTemplatedDockerBuildCommand(target)
+	args := constructDockerBuildCommandWithoutTags(target)
 
 	// Check that shm-size is included
 	found := false
@@ -545,7 +546,7 @@ func TestConstructTemplatedDockerBuildCommand_WithTarget(t *testing.T) {
 	target := &bake.Target{
 		Target: &targetName,
 	}
-	args := constructTemplatedDockerBuildCommand(target)
+	args := constructDockerBuildCommandWithoutTags(target)
 
 	// Check that target is included
 	found := false
@@ -564,7 +565,7 @@ func TestConstructTemplatedDockerBuildCommand_WithUlimits(t *testing.T) {
 	target := &bake.Target{
 		Ulimits: []string{"nofile=65536:65536", "nproc=32768:32768"},
 	}
-	args := constructTemplatedDockerBuildCommand(target)
+	args := constructDockerBuildCommandWithoutTags(target)
 
 	// Check that ulimits are included
 	found := 0
@@ -587,7 +588,7 @@ func TestConstructTemplatedDockerBuildCommand_WithEntitlements(t *testing.T) {
 	target := &bake.Target{
 		Entitlements: []string{"network.host", "security.insecure"},
 	}
-	args := constructTemplatedDockerBuildCommand(target)
+	args := constructDockerBuildCommandWithoutTags(target)
 
 	// Check that entitlements are included
 	found := 0
@@ -618,7 +619,7 @@ func TestConstructTemplatedDockerBuildCommand_WithExtraHosts(t *testing.T) {
 			host2: &ip2,
 		},
 	}
-	args := constructTemplatedDockerBuildCommand(target)
+	args := constructDockerBuildCommandWithoutTags(target)
 
 	// Check that extra hosts are included
 	found := 0
@@ -644,7 +645,7 @@ func TestConstructTemplatedDockerBuildCommand_WithNilExtraHosts(t *testing.T) {
 			"host2.local": nil,
 		},
 	}
-	args := constructTemplatedDockerBuildCommand(target)
+	args := constructDockerBuildCommandWithoutTags(target)
 
 	// Check that nil extra hosts are not included
 	for i := 0; i < len(args)-1; i++ {
@@ -659,33 +660,21 @@ func TestConstructTemplatedDockerBuildCommand_WithOutputs(t *testing.T) {
 	t.Skip("Output type not directly accessible from bake package")
 }
 
-func TestConstructTemplatedDockerBuildCommand_WithTags(t *testing.T) {
+func TestConstructTemplatedDockerBuildCommand_WithoutTags(t *testing.T) {
 	target := &bake.Target{
 		Tags: []string{"myapp:latest", "myapp:v1.0"},
 	}
-	args := constructTemplatedDockerBuildCommand(target)
+	args := constructDockerBuildCommandWithoutTags(target)
 
-	// Check that tags are included as placeholders
+	// Check that tags are not included
 	found := 0
 	for _, arg := range args {
-		if arg == "--tag" {
+		if arg == "--tag" || arg == "-t" || strings.HasPrefix(arg, "--tag=") || strings.HasPrefix(arg, "-t=") {
 			found++
 		}
 	}
-	if found != 2 {
-		t.Errorf("Expected 2 tag placeholders, found %d", found)
-	}
 
-	// Check that TAG placeholders are included
-	tagPlaceholders := 0
-	for _, arg := range args {
-		if arg == "TAG" {
-			tagPlaceholders++
-		}
-	}
-	if tagPlaceholders != 2 {
-		t.Errorf("Expected 2 TAG placeholders, found %d", tagPlaceholders)
-	}
+	assert.Equal(t, 0, found)
 }
 
 func TestConstructTemplatedDockerBuildCommand_WithContext(t *testing.T) {
@@ -693,19 +682,17 @@ func TestConstructTemplatedDockerBuildCommand_WithContext(t *testing.T) {
 	target := &bake.Target{
 		Context: &context,
 	}
-	args := constructTemplatedDockerBuildCommand(target)
+	args := constructDockerBuildCommandWithoutTags(target)
 
 	// Check that context is included at the end
-	if len(args) == 0 || args[len(args)-1] != context {
-		t.Errorf("Expected context %s to be the last argument, got %s", context, args[len(args)-1])
-	}
+	assert.Equal(t, context, args[len(args)-1])
 }
 
 func TestConstructTemplatedDockerBuildCommand_WithNilContext(t *testing.T) {
 	target := &bake.Target{
 		Context: nil,
 	}
-	args := constructTemplatedDockerBuildCommand(target)
+	args := constructDockerBuildCommandWithoutTags(target)
 
 	// Check that default context "." is included at the end
 	if len(args) == 0 || args[len(args)-1] != "." {
@@ -737,7 +724,7 @@ func TestConstructTemplatedDockerBuildCommand_ComplexTarget(t *testing.T) {
 			"version": &targetName,
 		},
 	}
-	args := constructTemplatedDockerBuildCommand(target)
+	args := constructDockerBuildCommandWithoutTags(target)
 
 	// Verify all expected arguments are present
 	expectedArgs := []string{
@@ -751,8 +738,6 @@ func TestConstructTemplatedDockerBuildCommand_ComplexTarget(t *testing.T) {
 		"--target", targetName,
 		"--build-arg", "BUILD_VERSION=" + targetName,
 		"--label", "version=" + targetName,
-		"--tag", "TAG",
-		"--tag", "TAG",
 		context,
 	}
 
@@ -807,7 +792,7 @@ func TestConstructTemplatedDockerBuildCommand_AllFieldsCombined(t *testing.T) {
 		Ulimits:       []string{"nofile=65536:65536"},
 		Entitlements:  []string{"network.host"},
 	}
-	args := constructTemplatedDockerBuildCommand(target)
+	args := constructDockerBuildCommandWithoutTags(target)
 
 	// Verify all expected arguments are present
 	expectedArgs := []string{
@@ -827,7 +812,6 @@ func TestConstructTemplatedDockerBuildCommand_AllFieldsCombined(t *testing.T) {
 		"--ulimit", "nofile=65536:65536",
 		"--allow", "network.host",
 		"--add-host", "host1.local:192.168.1.10",
-		"--tag", "TAG",
 		context,
 	}
 
@@ -854,7 +838,7 @@ func TestConstructTemplatedDockerBuildCommand_EmptySlices(t *testing.T) {
 		Entitlements:  []string{},
 		NoCacheFilter: []string{},
 	}
-	args := constructTemplatedDockerBuildCommand(target)
+	args := constructDockerBuildCommandWithoutTags(target)
 
 	// Should only contain basic command and default context
 	expected := []string{"docker", "buildx", "build", "."}
@@ -875,7 +859,7 @@ func TestConstructTemplatedDockerBuildCommand_EmptyMaps(t *testing.T) {
 		Labels:     map[string]*string{},
 		ExtraHosts: map[string]*string{},
 	}
-	args := constructTemplatedDockerBuildCommand(target)
+	args := constructDockerBuildCommandWithoutTags(target)
 
 	// Should only contain basic command and default context
 	expected := []string{"docker", "buildx", "build", "."}

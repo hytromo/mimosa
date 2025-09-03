@@ -327,7 +327,7 @@ func TestFindContextPath(t *testing.T) {
 	}
 }
 
-func TestBuildCmdWithTagsPlaceholder(t *testing.T) {
+func TestBuildCmdWithoutTagArguments(t *testing.T) {
 	testCases := []struct {
 		name     string
 		input    []string
@@ -336,22 +336,22 @@ func TestBuildCmdWithTagsPlaceholder(t *testing.T) {
 		{
 			name:     "Simple tag replacement",
 			input:    []string{"docker", "build", "-t", "myapp:latest", "."},
-			expected: []string{"docker", "build", "-t", "TAG", "."},
+			expected: []string{"docker", "build", "."},
 		},
 		{
 			name:     "Multiple tags - replace first",
 			input:    []string{"docker", "build", "-t", "myapp:latest", "-t", "myapp:v1.0.0", "."},
-			expected: []string{"docker", "build", "-t", "TAG", "-t", "myapp:v1.0.0", "."},
+			expected: []string{"docker", "build", "."},
 		},
 		{
 			name:     "Tag with equals syntax",
 			input:    []string{"docker", "build", "--tag=myapp:latest", "."},
-			expected: []string{"docker", "build", "--tag=TAG", "."},
+			expected: []string{"docker", "build", "."},
 		},
 		{
 			name:     "Short tag with equals syntax",
 			input:    []string{"docker", "build", "-t=myapp:latest", "."},
-			expected: []string{"docker", "build", "-t=TAG", "."},
+			expected: []string{"docker", "build", "."},
 		},
 		{
 			name:     "No tag in command",
@@ -361,13 +361,13 @@ func TestBuildCmdWithTagsPlaceholder(t *testing.T) {
 		{
 			name:     "Complex command with tag",
 			input:    []string{"docker", "build", "-f", "Dockerfile.prod", "--no-cache", "-t", "myapp:latest", "."},
-			expected: []string{"docker", "build", "-f", "Dockerfile.prod", "--no-cache", "-t", "TAG", "."},
+			expected: []string{"docker", "build", "-f", "Dockerfile.prod", "--no-cache", "."},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			result := buildCmdWithTagsPlaceholder(tc.input)
+			result := buildCommandWithoutTagArguments(tc.input)
 			assert.Equal(t, tc.expected, result)
 		})
 	}

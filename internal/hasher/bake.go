@@ -12,7 +12,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func constructTemplatedDockerBuildCommand(target *bake.Target) []string {
+func constructDockerBuildCommandWithoutTags(target *bake.Target) []string {
 	args := []string{"docker", "buildx", "build"}
 
 	// Add annotations
@@ -156,13 +156,6 @@ func constructTemplatedDockerBuildCommand(target *bake.Target) []string {
 		}
 	}
 
-	// Add tags as placeholders
-	if target.Tags != nil {
-		for range target.Tags {
-			args = append(args, "--tag", "TAG")
-		}
-	}
-
 	// Add context path
 	if target.Context != nil {
 		args = append(args, *target.Context)
@@ -171,6 +164,7 @@ func constructTemplatedDockerBuildCommand(target *bake.Target) []string {
 		args = append(args, ".")
 	}
 
+	// tags are skipped on purpose - we do not take them into account when hashing the command
 	return args
 }
 
@@ -207,11 +201,11 @@ func HashBakeTargets(targets map[string]*bake.Target, bakeFiles []string) string
 		}
 
 		correspondingDockerBuildCommand := DockerBuildCommand{
-			DockerfilePath:        absoluteDockerfilePath,
-			DockerignorePath:      dockerIgnorePath,
-			BuildContexts:         allContexts,
-			AllRegistryDomains:    allRegistryDomains,
-			CmdWithTagPlaceholder: constructTemplatedDockerBuildCommand(target),
+			DockerfilePath:         absoluteDockerfilePath,
+			DockerignorePath:       dockerIgnorePath,
+			BuildContexts:          allContexts,
+			AllRegistryDomains:     allRegistryDomains,
+			CmdWithoutTagArguments: constructDockerBuildCommandWithoutTags(target),
 		}
 
 		log.Debugf("Corresponding docker build command for target %s: %#v\n", targetName, correspondingDockerBuildCommand)

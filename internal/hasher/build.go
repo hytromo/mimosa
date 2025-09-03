@@ -17,11 +17,11 @@ import (
 
 // DockerBuildCommand is a struct that contains the information needed to hash a docker build command
 type DockerBuildCommand struct {
-	DockerfilePath        string
-	DockerignorePath      string
-	BuildContexts         map[string]string
-	AllRegistryDomains    []string
-	CmdWithTagPlaceholder []string
+	DockerfilePath         string
+	DockerignorePath       string
+	BuildContexts          map[string]string
+	AllRegistryDomains     []string
+	CmdWithoutTagArguments []string
 }
 
 func registryDomainsHash(registryDomains []string) string {
@@ -137,8 +137,8 @@ func HashBuildCommand(command DockerBuildCommand) string {
 	}
 
 	return HashStrings([]string{
-		// the command itself with placeholdered tags
-		strings.Join(command.CmdWithTagPlaceholder, " "),
+		// the command itself (without tags)
+		strings.Join(command.CmdWithoutTagArguments, " "),
 		// the domains used to push the image to
 		// including this is important for the edge case where the same
 		// exact build is repeated with different domains - promotion doesn't work then
