@@ -17,16 +17,20 @@ func isTerminal() bool {
 	return term.IsTerminal(int(os.Stdout.Fd()))
 }
 
-func InitLogging(customIsTerminal func() bool) {
+func InitLogging(customIsTerminal func() bool, forceDebug bool) {
 	if customIsTerminal == nil {
 		customIsTerminal = isTerminal
 	}
-	level, err := logrus.ParseLevel(os.Getenv("LOG_LEVEL"))
-	if err != nil {
-		level = logrus.InfoLevel
-	}
 
-	logrus.SetLevel(level)
+	if forceDebug {
+		logrus.SetLevel(logrus.DebugLevel)
+	} else {
+		level, err := logrus.ParseLevel(os.Getenv("LOG_LEVEL"))
+		if err != nil {
+			level = logrus.InfoLevel
+		}
+		logrus.SetLevel(level)
+	}
 
 	if customIsTerminal() {
 		logrus.SetFormatter(&OnlyMessageFormatter{})

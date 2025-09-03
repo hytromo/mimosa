@@ -15,14 +15,14 @@ var rootCmd = &cobra.Command{
 
 func Execute() {
 	err := rootCmd.Execute()
+	forceDebug, _ := rootCmd.PersistentFlags().GetBool(debugFlag)
+
+	logger.InitLogging(nil, forceDebug)
 	if err != nil {
 		os.Exit(1)
 	}
 }
 
 func init() {
-	logger.InitLogging(nil)
-
-	rootCmd.Flags().BoolP(versionFlag, "v", false, "Show the version")
-	rootCmd.Flags().BoolP(debugFlag, "", false, "Show debug logs")
+	rootCmd.PersistentFlags().Bool(debugFlag, false, "Show debug logs")
 }

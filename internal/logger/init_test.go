@@ -29,7 +29,7 @@ func TestInitLogging_Terminal(t *testing.T) {
 	InitLogging(func() bool {
 		called = true
 		return true
-	})
+	}, false)
 
 	if !called {
 		t.Error("customIsTerminal was not called")
@@ -45,7 +45,7 @@ func TestInitLogging_NotTerminal(t *testing.T) {
 	origLevel := logrus.GetLevel()
 	defer logrus.SetLevel(origLevel)
 
-	InitLogging(func() bool { return false })
+	InitLogging(func() bool { return false }, false)
 
 	if _, ok := logrus.StandardLogger().Formatter.(*logrus.TextFormatter); !ok {
 		t.Errorf("expected TextFormatter, got %T", logrus.StandardLogger().Formatter)
@@ -59,7 +59,7 @@ func TestInitLogging_LogLevelEnv(t *testing.T) {
 	}()
 
 	_ = os.Setenv("LOG_LEVEL", "debug")
-	InitLogging(func() bool { return true })
+	InitLogging(func() bool { return true }, false)
 
 	if logrus.GetLevel() != logrus.DebugLevel {
 		t.Errorf("expected log level debug, got %v", logrus.GetLevel())
@@ -73,7 +73,7 @@ func TestInitLogging_InvalidLogLevel(t *testing.T) {
 	}()
 
 	_ = os.Setenv("LOG_LEVEL", "invalid")
-	InitLogging(func() bool { return true })
+	InitLogging(func() bool { return true }, false)
 
 	if logrus.GetLevel() != logrus.InfoLevel {
 		t.Errorf("expected log level info, got %v", logrus.GetLevel())
@@ -98,7 +98,7 @@ func TestInitLogging_DefaultIsTerminal(t *testing.T) {
 	defer logrus.SetLevel(origLevel)
 
 	// Call InitLogging with nil to use the default isTerminal
-	InitLogging(nil)
+	InitLogging(nil, false)
 
 	// We can't guarantee the formatter type in all environments,
 	// but we can check that InitLogging does not panic and sets a valid formatter.
