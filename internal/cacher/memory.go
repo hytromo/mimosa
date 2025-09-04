@@ -9,9 +9,11 @@ import (
 	"strings"
 	"time"
 
+	"log/slog"
+
 	"github.com/elliotchance/orderedmap/v3"
 	"github.com/hytromo/mimosa/internal/hasher"
-	log "github.com/sirupsen/logrus"
+	"github.com/hytromo/mimosa/internal/logger"
 )
 
 const (
@@ -49,7 +51,7 @@ func GetAllInMemoryEntries() *InMemoryCache {
 
 			parts := strings.Split(line, cacheKeyAndValueSeparator)
 			if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-				log.Warnln("Invalid", EnvVarName, "entry:", line)
+				slog.Warn("Invalid entry", "envVar", EnvVarName, "line", line)
 				continue
 			}
 			z85CacheKey := parts[0]
@@ -74,14 +76,14 @@ func GetAllInMemoryEntries() *InMemoryCache {
 			inMemoryEntries.Set(z85CacheKey, cacheFile)
 		}
 
-		if log.IsLevelEnabled(log.DebugLevel) {
+		if logger.IsDebugEnabled() {
 			for z85CacheKey, value := range inMemoryEntries.AllFromFront() {
 				hexKey, err := hasher.Z85ToHex(z85CacheKey)
 				if err != nil {
-					log.Warnf("Failed to convert key to hex: %v", err)
+					slog.Warn("Failed to convert key to hex", "error", err)
 					continue
 				}
-				log.Debugf("In-memory cache entry: %s (%s) -> %s", z85CacheKey, hexKey, value)
+				slog.Debug("In-memory cache entry", "z85Key", z85CacheKey, "hexKey", hexKey, "value", value)
 			}
 		}
 	}
@@ -95,7 +97,7 @@ func GetDiskCacheToMemoryEntries(cacheDir string) *orderedmap.OrderedMap[string,
 	diskEntries := make([]*CacheFileWithHash, 0)
 	err := filepath.Walk(cacheDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			log.Debugf("Failed to walk cache directory: %v", err)
+			slog.Debug("Failed to walk cache directory", "error", err)
 			return nil
 		}
 		if info.IsDir() || !strings.HasSuffix(path, ".json") {
@@ -104,18 +106,18 @@ func GetDiskCacheToMemoryEntries(cacheDir string) *orderedmap.OrderedMap[string,
 
 		data, err := os.ReadFile(path)
 		if err != nil {
-			log.Debugf("Failed to read cache file %s: %v", path, err)
+			slog.Debug("Failed to read cache file", "path", path, "error", err)
 			return nil
 		}
 
 		var cacheFile CacheFile
 		err = json.Unmarshal(data, &cacheFile)
 		if err != nil {
-			log.Debugf("Failed to unmarshal cache file %s: %v", path, err)
+			slog.Debug("Failed to unmarshal cache file", "path", path, "error", err)
 			return nil
 		}
 
-		log.Debugf("Cache file: %+v", cacheFile)
+		slog.Debug("Cache file", "file", cacheFile)
 
 		// the cache hexHash is the filename without the extension
 		hexHash := strings.TrimSuffix(filepath.Base(path), ".json")
@@ -128,7 +130,7 @@ func GetDiskCacheToMemoryEntries(cacheDir string) *orderedmap.OrderedMap[string,
 	})
 
 	if (err) != nil {
-		log.Debugf("Failed to walk cache directory: %v", err)
+		slog.Debug("Failed to walk cache directory", "error", err)
 	}
 
 	// Sort by LastUpdatedAt (newest first)
@@ -143,7 +145,7 @@ func GetDiskCacheToMemoryEntries(cacheDir string) *orderedmap.OrderedMap[string,
 	for _, entry := range diskEntries {
 		z85Hash, err := hasher.HexToZ85(entry.HexHash)
 		if err != nil {
-			log.Debugf("Failed to convert hash to z85: %v", err)
+			slog.Debug("Failed to convert hash to z85", "error", err)
 			continue
 		}
 
@@ -169,7 +171,7 @@ func GetDiskCacheToMemoryEntries(cacheDir string) *orderedmap.OrderedMap[string,
 		}
 
 	}
-	log.Debugf("Loaded %d cache entries from disk and were decoded to %d in-memory entries", len(diskEntries), z85InMemoryEntries.Len())
+	slog.Debug("Loaded cache entries from disk and decoded to in-memory entries", "diskCount", len(diskEntries), "memoryCount", z85InMemoryEntries.Len())
 
 	return z85InMemoryEntries
 }

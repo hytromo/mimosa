@@ -5,8 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-
-	log "github.com/sirupsen/logrus"
 )
 
 func createTempFileWithContent(t *testing.T, dir, content string) string {
@@ -87,7 +85,7 @@ func TestHashFiles_SameContentFiles(t *testing.T) {
 func TestHashFiles_NonExistentFile(t *testing.T) {
 	dir := t.TempDir()
 	file := filepath.Join(dir, "doesnotexist.txt")
-	log.SetLevel(log.DebugLevel)
+	// Debug level is set by default in slog
 	// Should not panic or error, just skip
 	hash := HashFiles([]string{file}, 1)
 	// Should be empty since no file was hashed

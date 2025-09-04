@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"time"
 
+	"log/slog"
+
 	"github.com/hytromo/mimosa/internal/cacher"
 	"github.com/hytromo/mimosa/internal/logger"
-	log "github.com/sirupsen/logrus"
 )
 
 func (a *Actioner) GetCacheEntry(hash string) cacher.Cache {
@@ -29,14 +30,14 @@ func (a *Actioner) ForgetCacheEntriesOlderThan(duration string, autoApprove bool
 	forgetDuration, err := parseDuration("0s") // purge
 
 	if err != nil {
-		log.Errorf("Invalid forget duration: %v", err)
+		slog.Error("Invalid forget duration", "error", err)
 		return err
 	}
 
 	if duration != "" {
 		forgetDuration, err = parseDuration(duration)
 		if err != nil {
-			log.Errorf("Invalid forget duration: %v", err)
+			slog.Error("Invalid forget duration", "error", err)
 			return err
 		}
 	}
@@ -44,11 +45,11 @@ func (a *Actioner) ForgetCacheEntriesOlderThan(duration string, autoApprove bool
 	forgetTime := time.Now().UTC().Add(-forgetDuration)
 	if !autoApprove {
 		// need to ask for confirmation
-		logger.CleanLog.Infof("Are you sure you want to forget cache entries older than %s? (y/n): ", forgetTime)
+		logger.CleanLog.Info(fmt.Sprintf("Are you sure you want to forget cache entries older than %s? (y/n): ", forgetTime))
 		var response string
 		_, err := fmt.Scanln(&response)
 		if err != nil || (response != "yes" && response != "y") {
-			log.Infoln("Cache forget operation cancelled.")
+			slog.Info("Cache forget operation cancelled.")
 			return nil
 		}
 	}
@@ -63,17 +64,17 @@ func (a *Actioner) PrintCacheDir() {
 
 func (a *Actioner) PrintCacheToEnvValue(cacheDir string) {
 	diskEntries := cacher.GetDiskCacheToMemoryEntries(cacheDir)
-	log.Debugln("-- Disk Cache Entries --")
+	slog.Debug("-- Disk Cache Entries --")
 	for key, value := range diskEntries.AllFromFront() {
-		logger.CleanLog.Infoln(fmt.Sprintf("%s %s", key, value))
+		logger.CleanLog.Info(fmt.Sprintf("%s %s", key, value))
 	}
 
 	envEntries := cacher.GetAllInMemoryEntries()
-	log.Debugln("-- Env Cache Entries --")
+	slog.Debug("-- Env Cache Entries --")
 	for key, value := range envEntries.AllFromFront() {
 		if _, exists := diskEntries.Get(key); !exists {
 			// print only entries that are not in the disk cache
-			logger.CleanLog.Infoln(fmt.Sprintf("%s %s", key, value))
+			logger.CleanLog.Info(fmt.Sprintf("%s %s", key, value))
 		}
 	}
 }

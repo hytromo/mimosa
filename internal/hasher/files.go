@@ -6,8 +6,10 @@ import (
 	"sort"
 	"sync"
 
+	"log/slog"
+
+	"github.com/hytromo/mimosa/internal/logger"
 	"github.com/kalafut/imohash"
-	log "github.com/sirupsen/logrus"
 )
 
 // HashFiles computes a hash of all files in the provided list
@@ -37,7 +39,7 @@ func HashFiles(filePaths []string, nWorkers int) string {
 				hashChan <- hash[:]
 				count++
 			} else {
-				log.Debugf("Error hashing file %s: %v", path, err)
+				slog.Debug("Error hashing file", "path", path, "error", err)
 			}
 		}
 		workerCountChan <- struct {
@@ -72,16 +74,16 @@ func HashFiles(filePaths []string, nWorkers int) string {
 		workerStats[stat.workerID] = stat.count
 	}
 
-	if log.IsLevelEnabled(log.DebugLevel) {
+	if logger.IsDebugEnabled() {
 		// Print the number of files and their paths
-		log.Debugf("Deducting file hash from %d files:", len(filePaths))
+		slog.Debug("Deducting file hash from files", "count", len(filePaths))
 		for _, path := range filePaths {
-			log.Debugln(path)
+			slog.Debug("File path", "path", path)
 		}
-		log.Debugf("Files hashed per worker (%v total workers):", nWorkers)
+		slog.Debug("Files hashed per worker", "workers", nWorkers)
 		for i, c := range workerStats {
 			if c > 0 {
-				log.Debugf("  Worker %d: %d files", i, c)
+				slog.Debug("Worker stats", "worker", i, "count", c)
 			}
 		}
 	}

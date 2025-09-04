@@ -6,11 +6,13 @@ import (
 	"os"
 	"strings"
 
+	"log/slog"
+
 	composecli "github.com/compose-spec/compose-go/v2/cli"
 	"github.com/docker/buildx/bake"
 	"github.com/hytromo/mimosa/internal/configuration"
 	"github.com/hytromo/mimosa/internal/hasher"
-	log "github.com/sirupsen/logrus"
+	"github.com/hytromo/mimosa/internal/logger"
 )
 
 var (
@@ -103,7 +105,7 @@ func extractBakeFlags(args []string) (bakeFiles, targetNames, overrides []string
 
 // ParseBakeCommand parses a docker bake command
 func ParseBakeCommand(dockerBakeCmd []string) (parsedCommand configuration.ParsedCommand, err error) {
-	log.Debugln("Parsing bake command:", dockerBakeCmd)
+	slog.Debug("Parsing bake command", "command", dockerBakeCmd)
 	parsedCommand.Command = dockerBakeCmd
 
 	// Check if command has enough elements
@@ -139,12 +141,12 @@ func ParseBakeCommand(dockerBakeCmd []string) (parsedCommand configuration.Parse
 		tagsByTarget[name] = target.Tags
 	}
 
-	if log.IsLevelEnabled(log.DebugLevel) {
-		log.Debugln("Parsed bake command:")
-		log.Debugln("  Bake files:", bakeFiles)
-		log.Debugln("  Target names:", targetNames)
+	if logger.IsDebugEnabled() {
+		slog.Debug("Parsed bake command")
+		slog.Debug("Bake files", "files", bakeFiles)
+		slog.Debug("Target names", "names", targetNames)
 		for name, target := range targets {
-			log.Debugln("  Target:", name, "Tags:", target.Tags)
+			slog.Debug("Target", "name", name, "tags", target.Tags)
 		}
 	}
 

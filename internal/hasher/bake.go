@@ -2,6 +2,7 @@ package hasher
 
 import (
 	"fmt"
+	"log/slog"
 	"path/filepath"
 	"slices"
 
@@ -9,7 +10,6 @@ import (
 	"github.com/hytromo/mimosa/internal/configuration"
 	argparse "github.com/hytromo/mimosa/internal/docker/arg_parse"
 	fileresolution "github.com/hytromo/mimosa/internal/docker/file_resolution"
-	log "github.com/sirupsen/logrus"
 )
 
 func constructDockerBuildCommandWithoutTags(target *bake.Target) []string {
@@ -196,7 +196,7 @@ func HashBakeTargets(targets map[string]*bake.Target, bakeFiles []string) string
 		if !filepath.IsAbs(absoluteDockerfilePath) {
 			absoluteDockerfilePath, err = filepath.Abs(filepath.Join(*target.Context, *target.Dockerfile))
 			if err != nil {
-				log.Errorf("Error getting absolute path for dockerfile: %v", err)
+				slog.Error("Error getting absolute path for dockerfile", "error", err)
 			}
 		}
 
@@ -208,7 +208,7 @@ func HashBakeTargets(targets map[string]*bake.Target, bakeFiles []string) string
 			CmdWithoutTagArguments: constructDockerBuildCommandWithoutTags(target),
 		}
 
-		log.Debugf("Corresponding docker build command for target %s: %#v\n", targetName, correspondingDockerBuildCommand)
+		slog.Debug("Corresponding docker build command for target", "target", targetName, "command", correspondingDockerBuildCommand)
 
 		hash := HashBuildCommand(correspondingDockerBuildCommand)
 		hashes = append(hashes, hash)

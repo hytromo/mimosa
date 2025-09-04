@@ -5,22 +5,22 @@ import (
 	"os/exec"
 	"strings"
 
-	log "github.com/sirupsen/logrus"
+	"log/slog"
 )
 
 func (a *Actioner) RunCommand(dryRun bool, command []string) int {
 	if dryRun {
-		log.Infoln("> DRY RUN: command would be run:", strings.Join(command, " "))
+		slog.Info("> DRY RUN: command would be run", "command", strings.Join(command, " "))
 		return 0
 	}
 
 	if len(command) == 0 {
-		log.Errorln("Command is nil or empty")
+		slog.Error("Command is nil or empty")
 		return 1
 	}
 
 	if command[0] == "" {
-		log.Errorln("Command name is empty")
+		slog.Error("Command name is empty")
 		return 1
 	}
 

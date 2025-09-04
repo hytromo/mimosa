@@ -2,12 +2,14 @@ package orchestrator
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
+
+	"log/slog"
 
 	"github.com/hytromo/mimosa/internal/configuration"
 	"github.com/hytromo/mimosa/internal/logger"
 	"github.com/hytromo/mimosa/internal/orchestration/actions"
-	log "github.com/sirupsen/logrus"
 )
 
 func HandleRememberOrForgetSubcommands(rememberOptions configuration.RememberSubcommandOptions, forgetOptions configuration.ForgetSubcommandOptions, act actions.Actions) error {
@@ -30,7 +32,7 @@ func HandleRememberOrForgetSubcommands(rememberOptions configuration.RememberSub
 		return err
 	}
 
-	log.Debugf("Final calculated command hash: %s", parsedCommand.Hash)
+	slog.Debug("Final calculated command hash", "hash", parsedCommand.Hash)
 
 	cacheEntry := act.GetCacheEntry(parsedCommand.Hash)
 
@@ -59,7 +61,7 @@ func HandleRememberOrForgetSubcommands(rememberOptions configuration.RememberSub
 		}
 	}
 
-	logger.CleanLog.Infof("mimosa-cache-hit: %t", cacheHit)
+	logger.CleanLog.Info(fmt.Sprintf("mimosa-cache-hit: %t", cacheHit))
 
 	// regardless of whether the cache already exists or not, we need to save/update it
 	return act.SaveCache(cacheEntry, parsedCommand.TagsByTarget, dryRun)
@@ -75,12 +77,12 @@ func fallbackToExecutingCommandIfRemembering(err error, dryRun bool, remembering
 		return
 	}
 
-	log.Errorf("Falling back to plain command execution: %s due to error: %s", commandToRun, err.Error())
+	slog.Error("Falling back to plain command execution", "command", commandToRun, "error", err.Error())
 
 	exitCode := act.RunCommand(dryRun, commandToRun)
 
 	if exitCode != 0 {
-		log.Errorf("Error running command: %s with exit code: %d", commandToRun, exitCode)
+		slog.Error("Error running command", "command", commandToRun, "exitCode", exitCode)
 	}
 
 	act.ExitProcessWithCode(exitCode)

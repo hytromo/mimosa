@@ -4,7 +4,7 @@ import (
 	"os"
 	"path/filepath"
 
-	log "github.com/sirupsen/logrus"
+	"log/slog"
 )
 
 func ResolveAbsoluteDockerfilePath(cwd, absOrRelativeDockerfilePath string) string {
@@ -33,7 +33,7 @@ func ResolveAbsoluteDockerIgnorePath(contextPathAbs, dockerfilePathAbs string) s
 		if abs, err := filepath.Abs(dockerignoreCandidate); err == nil {
 			return abs
 		} else {
-			log.Infof("Failed to get absolute path for dockerignore candidate: %s", err)
+			slog.Info("Failed to get absolute path for dockerignore candidate", "error", err)
 		}
 	}
 

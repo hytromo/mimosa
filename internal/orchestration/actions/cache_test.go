@@ -179,13 +179,17 @@ func TestPrintCacheToEnvValue(t *testing.T) {
 	os.Setenv("MIMOSA_CACHE", z85Hash+" testimage:latest")
 
 	// Capture the CleanLog output
-	originalOutput := logger.CleanLog.Out
-	defer func() {
-		logger.CleanLog.Out = originalOutput
-	}()
+	handler := logger.GetCleanLogHandler()
+	if handler == nil {
+		t.Fatal("Could not get CleanLog handler")
+	}
 
 	var output strings.Builder
-	logger.CleanLog.Out = &output
+	originalWriter := handler.GetWriter()
+	handler.SetWriter(&output)
+	defer func() {
+		handler.SetWriter(originalWriter)
+	}()
 
 	// Should not panic and should produce output
 	assert.NotPanics(t, func() {
@@ -225,13 +229,17 @@ func TestPrintCacheToEnvValue_WithDiskAndEnvEntries(t *testing.T) {
 	os.Setenv("MIMOSA_CACHE", z85Hash+" envimage:latest")
 
 	// Capture the CleanLog output
-	originalOutput := logger.CleanLog.Out
-	defer func() {
-		logger.CleanLog.Out = originalOutput
-	}()
+	handler := logger.GetCleanLogHandler()
+	if handler == nil {
+		t.Fatal("Could not get CleanLog handler")
+	}
 
 	var output strings.Builder
-	logger.CleanLog.Out = &output
+	originalWriter := handler.GetWriter()
+	handler.SetWriter(&output)
+	defer func() {
+		handler.SetWriter(originalWriter)
+	}()
 
 	// Should not panic and should produce output
 	assert.NotPanics(t, func() {
@@ -275,13 +283,17 @@ func TestPrintCacheToEnvValue_EnvEntryExistsInDisk(t *testing.T) {
 	os.Setenv("MIMOSA_CACHE", z85Hash+" sameimage:latest")
 
 	// Capture the CleanLog output
-	originalOutput := logger.CleanLog.Out
-	defer func() {
-		logger.CleanLog.Out = originalOutput
-	}()
+	handler := logger.GetCleanLogHandler()
+	if handler == nil {
+		t.Fatal("Could not get CleanLog handler")
+	}
 
 	var output strings.Builder
-	logger.CleanLog.Out = &output
+	originalWriter := handler.GetWriter()
+	handler.SetWriter(&output)
+	defer func() {
+		handler.SetWriter(originalWriter)
+	}()
 
 	// Should not panic and should produce output
 	assert.NotPanics(t, func() {

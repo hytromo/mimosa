@@ -3,13 +3,13 @@ package cacher
 import (
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/samber/lo"
-	log "github.com/sirupsen/logrus"
 
 	"github.com/apparentlymart/go-userdirs/userdirs"
 	"github.com/hytromo/mimosa/internal/hasher"
@@ -68,7 +68,7 @@ func (cache *Cache) ExistsInFilesystem() bool {
 
 func (cache *Cache) Remove(dryRun bool) error {
 	if dryRun {
-		log.Infoln("> DRY RUN: cache entry would be removed from", cache.DataPath())
+		slog.Info("> DRY RUN: cache entry would be removed from", "path", cache.DataPath())
 		return nil
 	}
 
@@ -82,7 +82,7 @@ func (cache *Cache) GetInMemoryEntry() (CacheFile, bool) {
 
 	z85Hash, err := hasher.HexToZ85(cache.Hash)
 	if err != nil {
-		log.Warnf("Failed to convert final hash to Z85: %v", err)
+		slog.Warn("Failed to convert final hash to Z85", "error", err)
 		return CacheFile{}, false
 	}
 	if entry, ok := cache.InMemoryEntries.Get(z85Hash); ok {
@@ -94,7 +94,7 @@ func (cache *Cache) GetInMemoryEntry() (CacheFile, bool) {
 
 func (cache *Cache) Exists() bool {
 	if _, ok := cache.GetInMemoryEntry(); ok {
-		log.Debugf("Cache hit in memory for hash %s", cache.Hash)
+		slog.Debug("Cache hit in memory for hash", "hash", cache.Hash)
 		return true
 	}
 
@@ -102,7 +102,7 @@ func (cache *Cache) Exists() bool {
 		return false
 	}
 
-	log.Debugf("Cache hit on disk for hash %s", cache.Hash)
+	slog.Debug("Cache hit on disk for hash", "hash", cache.Hash)
 
 	return true
 }
@@ -111,7 +111,7 @@ func (cache *Cache) Save(tagsByTarget map[string][]string, dryRun bool) error {
 	dataFile := cache.DataPath()
 
 	if dryRun {
-		log.Infoln("> DRY RUN: cache entry would be saved to", dataFile)
+		slog.Info("> DRY RUN: cache entry would be saved to", "path", dataFile)
 		return nil
 	}
 
@@ -124,7 +124,7 @@ func (cache *Cache) Save(tagsByTarget map[string][]string, dryRun bool) error {
 	// Read existing tags from the cache file if it exists
 	if data, err := os.ReadFile(dataFile); err == nil {
 		if err := json.Unmarshal(data, &td); err != nil {
-			log.Debugf("Failed to unmarshal cache file %s: %v", dataFile, err)
+			slog.Debug("Failed to unmarshal cache file", "path", dataFile, "error", err)
 		}
 	}
 
@@ -155,7 +155,7 @@ func (cache *Cache) Save(tagsByTarget map[string][]string, dryRun bool) error {
 }
 
 func ForgetCacheEntriesOlderThan(forgetTime time.Time, cacheDir string) error {
-	log.Debugf("Forgetting cache entries older than %s in %s", forgetTime, cacheDir)
+	slog.Debug("Forgetting cache entries older than", "forgetTime", forgetTime, "cacheDir", cacheDir)
 
 	deletedCount := 0
 	err := filepath.Walk(cacheDir, func(path string, info os.FileInfo, err error) error {
@@ -172,22 +172,22 @@ func ForgetCacheEntriesOlderThan(forgetTime time.Time, cacheDir string) error {
 			return err
 		}
 
-		log.Debugln("Checking cache file:", path)
+		slog.Debug("Checking cache file", "path", path)
 
 		var cacheFile CacheFile
 		if err := json.Unmarshal(data, &cacheFile); err != nil {
-			log.Errorf("Failed to unmarshal cache file %s: %v", path, err)
+			slog.Error("Failed to unmarshal cache file", "path", path, "error", err)
 			return nil
 		}
 
 		if cacheFile.LastUpdatedAt.After(forgetTime) {
-			log.Debugf("Cache file %s is newer than forget time, skipping deletion", path)
+			slog.Debug("Cache file is newer than forget time, skipping deletion", "path", path)
 			return nil
 		}
 
-		log.Debugf("Cache file %s is older than forget time, deleting", path)
+		slog.Debug("Cache file is older than forget time, deleting", "path", path)
 		if err := os.Remove(path); err != nil {
-			log.Errorf("Failed to delete cache file %s: %v", path, err)
+			slog.Error("Failed to delete cache file", "path", path, "error", err)
 			return nil
 		}
 
@@ -195,7 +195,7 @@ func ForgetCacheEntriesOlderThan(forgetTime time.Time, cacheDir string) error {
 		return nil
 	})
 
-	log.Infoln("Deleted", deletedCount, "cache entries older than", forgetTime)
+	slog.Info("Deleted cache entries older than", "count", deletedCount, "forgetTime", forgetTime)
 
 	return err
 }

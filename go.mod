@@ -15,7 +15,7 @@ require (
 	github.com/kalafut/imohash v1.1.0
 	github.com/moby/patternmatcher v0.6.0
 	github.com/samber/lo v1.51.0
-	github.com/sirupsen/logrus v1.9.3
+	github.com/spf13/cobra v1.10.1
 	github.com/stretchr/testify v1.11.0
 	github.com/tilinna/z85 v1.0.0
 	golang.org/x/term v0.32.0
@@ -120,7 +120,7 @@ require (
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.1 // indirect
 	github.com/secure-systems-lab/go-securesystemslib v0.6.0 // indirect
 	github.com/shibumi/go-pathspec v1.3.0 // indirect
-	github.com/spf13/cobra v1.10.1 // indirect
+	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/spf13/pflag v1.0.9 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/tonistiigi/dchapes-mode v0.0.0-20250318174251-73d941a28323 // indirect

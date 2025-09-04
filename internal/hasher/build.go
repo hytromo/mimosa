@@ -1,6 +1,7 @@
 package hasher
 
 import (
+	"log/slog"
 	"math"
 	"os"
 	"path/filepath"
@@ -10,9 +11,9 @@ import (
 	"sync"
 
 	"github.com/hytromo/mimosa/internal/configuration"
+	"github.com/hytromo/mimosa/internal/logger"
 	"github.com/hytromo/mimosa/internal/utils/fileutil"
 	"github.com/samber/lo"
-	log "github.com/sirupsen/logrus"
 )
 
 // DockerBuildCommand is a struct that contains the information needed to hash a docker build command
@@ -47,7 +48,7 @@ func HashBuildCommand(command DockerBuildCommand) string {
 		}
 	}
 
-	log.Debugf("All local contexts: %v", allLocalContexts)
+	slog.Debug("All local contexts", "contexts", allLocalContexts)
 
 	// up to num of CPUs-1
 	nWorkers := int(math.Max(float64(runtime.NumCPU()-1), 1))
@@ -84,7 +85,7 @@ func HashBuildCommand(command DockerBuildCommand) string {
 				includedFiles, err := fileutil.IncludedFiles(contextPath, dockerIgnorePath)
 
 				if err != nil {
-					log.Errorf("Error getting included files for context %s: %v", contextName, err)
+					slog.Error("Error getting included files for context", "context", contextName, "error", err)
 					includedFilesChan <- []string{}
 					continue
 				}
@@ -93,14 +94,14 @@ func HashBuildCommand(command DockerBuildCommand) string {
 					// need to include dockerfile and dockerignore in the to-be-hashed files
 					dockerfileAbsolutePath, err := filepath.Abs(command.DockerfilePath)
 					if err != nil {
-						log.Errorf("Error getting absolute path for dockerfile: %v", err)
+						slog.Error("Error getting absolute path for dockerfile", "error", err)
 					} else {
 						includedFiles = append(includedFiles, dockerfileAbsolutePath)
 					}
 					if command.DockerignorePath != "" {
 						dockerIgnoreAbsolutePath, err := filepath.Abs(command.DockerignorePath)
 						if err != nil {
-							log.Errorf("Error getting absolute path for dockerignore: %v", err)
+							slog.Error("Error getting absolute path for dockerignore", "error", err)
 						} else {
 							includedFiles = append(includedFiles, dockerIgnoreAbsolutePath)
 						}
@@ -132,8 +133,8 @@ func HashBuildCommand(command DockerBuildCommand) string {
 		allFilesAcrossContexts = append(allFilesAcrossContexts, files...)
 	}
 
-	if log.IsLevelEnabled(log.DebugLevel) {
-		log.Debugf("Hashing %d files across %d build contexts", len(allFilesAcrossContexts), len(allLocalContexts))
+	if logger.IsDebugEnabled() {
+		slog.Debug("Hashing files across build contexts", "fileCount", len(allFilesAcrossContexts), "contextCount", len(allLocalContexts))
 	}
 
 	return HashStrings([]string{

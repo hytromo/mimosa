@@ -6,12 +6,13 @@ import (
 	"slices"
 	"strings"
 
+	"log/slog"
+
 	"github.com/hytromo/mimosa/internal/configuration"
 	argparse "github.com/hytromo/mimosa/internal/docker/arg_parse"
 	fileresolution "github.com/hytromo/mimosa/internal/docker/file_resolution"
 	"github.com/hytromo/mimosa/internal/hasher"
 	"github.com/samber/lo"
-	log "github.com/sirupsen/logrus"
 )
 
 type ParsedBuildCommand struct {
@@ -90,7 +91,7 @@ func extractBuildFlags(args []string) (allTags []string, additionalBuildContexts
 func findContextPath(dockerBuildArgs []string) (string, error) {
 	var previousArgument string
 
-	log.Infof("All arguments are: %v", dockerBuildArgs)
+	slog.Info("All arguments are", "args", dockerBuildArgs)
 	// skip docker build/docker buildx build args
 	hasBuildx := slices.Contains(dockerBuildArgs, "buildx")
 	firstIndex := 2
@@ -100,7 +101,7 @@ func findContextPath(dockerBuildArgs []string) (string, error) {
 
 	for i := firstIndex; i < len(dockerBuildArgs); i++ {
 		arg := dockerBuildArgs[i]
-		log.Infof("Starting from argument %d: %s", i, arg)
+		slog.Info("Starting from argument", "index", i, "arg", arg)
 
 		// If the current argument starts with '-', it's a flag / normal argument (could be --file, -t, --no-cache, etc.)
 		if strings.HasPrefix(arg, "-") {
@@ -115,7 +116,7 @@ func findContextPath(dockerBuildArgs []string) (string, error) {
 			continue
 		}
 
-		log.Infof("FOUND Context path: %s with previous argument: %s", arg, previousArgument)
+		slog.Info("FOUND Context path", "path", arg, "previousArg", previousArgument)
 
 		// If we reach here, the argument:
 		// - doesn't start with '-'
@@ -145,7 +146,7 @@ func buildCommandWithoutTagArguments(dockerBuildCmd []string) []string {
 }
 
 func ParseBuildCommand(dockerBuildCmd []string) (parsedCommand configuration.ParsedCommand, err error) {
-	log.Debugln("Parsing command:", dockerBuildCmd)
+	slog.Debug("Parsing command", "command", dockerBuildCmd)
 	parsedCommand.Command = dockerBuildCmd
 
 	if len(dockerBuildCmd) < 2 {
@@ -172,7 +173,7 @@ func ParseBuildCommand(dockerBuildCmd []string) (parsedCommand configuration.Par
 	}
 
 	contextPath, err := findContextPath(dockerBuildCmd)
-	log.Infof("FOUND Context path: %s", contextPath)
+	slog.Info("FOUND Context path", "path", contextPath)
 	if err != nil {
 		return parsedCommand, err
 	}

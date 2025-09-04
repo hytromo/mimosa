@@ -8,7 +8,7 @@ import (
 	"github.com/moby/patternmatcher"
 	"github.com/moby/patternmatcher/ignorefile"
 
-	log "github.com/sirupsen/logrus"
+	"log/slog"
 )
 
 func IncludedFiles(contextDir string, dockerignorePath string) ([]string, error) {
@@ -34,31 +34,31 @@ func IncludedFiles(contextDir string, dockerignorePath string) ([]string, error)
 			return nil
 		})
 		if err != nil {
-			log.Debugln(err)
+			slog.Debug("Error", "error", err)
 			return includedFiles, err
 		}
 		return includedFiles, nil
 	}
 
-	log.Debugf("Reading dockerignore file: %s", dockerignorePath)
+	slog.Debug("Reading dockerignore file", "path", dockerignorePath)
 	dockerignoreContent, err := os.ReadFile(dockerignorePath)
 	if err != nil {
-		log.Debugln(err)
+		slog.Debug("Error", "error", err)
 		return includedFiles, err
 	}
 
 	// Parse patterns
 	patterns, err := ignorefile.ReadAll(bytes.NewReader(dockerignoreContent))
 	if err != nil {
-		log.Debugln(err)
+		slog.Debug("Error", "error", err)
 		return includedFiles, err
 	}
-	log.Debugf("Parsed patterns: %v", patterns)
+	slog.Debug("Parsed patterns", "patterns", patterns)
 
 	// Compile matcher
 	pm, err := patternmatcher.New(patterns)
 	if err != nil {
-		log.Debugln(err)
+		slog.Debug("Error", "error", err)
 		return includedFiles, err
 	}
 
@@ -85,12 +85,12 @@ func IncludedFiles(contextDir string, dockerignorePath string) ([]string, error)
 			}
 			includedFiles = append(includedFiles, absPath)
 		} else {
-			log.Debugf("Excluded file: %s", path)
+			slog.Debug("Excluded file", "path", path)
 		}
 		return nil
 	})
 	if err != nil {
-		log.Debugln(err)
+		slog.Debug("Error", "error", err)
 		return includedFiles, err
 	}
 	return includedFiles, nil
