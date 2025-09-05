@@ -1,0 +1,15 @@
+[project]
+name = "tests-e2e"
+version = "0.1.0"
+description = "Mimosa e2e tests"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "docker>=7.1.0",
+ "pydantic>=2.11.7",
+ "pytest>=8.4.1",
+ "pyyaml>=6.0.2",
+]
+
+[tool.ruff]
+indent-width = 2

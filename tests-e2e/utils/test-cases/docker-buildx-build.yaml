@@ -1,0 +1,127 @@
+default_dockerfile_content: &default_dockerfile_content |
+  FROM python:alpine3.21
+  WORKDIR /app
+  ADD . .
+  CMD ["python", "/app/directory_tree.py", "compare", "/app/"]
+
+defaults:
+  # defaults for all test cases
+  include_directory_tree_script: true # include the directory tree script in the docker image ALWAYS, this will give us the files included in the image confirming our cache expectations
+  cwd: $tmp # random temp directory - unique for each test case
+  context: $cwd # same as the current working directory
+  platforms: # build for both platforms by default
+    - linux/amd64
+    - linux/arm64
+
+tests:
+  simple:
+    extra_files: # always relative to the current working directory
+      Dockerfile:
+        content: *default_dockerfile_content
+    expectations:
+      output:
+        - "directory_tree.py"
+        - "Dockerfile"
+
+  with_dockerignore:
+    extra_files:
+      Dockerfile:
+        content: *default_dockerfile_content
+      test.tmp:
+        content: test content
+        rewrite_content:
+          cache_hit_expected: true # file ignored, so on rewrite we should get a cache hit
+      .dockerignore:
+        content: "**/*.tmp"
+        rewrite_content:
+          cache_hit_expected: false
+      inner_folder:
+        files:
+          another-tmp.tmp:
+            rewrite_content:
+              cache_hit_expected: true # file ignored, so on rewrite we should get a cache hit
+            content: test content
+    expectations:
+      output:
+        - "directory_tree.py"
+        - "Dockerfile"
+        - ".dockerignore"
+        - "inner_folder"
+
+  with_custom_dockerfile_location:
+    extra_files:
+      inner_folder:
+        files:
+          Dockerfile:
+            content: *default_dockerfile_content
+    expectations:
+      output:
+        - "directory_tree.py"
+        - "inner_folder/Dockerfile"
+
+  with_custom_dockerfile_location_and_dockerignore:
+    extra_files:
+      inner_folder:
+        files:
+          Dockerfile:
+            content: *default_dockerfile_content
+          test.tmp:
+            content: test content
+            rewrite_content:
+              cache_hit_expected: true # file ignored, so on rewrite we should get a cache hit
+          test-not-ignored:
+            content: test content
+            rewrite_content:
+              cache_hit_expected: false # file not ignored, so on rewrite we should get a cache hit
+      .dockerignore:
+        content: "*.tmp"
+    expectations:
+      output:
+        - "directory_tree.py"
+        - "inner_folder/test-not-ignored"
+        - "inner_folder/Dockerfile"
+  
+  custom_dockerfile_and_dockerignore_location:
+    extra_files:
+      .dockerignore:
+        content: "*.fake-ignored"
+      inner_folder:
+        files:
+          Dockerfile.custom:
+            content: *default_dockerfile_content
+          Dockerfile.custom.dockerignore:
+            content: "*.real-ignored"
+          my-file.fake-ignored:
+            content: test content
+            rewrite_content:
+              cache_hit_expected: false # file not really ignored, so on rewrite we should not get a cache hit
+          my-file.real-ignored:
+            content: test content
+            rewrite_content:
+              cache_hit_expected: true # file really ignored, so on rewrite we should get a cache hit
+    expectations:
+      output:
+        - "directory_tree.py"
+        - "inner_folder/Dockerfile.custom"
+        - "inner_folder/Dockerfile.custom.dockerignore"
+        - "inner_folder/my-file.fake-ignored"
+  
+  custom_context_location:
+    cwd: $tmp/custom-cwd
+    context: $tmp
+    extra_files:
+      $tmp/inner_folder:
+        files:
+          Dockerfile:
+            content: *default_dockerfile_content
+      $tmp/.dockerignore:
+        content: "*.tmp"
+      $tmp/temp-file.tmp:
+        content: test content
+        rewrite_content:
+          cache_hit_expected: true # file ignored, so on rewrite we should get a cache hit
+    expectations:
+      output:
+        - "directory_tree.py"
+        - "inner_folder/Dockerfile"
+        - ".dockerignore"

@@ -101,7 +101,6 @@ func findContextPath(dockerBuildArgs []string) (string, error) {
 
 	for i := firstIndex; i < len(dockerBuildArgs); i++ {
 		arg := dockerBuildArgs[i]
-		slog.Info("Starting from argument", "index", i, "arg", arg)
 
 		// If the current argument starts with '-', it's a flag / normal argument (could be --file, -t, --no-cache, etc.)
 		if strings.HasPrefix(arg, "-") {
