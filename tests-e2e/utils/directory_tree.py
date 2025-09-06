@@ -24,11 +24,7 @@ def main():
   if sys.argv[1] == "get":
     print(json.dumps(get_directory_paths(sys.argv[2])))
   elif sys.argv[1] == "compare":
-    exitCode = (
-      0
-      if set(get_directory_paths(sys.argv[2])) == set(json.loads(sys.stdin.read()))
-      else 1
-    )
+    exitCode = 0 if set(get_directory_paths(sys.argv[2])) == set(json.loads(sys.stdin.read())) else 1
 
   sys.exit(exitCode)
 

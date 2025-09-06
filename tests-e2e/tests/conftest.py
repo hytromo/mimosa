@@ -10,12 +10,14 @@ def docker_registry_manager():
   docker_registry_manager = DockerRegistryManager()
   docker_registry_manager.start_registry()
   yield docker_registry_manager
-  docker_registry_manager.stop_registry()
+  docker_registry_manager.cleanup()
 
 
 @pytest.fixture(scope="session")
 def test_runner(docker_registry_manager):
-  yield MimosaTestRunner(docker_registry_manager)
+  testRunner = MimosaTestRunner(docker_registry_manager)
+  yield testRunner
+  testRunner.cleanup()
 
 
 @pytest.fixture(scope="session")

@@ -26,12 +26,11 @@ class TestScaffolder:
     self.temp_dir = tempfile.mkdtemp(prefix="mimosa_test_")
 
     # Resolve variables
-    self.cwd = self._resolve_path(
-      self.test_case.get("cwd", self.defaults.get("cwd", "$tmp"))
-    )
-    self.context = self._resolve_path(
-      self.test_case.get("context", self.defaults.get("context", "$cwd"))
-    )
+    self.cwd = self._resolve_path(self.test_case.get("cwd", self.defaults.get("cwd", "$tmp")))
+    self.context = self._resolve_path(self.test_case.get("context", self.defaults.get("context", "$cwd")))
+
+    os.makedirs(self.cwd, exist_ok=True)
+    os.makedirs(self.context, exist_ok=True)
 
     # Create directory structure
     self._create_files()
@@ -73,7 +72,7 @@ class TestScaffolder:
     source_script = os.path.join(current_dir, "directory_tree.py")
 
     # Copy it to the test environment
-    script_path = os.path.join(self.cwd, "directory_tree.py")
+    script_path = os.path.join(self.context, "directory_tree.py")
     os.makedirs(os.path.dirname(script_path), exist_ok=True)
     shutil.copy2(source_script, script_path)
     os.chmod(script_path, 0o755)
@@ -133,7 +132,6 @@ class TestScaffolder:
           self._collect_rewrite_files(file_config["files"], rewrite_files, full_path)
 
   def cleanup(self):
-    """Clean up the temporary directory."""
     if self.temp_dir and os.path.exists(self.temp_dir):
       shutil.rmtree(self.temp_dir)
 
@@ -150,18 +148,13 @@ def load_test_cases(yaml_file: str) -> Dict[str, Any]:
     for test_name, test_case in data.get("tests", {}).items():
       if "extra_files" in test_case:
         for file_name, file_config in test_case["extra_files"].items():
-          if (
-            isinstance(file_config, dict)
-            and file_config.get("content") == "*default_dockerfile_content"
-          ):
+          if isinstance(file_config, dict) and file_config.get("content") == "*default_dockerfile_content":
             file_config["content"] = default_content
 
   return data
 
 
-def create_scaffolder(
-  test_name: str, test_cases_data: Dict[str, Any]
-) -> TestScaffolder:
+def create_scaffolder(test_name: str, test_cases_data: Dict[str, Any]) -> TestScaffolder:
   """Create a scaffolder for a specific test case."""
   defaults = test_cases_data.get("defaults", {})
   test_case = test_cases_data["tests"][test_name]
@@ -170,9 +163,7 @@ def create_scaffolder(
 
 def main():
   """Main function for command-line usage."""
-  parser = argparse.ArgumentParser(
-    description="Create test directory structures from YAML test cases"
-  )
+  parser = argparse.ArgumentParser(description="Create test directory structures from YAML test cases")
   parser.add_argument("yaml_file", help="Path to the YAML file containing test cases")
   parser.add_argument("test_case_key", help="Key of the test case to create")
   parser.add_argument(

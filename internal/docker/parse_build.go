@@ -91,7 +91,6 @@ func extractBuildFlags(args []string) (allTags []string, additionalBuildContexts
 func findContextPath(dockerBuildArgs []string) (string, error) {
 	var previousArgument string
 
-	slog.Info("All arguments are", "args", dockerBuildArgs)
 	// skip docker build/docker buildx build args
 	hasBuildx := slices.Contains(dockerBuildArgs, "buildx")
 	firstIndex := 2

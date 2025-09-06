@@ -63,7 +63,7 @@ func HandleRememberOrForgetSubcommands(rememberOptions configuration.RememberSub
 
 	logger.CleanLog.Info(fmt.Sprintf("mimosa-cache-hit: %t", cacheHit))
 
-	// regardless of whether the cache already exists or not, we need to save/update it
+	// regardless of whether the cache already exists or not, we need to save/update it on disk
 	return act.SaveCache(cacheEntry, parsedCommand.TagsByTarget, dryRun)
 }
 

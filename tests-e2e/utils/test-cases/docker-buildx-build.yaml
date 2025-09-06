@@ -58,6 +58,7 @@ tests:
       output:
         - "directory_tree.py"
         - "inner_folder/Dockerfile"
+        - "inner_folder"
 
   with_custom_dockerfile_location_and_dockerignore:
     extra_files:
@@ -74,12 +75,14 @@ tests:
             rewrite_content:
               cache_hit_expected: false # file not ignored, so on rewrite we should get a cache hit
       .dockerignore:
-        content: "*.tmp"
+        content: "**/*.tmp"
     expectations:
       output:
+        - ".dockerignore"
         - "directory_tree.py"
         - "inner_folder/test-not-ignored"
         - "inner_folder/Dockerfile"
+        - "inner_folder"
   
   custom_dockerfile_and_dockerignore_location:
     extra_files:
@@ -90,7 +93,7 @@ tests:
           Dockerfile.custom:
             content: *default_dockerfile_content
           Dockerfile.custom.dockerignore:
-            content: "*.real-ignored"
+            content: "**/*.real-ignored"
           my-file.fake-ignored:
             content: test content
             rewrite_content:
@@ -102,14 +105,20 @@ tests:
     expectations:
       output:
         - "directory_tree.py"
+        - ".dockerignore"
         - "inner_folder/Dockerfile.custom"
         - "inner_folder/Dockerfile.custom.dockerignore"
         - "inner_folder/my-file.fake-ignored"
+        - "inner_folder"
   
   custom_context_location:
     cwd: $tmp/custom-cwd
     context: $tmp
     extra_files:
+      $cwd/non-ignored-file:
+        content: test content
+        rewrite_content:
+          cache_hit_expected: false
       $tmp/inner_folder:
         files:
           Dockerfile:
@@ -123,5 +132,8 @@ tests:
     expectations:
       output:
         - "directory_tree.py"
+        - "inner_folder"
         - "inner_folder/Dockerfile"
         - ".dockerignore"
+        - "custom-cwd"
+        - "custom-cwd/non-ignored-file"
