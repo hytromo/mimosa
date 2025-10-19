@@ -2,6 +2,7 @@ package docker
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -166,6 +167,9 @@ func ParseBuildCommand(dockerBuildCmd []string) (parsedCommand configuration.Par
 	}
 
 	allTags, allBuildContexts, dockerfilePath, err := extractBuildFlags(args)
+
+	// dockerfilePath is relative to CWD
+
 	if err != nil {
 		return parsedCommand, err
 	}
@@ -177,18 +181,24 @@ func ParseBuildCommand(dockerBuildCmd []string) (parsedCommand configuration.Par
 	}
 
 	// Get absolute path for contextPath
-	absPath, err := filepath.Abs(contextPath)
+	absCtxPath, err := filepath.Abs(contextPath)
 	if err != nil {
 		return parsedCommand, err
 	}
-	contextPath = absPath
+	contextPath = absCtxPath
 
 	allRegistryDomains := []string{}
 	for _, tag := range allTags {
 		allRegistryDomains = append(allRegistryDomains, argparse.ExtractRegistryDomain(tag))
 	}
 
-	dockerfilePath = fileresolution.ResolveAbsoluteDockerfilePath(contextPath, dockerfilePath)
+	cwd, err := os.Getwd()
+
+	if err != nil {
+		return parsedCommand, err
+	}
+
+	dockerfilePath = fileresolution.ResolveAbsoluteDockerfilePath(cwd, dockerfilePath)
 	dockerignorePath := fileresolution.ResolveAbsoluteDockerIgnorePath(contextPath, dockerfilePath)
 
 	// add the context in all the build contexts:
