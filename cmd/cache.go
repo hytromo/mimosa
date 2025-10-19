@@ -10,7 +10,8 @@ import (
 var cacheCmd = &cobra.Command{
 	Use:   "cache",
 	Short: "Cache related utilities",
-	Long:  `Find where the mimosa cache is stored and how it can be exported as an environment variable.`,
+	Long: `Find where the mimosa cache is stored and how it can be exported as an environment variable.
+Use the MIMOSA_CACHE_DIR environment variable to override the default cache location.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		cacheShow, _ := cmd.Flags().GetBool(showFlag)
 		cacheToEnvValue, _ := cmd.Flags().GetBool(toEnvValueFlag)

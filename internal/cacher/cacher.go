@@ -13,10 +13,11 @@ import (
 
 	"github.com/apparentlymart/go-userdirs/userdirs"
 	"github.com/hytromo/mimosa/internal/hasher"
+	"github.com/hytromo/mimosa/internal/utils/envutil"
 	"github.com/hytromo/mimosa/internal/utils/fileutil"
 )
 
-var CacheDir = userdirs.ForApp("mimosa", "hytromo", "mimosa.hytromo.com").CacheDir
+var CacheDir = envutil.GetEnv("MIMOSA_CACHE_DIR", userdirs.ForApp("mimosa", "hytromo", "mimosa.hytromo.com").CacheDir)
 
 type CacheFile struct {
 	TagsByTarget  map[string][]string `json:"tagsByTarget"`
