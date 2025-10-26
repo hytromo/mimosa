@@ -58,7 +58,7 @@ func RetagSingle(fromTag string, toTag string, dryRun bool) error {
 			return fmt.Errorf("no manifests to repush from %v", fromTag)
 		}
 
-		imageNameWithoutTag := fmt.Sprintf("%s/%s", fromRef.Registry, fromRef.ImageName)
+		imageNameWithoutTag := fmt.Sprintf("%s/%s", toRef.Registry, toRef.ImageName)
 		bareNewTagName := toRef.Tag
 
 		slog.Debug("image will be created", "name", imageNameWithoutTag, "tag", bareNewTagName, "manifests", manifestsToRepush)
@@ -130,6 +130,7 @@ func Retag(latestTagByTarget map[string]string, newTagsByTarget map[string][]str
 	// Launch workers
 	for target, latestTag := range latestTagByTarget {
 		for _, newTag := range newTagsByTarget[target] {
+			slog.Debug("Starting retag worker", "from", latestTag, "to", newTag)
 			go worker(latestTag, newTag)
 		}
 	}
