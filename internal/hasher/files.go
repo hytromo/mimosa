@@ -36,6 +36,9 @@ func HashFiles(filePaths []string, nWorkers int) string {
 		for path := range fileChan {
 			hash, err := imohash.SumFile(path)
 			if err == nil {
+				if logger.IsDebugEnabled() {
+					slog.Debug("Hashed file", "path", path, "hash", hex.EncodeToString(hash[:]))
+				}
 				hashChan <- hash[:]
 				count++
 			} else {
