@@ -14,7 +14,7 @@ var (
 )
 
 var versionCmd = &cobra.Command{
-	Use:   "version",
+	Use:   versionFlag,
 	Short: "Show the version",
 	Long:  `Show the version of mimosa`,
 	Run: func(cmd *cobra.Command, args []string) {
