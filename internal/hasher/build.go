@@ -133,18 +133,22 @@ func HashBuildCommand(command DockerBuildCommand) string {
 		allFilesAcrossContexts = append(allFilesAcrossContexts, files...)
 	}
 
+	cmdHash := HashStrings([]string{strings.Join(command.CmdWithoutTagArguments, " ")})
+	filesHash := HashFiles(allFilesAcrossContexts, nWorkers)
+
 	if logger.IsDebugEnabled() {
 		slog.Debug("Hashing files across build contexts", "fileCount", len(allFilesAcrossContexts), "contextCount", len(allLocalContexts))
+		slog.Debug("Build command hashes", "cmdHash", cmdHash, "filesHash", filesHash, "registryDomainsHash", registryDomainsHash)
 	}
 
 	return HashStrings([]string{
 		// the command itself (without tags)
-		strings.Join(command.CmdWithoutTagArguments, " "),
+		cmdHash,
 		// the domains used to push the image to
 		// including this is important for the edge case where the same
 		// exact build is repeated with different domains - promotion doesn't work then
 		registryDomainsHash,
 		// includes all the build contexts' files, plus dockerfile (and dockerignore optionally)
-		HashFiles(allFilesAcrossContexts, nWorkers),
+		filesHash,
 	})
 }
