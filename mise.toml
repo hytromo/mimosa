@@ -3,7 +3,7 @@ go = '1.24.5'
 golangci-lint = '2.3.0'
 node = '20'
 python = '3.12'
-uv = '0.8.3'
+uv = '0.9.3'
 
 [tasks.init]
 description = 'Initialize the project along with all subprojects'
