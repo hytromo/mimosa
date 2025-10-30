@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 // Sample struct for testing
@@ -16,7 +18,10 @@ type sample struct {
 func TestSaveJSON_WritesPrettyJSON(t *testing.T) {
 	tmpDir := t.TempDir()
 	tmpFile := filepath.Join(tmpDir, "test.json")
-	defer os.RemoveAll(tmpDir)
+	defer func() {
+		err := os.RemoveAll(tmpDir)
+		assert.NoError(t, err)
+	}()
 	data := sample{Name: "Alice", Age: 30}
 
 	err := SaveJSON(tmpFile, data)
@@ -50,7 +55,12 @@ func TestSaveJSON_UnmarshalableData(t *testing.T) {
 	ch := make(chan int)
 	tmpDir := t.TempDir()
 	tmpFile := filepath.Join(tmpDir, "bad.json")
-	defer os.RemoveAll(tmpDir)
+
+	defer func() {
+		err := os.RemoveAll(tmpDir)
+		assert.NoError(t, err)
+	}()
+
 	err := SaveJSON(tmpFile, ch)
 	if err == nil {
 		t.Error("Expected error for unmarshalable data, got nil")

@@ -28,6 +28,7 @@ var sharedRegistry *testutils.TestRegistry
 func TestMain(m *testing.M) {
 	// Get shared registry before running tests
 	registry, err := testutils.GetSharedRegistry()
+	defer testutils.CleanupSharedRegistry()
 
 	if err != nil || registry == nil {
 		fmt.Printf("Failed to get shared registry: %v\n", err)
@@ -40,8 +41,7 @@ func TestMain(m *testing.M) {
 	exitCode := m.Run()
 
 	// Clean up before exiting
-	testutils.CleanupSharedRegistry()
-	os.Exit(exitCode)
+	defer os.Exit(exitCode)
 }
 
 // createTestImage creates a simple test image and pushes it to the registry
@@ -56,7 +56,10 @@ CMD ["cat", "/test.txt"]`
 	// Create temporary directory for Dockerfile
 	tempDir, err := os.MkdirTemp("", "mimosa_test_*")
 	require.NoError(t, err)
-	defer os.RemoveAll(tempDir)
+	defer func() {
+		err = os.RemoveAll(tempDir)
+		assert.NoError(t, err)
+	}()
 
 	dockerfilePath := filepath.Join(tempDir, "Dockerfile")
 	err = os.WriteFile(dockerfilePath, []byte(dockerfile), 0644)
@@ -132,7 +135,7 @@ func checkTagExists(imageTag string) error {
 	if err != nil {
 		return fmt.Errorf("failed to check tag existence: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Check if the tag exists (200 OK means it exists)
 	if resp.StatusCode != http.StatusOK {
@@ -281,9 +284,10 @@ func TestRetag_MultipleTargets(t *testing.T) {
 			// Verify all new tags exist
 			for target, newTags := range parsedCommand.TagsByTarget {
 				originalImage := ""
-				if target == "backend" {
+				switch target {
+				case "backend":
 					originalImage = backendImage
-				} else if target == "frontend" {
+				case "frontend":
 					originalImage = frontendImage
 				}
 
@@ -450,7 +454,10 @@ CMD ["cat", "/test.txt"]`
 	// Create temporary directory for Dockerfile
 	tempDir, err := os.MkdirTemp("", "mimosa_multiplatform_test_*")
 	require.NoError(t, err)
-	defer os.RemoveAll(tempDir)
+	defer func() {
+		err = os.RemoveAll(tempDir)
+		assert.NoError(t, err)
+	}()
 
 	dockerfilePath := filepath.Join(tempDir, "Dockerfile")
 	err = os.WriteFile(dockerfilePath, []byte(dockerfile), 0644)
@@ -465,7 +472,7 @@ CMD ["cat", "/test.txt"]`
 	// Clean up the builder after the test
 	defer func() {
 		removeCmd := exec.Command("docker", "buildx", "rm", builderName)
-		removeCmd.CombinedOutput() // Ignore errors for cleanup
+		_, _ = removeCmd.CombinedOutput() // Ignore errors for cleanup
 	}()
 
 	// Build multi-platform image using the ephemeral builder

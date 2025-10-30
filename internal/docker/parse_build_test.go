@@ -93,7 +93,7 @@ func TestParseBuildCommand_ValidCommand(t *testing.T) {
 
 			originalWd, err := os.Getwd()
 			require.NoError(t, err)
-			defer os.Chdir(originalWd)
+			defer func() { _ = os.Chdir(originalWd) }()
 			err = os.Chdir(tempDir)
 			require.NoError(t, err)
 
@@ -378,7 +378,7 @@ func TestParseBuildCommand_DockerignoreHandling(t *testing.T) {
 
 	originalWd, err := os.Getwd()
 	require.NoError(t, err)
-	defer os.Chdir(originalWd)
+	defer func() { _ = os.Chdir(originalWd) }()
 	err = os.Chdir(tempDir)
 	require.NoError(t, err)
 
@@ -402,7 +402,7 @@ func TestParseBuildCommand_CustomDockerignoreHandling(t *testing.T) {
 
 	originalWd, err := os.Getwd()
 	require.NoError(t, err)
-	defer os.Chdir(originalWd)
+	defer func() { _ = os.Chdir(originalWd) }()
 	err = os.Chdir(tempDir)
 	require.NoError(t, err)
 

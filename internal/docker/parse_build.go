@@ -115,8 +115,6 @@ func findContextPath(dockerBuildArgs []string) (string, error) {
 			continue
 		}
 
-		slog.Info("FOUND Context path", "path", arg, "previousArg", previousArgument)
-
 		// If we reach here, the argument:
 		// - doesn't start with '-'
 		// - isn't the value of a previous flag
@@ -175,7 +173,6 @@ func ParseBuildCommand(dockerBuildCmd []string) (parsedCommand configuration.Par
 	}
 
 	contextPath, err := findContextPath(dockerBuildCmd)
-	slog.Info("FOUND Context path", "path", contextPath)
 	if err != nil {
 		return parsedCommand, err
 	}

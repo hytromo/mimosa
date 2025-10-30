@@ -84,15 +84,6 @@ func (srm *SharedRegistryManager) Cleanup() {
 	}
 }
 
-// SetupTestRegistry is a helper function for tests that need a registry
-func SetupTestRegistry(t *testing.T) *TestRegistry {
-	registry, err := GetSharedRegistry()
-	if err != nil {
-		t.Fatalf("Failed to get shared registry: %v", err)
-	}
-	return registry
-}
-
 // startRegistry starts a single Docker registry
 func startRegistry() (*TestRegistry, error) {
 	// Generate a random port between 5000-65535
@@ -124,7 +115,12 @@ func startRegistry() (*TestRegistry, error) {
 	for time.Now().Before(timeout) {
 		resp, err := http.Get(fmt.Sprintf("http://%s/v2/", url))
 		if err == nil {
-			resp.Body.Close()
+			err := resp.Body.Close()
+
+			if err != nil {
+				return nil, fmt.Errorf("failed to close response body: %w", err)
+			}
+
 			if resp.StatusCode == http.StatusOK {
 				return &TestRegistry{
 					Port: port,

@@ -57,7 +57,7 @@ export async function run(): Promise<void> {
       }
     }
 
-    // combines the current MIMOSA_CACHE with the existing disk cache and displays its value
+    // combines the current MIMOSA_CACHE with the existing disk cache and displays its value to stdout
     let newMimosaCacheEnv = execSync(`mimosa cache --to-env-variable`, {
       env: mimosaEnv
     })

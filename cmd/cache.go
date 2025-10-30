@@ -16,11 +16,15 @@ Use the MIMOSA_CACHE_DIR environment variable to override the default cache loca
 		cacheShow, _ := cmd.Flags().GetBool(showFlag)
 		cacheToEnvValue, _ := cmd.Flags().GetBool(toEnvValueFlag)
 
-		orchestrator.HandleCacheSubcommand(configuration.CacheSubcommandOptions{
+		err := orchestrator.HandleCacheSubcommand(configuration.CacheSubcommandOptions{
 			Enabled:    true,
 			Show:       cacheShow,
 			ToEnvValue: cacheToEnvValue,
 		}, actions.New())
+
+		if err != nil {
+			panic(err)
+		}
 	},
 }
 

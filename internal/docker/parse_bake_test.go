@@ -114,7 +114,7 @@ func TestParseBakeCommand_ValidCommand(t *testing.T) {
 
 			originalWd, err := os.Getwd()
 			require.NoError(t, err)
-			defer os.Chdir(originalWd)
+			defer func() { _ = os.Chdir(originalWd) }()
 			err = os.Chdir(tempDir)
 			require.NoError(t, err)
 
@@ -338,7 +338,7 @@ func TestParseBakeCommand_WithRealBakeFile(t *testing.T) {
 	// Change to temp directory
 	originalWd, err := os.Getwd()
 	require.NoError(t, err)
-	defer os.Chdir(originalWd)
+	defer func() { _ = os.Chdir(originalWd) }()
 	err = os.Chdir(tempDir)
 	require.NoError(t, err)
 
@@ -421,7 +421,9 @@ services:
 			// Change to temp directory
 			originalWd, err := os.Getwd()
 			require.NoError(t, err)
-			defer os.Chdir(originalWd)
+			defer func() {
+				_ = os.Chdir(originalWd)
+			}()
 			err = os.Chdir(tempDir)
 			require.NoError(t, err)
 
@@ -448,7 +450,7 @@ func TestParseBakeCommand_WithOverrides(t *testing.T) {
 	// Change to temp directory
 	originalWd, err := os.Getwd()
 	require.NoError(t, err)
-	defer os.Chdir(originalWd)
+	defer func() { _ = os.Chdir(originalWd) }()
 	err = os.Chdir(tempDir)
 	require.NoError(t, err)
 
@@ -512,7 +514,7 @@ func TestParseBakeCommand_ErrorHandling(t *testing.T) {
 			// Change to temp directory
 			originalWd, err := os.Getwd()
 			require.NoError(t, err)
-			defer os.Chdir(originalWd)
+			defer func() { _ = os.Chdir(originalWd) }()
 			err = os.Chdir(tempDir)
 			require.NoError(t, err)
 

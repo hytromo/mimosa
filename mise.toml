@@ -23,7 +23,7 @@ run = '''
   yarn install
 
   echo "Downloading python deps..."
-  uv sync
+  uv sync --all-groups
 
   echo "Installing pre-commit hooks..."
   uv run pre-commit install

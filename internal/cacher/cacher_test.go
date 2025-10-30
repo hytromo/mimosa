@@ -48,11 +48,11 @@ func TestCache_GetLatestTagByTarget(t *testing.T) {
 			"target1": {"tag1", "tag2", "tag3"},
 			"target2": {"tagA", "tagB"},
 		},
-		LastUpdatedAt: time.Now(),
 	}
 
 	assert.False(t, cache.ExistsInFilesystem())
-	cache.Save(cacheFile.TagsByTarget, false)
+	err = cache.Save(cacheFile.TagsByTarget, false)
+	require.NoError(t, err)
 	assert.True(t, cache.ExistsInFilesystem())
 
 	result, err := cache.GetLatestTagByTarget()
@@ -135,10 +135,12 @@ func TestCache_Exists(t *testing.T) {
 	assert.False(t, cache.Exists())
 
 	// Test case 2: Exists in filesystem
-	cache.Save(map[string][]string{}, false)
+	err := cache.Save(map[string][]string{}, false)
+	assert.NoError(t, err)
 	assert.True(t, cache.Exists())
 
-	cache.Remove(false)
+	err = cache.Remove(false)
+	assert.NoError(t, err)
 	assert.False(t, cache.Exists())
 
 	// Test case 3: Exists in memory
@@ -304,14 +306,16 @@ func TestForgetCacheEntriesOlderThan(t *testing.T) {
 func TestGetAllInMemoryEntries(t *testing.T) {
 	// Test case 1: No environment variable
 	originalEnvValue := os.Getenv(EnvVarName)
-	defer os.Setenv(EnvVarName, originalEnvValue)
+	defer func() { _ = os.Setenv(EnvVarName, originalEnvValue) }()
 
-	os.Unsetenv(EnvVarName)
+	err := os.Unsetenv(EnvVarName)
+	assert.NoError(t, err)
 	entries := GetAllInMemoryEntries()
 	assert.Equal(t, 0, entries.Len())
 
 	envValue := testZ85Hash + " default:latest"
-	os.Setenv(EnvVarName, envValue)
+	err = os.Setenv(EnvVarName, envValue)
+	assert.NoError(t, err)
 
 	entries = GetAllInMemoryEntries()
 	assert.Equal(t, 1, entries.Len())
@@ -323,7 +327,8 @@ func TestGetAllInMemoryEntries(t *testing.T) {
 
 	// Test case 3: Multiple targets
 	envValue = testZ85Hash + " target1:tag1,target2:tag2"
-	os.Setenv(EnvVarName, envValue)
+	err = os.Setenv(EnvVarName, envValue)
+	assert.NoError(t, err)
 
 	entries = GetAllInMemoryEntries()
 	assert.Equal(t, 1, entries.Len())
@@ -335,7 +340,8 @@ func TestGetAllInMemoryEntries(t *testing.T) {
 
 	// Test case 4: Multiple cache entries
 	envValue = testZ85Hash + " default:latest\n" + testZ85Hash2 + " default:new"
-	os.Setenv(EnvVarName, envValue)
+	err = os.Setenv(EnvVarName, envValue)
+	assert.NoError(t, err)
 
 	entries = GetAllInMemoryEntries()
 	assert.Equal(t, 2, entries.Len())
@@ -606,13 +612,15 @@ func TestForgetCacheEntriesOlderThanWithDeleteError(t *testing.T) {
 func TestGetAllInMemoryEntriesWithMalformedLine(t *testing.T) {
 	// Test GetAllInMemoryEntries with malformed lines
 	envValue := "key-only\nkey value extra\n default:latest"
-	os.Setenv(EnvVarName, envValue)
+	err := os.Setenv(EnvVarName, envValue)
+	assert.NoError(t, err)
 
 	entries := GetAllInMemoryEntries()
 	assert.Equal(t, 0, entries.Len())
 
 	// Clean up
-	os.Unsetenv(EnvVarName)
+	err = os.Unsetenv(EnvVarName)
+	assert.NoError(t, err)
 }
 
 func TestGetAllInMemoryEntriesWithEmptyTarget(t *testing.T) {
@@ -621,7 +629,7 @@ func TestGetAllInMemoryEntriesWithEmptyTarget(t *testing.T) {
 	require.NoError(t, err)
 
 	envValue := z85Hash + " :latest" // Empty target name
-	os.Setenv(EnvVarName, envValue)
+	_ = os.Setenv(EnvVarName, envValue)
 
 	entries := GetAllInMemoryEntries()
 	assert.Equal(t, 1, entries.Len())
@@ -634,7 +642,8 @@ func TestGetAllInMemoryEntriesWithEmptyTarget(t *testing.T) {
 	assert.Equal(t, "latest", entry.TagsByTarget[""][0])
 
 	// Clean up
-	os.Unsetenv(EnvVarName)
+	err = os.Unsetenv(EnvVarName)
+	assert.NoError(t, err)
 }
 
 func TestGetDiskCacheToMemoryEntriesWithWalkError(t *testing.T) {

@@ -21,25 +21,31 @@ var forgetCmd = &cobra.Command{
 		dryRun, _ := cmd.Flags().GetBool(dryRunFlag)
 
 		if len(positionalArguments) > 0 {
-			orchestrator.HandleRememberOrForgetSubcommands(configuration.RememberSubcommandOptions{},
+			err := orchestrator.HandleRememberOrForgetSubcommands(configuration.RememberSubcommandOptions{},
 				configuration.ForgetSubcommandOptions{
 					Enabled:      true,
 					DryRun:       dryRun,
 					CommandToRun: positionalArguments,
 				}, actions.New())
+			if err != nil {
+				panic(err)
+			}
 			return
 		}
 
 		everything, _ := cmd.Flags().GetBool(everythingFlag)
 		olderThan, _ := cmd.Flags().GetString(olderThanFlag)
 		yes, _ := cmd.Flags().GetBool(yesFlag)
-		orchestrator.HandleForgetPeriodOrEverything(configuration.ForgetSubcommandOptions{
+		err := orchestrator.HandleForgetPeriodOrEverything(configuration.ForgetSubcommandOptions{
 			Enabled:    true,
 			DryRun:     dryRun,
 			Everything: everything,
 			Period:     olderThan,
 			AutoYes:    yes,
 		}, actions.New())
+		if err != nil {
+			panic(err)
+		}
 
 	},
 }

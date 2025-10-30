@@ -25,8 +25,9 @@ import require$$1$4 from 'url';
 import require$$3$2 from 'zlib';
 import require$$6 from 'string_decoder';
 import require$$0$9 from 'diagnostics_channel';
-import require$$2$3, { execSync } from 'child_process';
+import require$$2$3 from 'child_process';
 import require$$6$1 from 'timers';
+import { execSync } from 'node:child_process';
 
 var commonjsGlobal = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
 
@@ -35624,7 +35625,7 @@ async function run() {
         const githubToken = coreExports.getInput('github-token');
         const repoVariableName = coreExports.getInput('variable-name');
         const maxLength = parseInt(coreExports.getInput('max-length'), 10);
-        if (isNaN(maxLength)) {
+        if (Number.isNaN(maxLength)) {
             coreExports.warning(`max-length is invalid: ${maxLength}`);
             return;
         }
@@ -35662,8 +35663,8 @@ async function run() {
                 console.error(`Failed to get existing variable ${repoVariableName}:`, error);
             }
         }
-        // combines the current MIMOSA_CACHE with the existing disk cache and displays its value
-        let newMimosaCacheEnv = execSync(`mimosa cache --to-env-value`, {
+        // combines the current MIMOSA_CACHE with the existing disk cache and displays its value to stdout
+        let newMimosaCacheEnv = execSync(`mimosa cache --to-env-variable`, {
             env: mimosaEnv
         })
             .toString()

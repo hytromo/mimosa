@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/hytromo/mimosa/internal/configuration"
+	fileresolution "github.com/hytromo/mimosa/internal/docker/file_resolution"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -214,7 +215,8 @@ func TestHashBuildCommand_WithDockerfileAndDockerignore(t *testing.T) {
 	hash2 := HashBuildCommand(command)
 	assert.Equal(t, hash, hash2, "Expected same hash for command with and without .tmp file")
 	// remove .dockerignore and expect different hash
-	os.Remove(dockerignore)
+	err := os.Remove(dockerignore)
+	assert.NoError(t, err)
 	hash3 := HashBuildCommand(command)
 	assert.NotEqual(t, hash, hash3, "Expected different hash for command without .dockerignore")
 }
@@ -398,6 +400,7 @@ func TestHashBuildCommand_WithContextContainingSpecialFiles(t *testing.T) {
 		"hidden.txt":      "hidden content",
 		"subdir/file.txt": "subdir content",
 		".hidden":         "hidden file content",
+		"Dockerfile":      "FROM alpine",
 	}
 
 	for path, content := range files {
@@ -427,10 +430,13 @@ func TestHashBuildCommand_WithContextContainingSpecialFiles(t *testing.T) {
 	if err := os.WriteFile(dockerignore, []byte("subdir/\n.dockerignore"), 0644); err != nil {
 		t.Fatalf("Failed to create dockerignore file: %v", err)
 	}
+	command.DockerignorePath = fileresolution.ResolveAbsoluteDockerIgnorePath(dir, filepath.Join(dir, "Dockerfile"))
+
 	hash2 := HashBuildCommand(command)
 	assert.NotEqual(t, hash, hash2, "Expected same hash for command with special files and dockerignore")
 	// but if we remove subdir we expect the same hash - as it is anyway ignored
-	os.Remove(filepath.Join(dir, "subdir"))
+	err := os.RemoveAll(filepath.Join(dir, "subdir"))
+	assert.NoError(t, err)
 	hash3 := HashBuildCommand(command)
 	assert.Equal(t, hash2, hash3, "Expected same hash for command with special files and dockerignore")
 }

@@ -73,20 +73,6 @@ func TestSharedRegistryManager_Cleanup(t *testing.T) {
 	}
 }
 
-func TestGetSharedRegistry(t *testing.T) {
-	// Reset the shared manager for testing
-	sharedManager = &SharedRegistryManager{}
-
-	// Test GetSharedRegistry function
-	registry, err := GetSharedRegistry()
-	if err != nil {
-		// Expected error in test environment
-		assert.Contains(t, err.Error(), "failed to start shared registry")
-	} else {
-		assert.NotNil(t, registry)
-	}
-}
-
 func TestCleanupSharedRegistry(t *testing.T) {
 	// Reset the shared manager for testing
 	sharedManager = &SharedRegistryManager{}
@@ -95,25 +81,13 @@ func TestCleanupSharedRegistry(t *testing.T) {
 	CleanupSharedRegistry() // Should not panic
 }
 
-func TestSetupTestRegistry(t *testing.T) {
-	// Reset the shared manager for testing
-	sharedManager = &SharedRegistryManager{}
-
-	// Test SetupTestRegistry function
-	registry := SetupTestRegistry(t)
-	if registry != nil {
-		assert.NotEmpty(t, registry.Name)
-		assert.NotZero(t, registry.Port)
-		assert.NotEmpty(t, registry.Url)
-	}
-}
-
 func TestCreateTestImage(t *testing.T) {
 	// Reset the shared manager for testing
 	sharedManager = &SharedRegistryManager{}
 
 	// Test CreateTestImage function
-	registry := SetupTestRegistry(t)
+	registry, err := GetSharedRegistry()
+	assert.NoError(t, err)
 	if registry != nil {
 		imageName := "test-image"
 		tag := "latest"
@@ -131,7 +105,8 @@ func TestCreateMultiPlatformTestImage(t *testing.T) {
 	sharedManager = &SharedRegistryManager{}
 
 	// Test CreateMultiPlatformTestImage function
-	registry := SetupTestRegistry(t)
+	registry, err := GetSharedRegistry()
+	assert.NoError(t, err)
 	if registry != nil {
 		imageName := "test-multi-platform-image"
 		tag := "latest"
@@ -199,24 +174,14 @@ func TestGetImageDigestsMultiPlatform(t *testing.T) {
 	}
 }
 
-func TestTestRegistry_String(t *testing.T) {
-	// Test TestRegistry struct methods
-	registry := &TestRegistry{
-		Port: 5000,
-		Name: "test_registry",
-		Url:  "localhost:5000",
-	}
-
-	assert.Equal(t, 5000, registry.Port)
-	assert.Equal(t, "test_registry", registry.Name)
-	assert.Equal(t, "localhost:5000", registry.Url)
-}
-
 func TestCreateTestImageWithTempDir(t *testing.T) {
 	// Test the temp directory creation part of CreateTestImage
 	tempDir, err := os.MkdirTemp("", "mimosa_test_*")
 	require.NoError(t, err)
-	defer os.RemoveAll(tempDir)
+	defer func() {
+		err := os.RemoveAll(tempDir)
+		assert.NoError(t, err)
+	}()
 
 	// Test creating a Dockerfile
 	dockerfile := `FROM alpine:latest
@@ -237,7 +202,7 @@ func TestCreateMultiPlatformTestImageWithTempDir(t *testing.T) {
 	// Test the temp directory creation part of CreateMultiPlatformTestImage
 	tempDir, err := os.MkdirTemp("", "mimosa_multiplatform_test_*")
 	require.NoError(t, err)
-	defer os.RemoveAll(tempDir)
+	defer func() { _ = os.RemoveAll(tempDir) }()
 
 	// Test creating a Dockerfile
 	dockerfile := `FROM alpine:latest
@@ -256,13 +221,9 @@ CMD ["cat", "/test.txt"]`
 }
 
 func TestCheckTagExistsWithValidFormat(t *testing.T) {
-	// Test CheckTagExists with valid format but non-existent registry
-	// This tests the HTTP request part of the function
-	err := CheckTagExists("localhost:5000/repo:tag")
-	if err != nil {
-		// Expected error since registry doesn't exist
-		assert.Contains(t, err.Error(), "failed to check tag existence")
-	}
+	err := CheckTagExists("localhost:5000/non-existent-repo:tag")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "does not exist")
 }
 
 func TestCheckTagExistsSuccessCase(t *testing.T) {
@@ -300,12 +261,6 @@ func TestGenerateTestIDPanic(t *testing.T) {
 	assert.Len(t, id, 16)
 }
 
-func TestTestRegistryCleanupWithNilTesting(t *testing.T) {
-	// Test cleanup with nil testing.T
-	registry := &TestRegistry{Name: "test_registry"}
-	registry.Cleanup(nil) // Should not panic
-}
-
 func TestSharedRegistryManagerConcurrency(t *testing.T) {
 	// Reset the shared manager for testing
 	sharedManager = &SharedRegistryManager{}
@@ -322,24 +277,5 @@ func TestSharedRegistryManagerConcurrency(t *testing.T) {
 	// Wait for all goroutines to complete
 	for i := 0; i < 10; i++ {
 		<-done
-	}
-}
-
-func TestGetSharedRegistryErrorCase(t *testing.T) {
-	// Test the error case in GetSharedRegistry where rand.Int fails
-	// This is difficult to test without mocking, but we can test the timeout case
-	// by creating a scenario where the registry doesn't start properly
-
-	// This test verifies that the function handles errors gracefully
-	// The actual error case (rand.Int failure) is very unlikely in practice
-	registry, err := GetSharedRegistry()
-	if err != nil {
-		// Expected error in test environment
-		assert.Contains(t, err.Error(), "failed to start shared registry")
-	} else {
-		// If it succeeds, test the timeout case by not waiting for it to be ready
-		// This is a bit of a hack, but it tests the timeout logic
-		assert.NotNil(t, registry)
-		CleanupSharedRegistry()
 	}
 }

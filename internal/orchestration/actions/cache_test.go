@@ -147,7 +147,8 @@ func TestForgetCacheEntriesOlderThan(t *testing.T) {
 				// For non-auto-approve cases, we can't easily test the user input
 				// but we can verify it doesn't panic
 				assert.NotPanics(t, func() {
-					actioner.ForgetCacheEntriesOlderThan(tt.duration, tt.autoApprove)
+					err := actioner.ForgetCacheEntriesOlderThan(tt.duration, tt.autoApprove)
+					assert.NoError(t, err)
 				})
 			}
 		})
@@ -171,12 +172,12 @@ func TestPrintCacheToEnvValue(t *testing.T) {
 
 	// Set up test environment variable with some cache data
 	originalEnv := os.Getenv("MIMOSA_CACHE")
-	defer os.Setenv("MIMOSA_CACHE", originalEnv)
+	defer func() { _ = os.Setenv("MIMOSA_CACHE", originalEnv) }()
 
 	// Set some test cache data (format: "z85hash image:tag")
 	z85Hash, err := hasher.HexToZ85("406b7725b0e93838b460e38d30903899")
 	assert.NoError(t, err)
-	os.Setenv("MIMOSA_CACHE", z85Hash+" testimage:latest")
+	_ = os.Setenv("MIMOSA_CACHE", z85Hash+" testimage:latest")
 
 	// Capture the CleanLog output
 	handler := logger.GetCleanLogHandler()
@@ -221,12 +222,12 @@ func TestPrintCacheToEnvValue_WithDiskAndEnvEntries(t *testing.T) {
 
 	// Set up environment variable with different cache data
 	originalEnv := os.Getenv("MIMOSA_CACHE")
-	defer os.Setenv("MIMOSA_CACHE", originalEnv)
+	defer func() { _ = os.Setenv("MIMOSA_CACHE", originalEnv) }()
 
 	// Set env cache data that's different from disk cache
 	z85Hash, err := hasher.HexToZ85("993080d3e8e460b838e3b0e5727b6406")
 	assert.NoError(t, err)
-	os.Setenv("MIMOSA_CACHE", z85Hash+" envimage:latest")
+	_ = os.Setenv("MIMOSA_CACHE", z85Hash+" envimage:latest")
 
 	// Capture the CleanLog output
 	handler := logger.GetCleanLogHandler()
@@ -275,12 +276,12 @@ func TestPrintCacheToEnvValue_EnvEntryExistsInDisk(t *testing.T) {
 
 	// Set up environment variable with the same hash as disk cache
 	originalEnv := os.Getenv("MIMOSA_CACHE")
-	defer os.Setenv("MIMOSA_CACHE", originalEnv)
+	defer func() { _ = os.Setenv("MIMOSA_CACHE", originalEnv) }()
 
 	// Set env cache data with the same hash as disk cache
 	z85Hash, err := hasher.HexToZ85(diskHash)
 	assert.NoError(t, err)
-	os.Setenv("MIMOSA_CACHE", z85Hash+" sameimage:latest")
+	_ = os.Setenv("MIMOSA_CACHE", z85Hash+" sameimage:latest")
 
 	// Capture the CleanLog output
 	handler := logger.GetCleanLogHandler()
