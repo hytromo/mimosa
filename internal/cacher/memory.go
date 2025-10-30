@@ -51,7 +51,6 @@ func GetAllInMemoryEntries() *InMemoryCache {
 
 			parts := strings.Split(line, cacheKeyAndValueSeparator)
 			if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-				slog.Warn("Invalid entry", "envVar", EnvVarName, "line", line)
 				continue
 			}
 			z85CacheKey := parts[0]
@@ -80,7 +79,6 @@ func GetAllInMemoryEntries() *InMemoryCache {
 			for z85CacheKey, value := range inMemoryEntries.AllFromFront() {
 				hexKey, err := hasher.Z85ToHex(z85CacheKey)
 				if err != nil {
-					slog.Warn("Failed to convert key to hex", "error", err)
 					continue
 				}
 				slog.Debug("In-memory cache entry", "z85Key", z85CacheKey, "hexKey", hexKey, "value", value)
