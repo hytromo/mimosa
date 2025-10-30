@@ -15,8 +15,8 @@ permissions:
   packages: write # publish to GitHub Packages
 
 jobs:
-  test:
-    name: Test
+  unit-tests:
+    name: Unit Tests
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
@@ -62,12 +62,96 @@ jobs:
         run: |
             CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o mimosa ./cmd/mimosa/*
 
+        # make sure that the tests below can get and use the built binary
       - uses: actions/upload-artifact@v4
         with:
           name: mimosa
           path: mimosa
 
-  e2e:
+  integration-tests:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    name: "Integration tests with dockerignore=${{ matrix.dockerignore }}, location=${{ matrix.bakefile_location }}, dockerfile=${{ matrix.dockerfile_type }}"
+    strategy:
+      fail-fast: false
+      matrix:
+        dockerignore: [single, multiple, none]
+        bakefile_location: [root, subdir]
+        dockerfile_type: [single, multiple]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Install Python dependencies
+        run: uv sync --all-groups
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Download the mimosa binary
+        uses: actions/download-artifact@v5
+        with:
+          name: mimosa
+          path: /usr/local/bin
+
+      - name: Make mimosa executable
+        run: chmod +x /usr/local/bin/mimosa
+
+      - name: "Run tests"
+        working-directory: tests-integration
+        env:
+          dockerignore: ${{ matrix.dockerignore }}
+          bakefile_location: ${{ matrix.bakefile_location }}
+          dockerfile_type: ${{ matrix.dockerfile_type }}
+        run: uv run run_tests.py
+
+      - name: Upload test summary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-summary-${{ matrix.dockerignore }}-${{ matrix.bakefile_location }}-${{ matrix.dockerfile_type }}
+          path: integration-tests/integration_tests_summary.json
+
+  integration-tests-summarizer:
+    needs: integration-tests
+    runs-on: ubuntu-24.04
+    name: "Summarize test results"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all test summary artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: test-summaries
+
+      - name: Calculate and print totals
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          total_tests=$(find test-summaries -name "integration_tests_summary.json" -exec cat {} + | jq -s '[.[] | .total_tests_run] | add')
+
+          SUMMARY_CONTENT=$(cat <<EOF
+          ### 📋 Integration Tests Summary
+          | Metric           | Count |
+          |------------------|-------|
+          | **Total Tests Run** | \`$total_tests\` |
+          EOF
+          )
+
+          echo "$SUMMARY_CONTENT" >> $GITHUB_STEP_SUMMARY
+
+          # fail anyway if total tests run is less than 100 - as a fail safe
+          if [ "$total_tests" -lt 100 ]; then
+            echo "Error: Total tests run ($total_tests) is less than expected - something is fishy."
+            exit 1
+          fi
+
+  e2e-tests:
     name: E2E Tests
     runs-on: ubuntu-24.04
     needs: build
@@ -79,7 +163,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Download artifact
+      - name: Download the mimosa binary
         uses: actions/download-artifact@v5
         with:
           name: mimosa
@@ -185,10 +269,10 @@ jobs:
 
   release:
     name: Release
-    needs: [build, test, e2e]
+    needs: [build, unit-tests, e2e-tests, integration-tests]
     permissions:
       contents: write # write release
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') # only on version tags
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

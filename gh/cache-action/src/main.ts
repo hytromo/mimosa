@@ -1,7 +1,7 @@
 import * as core from '@actions/core'
 import * as github from '@actions/github'
 import { Octokit } from '@octokit/rest'
-import { execSync } from 'child_process'
+import { execSync } from 'node:child_process'
 
 export async function run(): Promise<void> {
   try {
@@ -9,7 +9,7 @@ export async function run(): Promise<void> {
     const repoVariableName: string = core.getInput('variable-name')
     const maxLength: number = parseInt(core.getInput('max-length'), 10)
 
-    if (isNaN(maxLength)) {
+    if (Number.isNaN(maxLength)) {
       core.warning(`max-length is invalid: ${maxLength}`)
       return
     }

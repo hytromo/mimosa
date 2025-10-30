@@ -21,7 +21,9 @@ inputs:
   max-length:
     description: The maximum length of the cache
     required: false
-    default: '48000' # 48k is the max length for GitHub variables as defined in https://docs.github.com/en/actions/reference/variables-reference#limits-for-configuration-variables
+    # 48k is the max length for GitHub variables as defined in https://docs.github.com/en/actions/reference/variables-reference#limits-for-configuration-variables
+    # The combined size for org and repo variables is 256k, so there is plenty of room for other variables
+    default: '48000'
 
 outputs:
   success:
