@@ -566,10 +566,10 @@ func TestSaveWithFileWriteError(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestForgetCacheEntriesOlderThanWithWalkError(t *testing.T) {
+func TestForgetCacheEntriesOlderThanWithNonExistentDirectory(t *testing.T) {
 	// Test ForgetCacheEntriesOlderThan with a non-existent directory
 	err := ForgetCacheEntriesOlderThan(time.Now(), "/non/existent/directory")
-	assert.Error(t, err)
+	assert.NoError(t, err)
 }
 
 func TestForgetCacheEntriesOlderThanWithInvalidJson(t *testing.T) {

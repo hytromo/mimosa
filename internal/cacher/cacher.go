@@ -158,6 +158,10 @@ func (cache *Cache) Save(tagsByTarget map[string][]string, dryRun bool) error {
 func ForgetCacheEntriesOlderThan(forgetTime time.Time, cacheDir string) error {
 	slog.Debug("Forgetting cache entries older than", "forgetTime", forgetTime, "cacheDir", cacheDir)
 
+	if _, err := os.Stat(cacheDir); errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+
 	deletedCount := 0
 	err := filepath.Walk(cacheDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {

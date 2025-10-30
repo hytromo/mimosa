@@ -168,10 +168,4 @@ If the plant is repeatedly exposed to a non-harmful stimulus, such as a gentle t
 
 # Contributing
 
-If you are interested in contributing:
-
-1. Install [mise-en-place](https://mise.jdx.dev/getting-started.html) - great for tool management
-2. Clone the repo: `git clone https://github.com/hytromo/mimosa.git`
-3. Initialize the whole project without polluting your global environment: `mise init` - docker is also a dependency and a local ephemeral docker registry is created inside a container during testing.
-4. Start hacking! The pre-commit hooks will help ensuring that the github actions are bundled or that the go code does not have code smells. Have a look at `.pre-commit-config.yaml` for details
-
+Read [CONTRIBUTING.md](./CONTRIBUTING.md)
