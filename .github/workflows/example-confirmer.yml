@@ -30,7 +30,7 @@ jobs:
       - name: Setup mimosa
         id: setup-mimosa
         run: |
-            CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o mimosa ./cmd/mimosa/*
+            CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o mimosa .
             sudo mv mimosa /usr/local/bin/
 
       - name: Configure AWS credentials
@@ -108,7 +108,7 @@ jobs:
       - name: Setup mimosa
         id: setup-mimosa
         run: |
-            CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o mimosa ./cmd/mimosa/*
+            CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o mimosa .
             sudo mv mimosa /usr/local/bin/
             echo "cache-path=$(mimosa cache --show)" >> $GITHUB_OUTPUT
 
