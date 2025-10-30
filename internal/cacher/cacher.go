@@ -37,21 +37,31 @@ func (cache *Cache) DataPath() string {
 }
 
 func (cache *Cache) GetLatestTagByTarget() (map[string]string, error) {
-	// read the cache file and for each of the targets get the most recent cached tag:
-	data, err := os.ReadFile(cache.DataPath())
-	if err != nil {
-		return nil, err
-	}
+	var tagsByTarget map[string][]string
 
-	var cacheFile CacheFile
-	err = json.Unmarshal(data, &cacheFile)
-	if err != nil {
-		return nil, err
+	inMemoryEntry, exists := cache.GetInMemoryEntry()
+
+	if exists {
+		tagsByTarget = inMemoryEntry.TagsByTarget
+	} else {
+		// read the cache file and for each of the targets get the most recent cached tag:
+		data, err := os.ReadFile(cache.DataPath())
+		if err != nil {
+			return nil, err
+		}
+
+		var cacheFile CacheFile
+		err = json.Unmarshal(data, &cacheFile)
+		if err != nil {
+			return nil, err
+		}
+
+		tagsByTarget = cacheFile.TagsByTarget
 	}
 
 	latestTagByTarget := make(map[string]string)
 
-	for target, tags := range cacheFile.TagsByTarget {
+	for target, tags := range tagsByTarget {
 		if len(tags) > 0 {
 			latestTagByTarget[target] = tags[len(tags)-1]
 		}
@@ -77,7 +87,7 @@ func (cache *Cache) Remove(dryRun bool) error {
 }
 
 func (cache *Cache) GetInMemoryEntry() (CacheFile, bool) {
-	if cache.InMemoryEntries.Len() == 0 {
+	if cache.InMemoryEntries == nil || cache.InMemoryEntries.Len() == 0 {
 		return CacheFile{}, false
 	}
 
