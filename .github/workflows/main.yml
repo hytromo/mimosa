@@ -115,7 +115,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: test-summary-${{ matrix.dockerignore }}-${{ matrix.bakefile_location }}-${{ matrix.dockerfile_type }}
-          path: integration-tests/integration_tests_summary.json
+          path: tests-integration/integration_tests_summary.json
 
   integration-tests-summarizer:
     needs: integration-tests
