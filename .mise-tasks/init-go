@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+
+#MISE description="Install go deps"
+
+set -euo pipefail
+
+echo "Downloading go deps..."
+go mod download

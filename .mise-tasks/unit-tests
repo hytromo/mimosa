@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 #MISE description="Run the unit tests"
-#MISE depends=["init-test"]
+#MISE depends=["init-tests"]
 
 set -euo pipefail
 

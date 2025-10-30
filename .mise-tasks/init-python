@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+
+#MISE description="Install python deps"
+
+set -euo pipefail
+
+echo "Downloading python deps..."
+uv sync --all-groups

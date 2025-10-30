@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+
+#MISE description="Cleanup the components need for testing"
+
+CONTAINER_NAME="mimosa_registry"
+docker kill -s 9 "$CONTAINER_NAME" >/dev/null 2>&1 || echo "Local registry not running."
+
+docker buildx rm --force host-network-builder >/dev/null 2>&1 || echo "Buildx builder not found."

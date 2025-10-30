@@ -42,7 +42,7 @@ repos:
 
       - id: go-test
         name: Go test
-        entry: mise exec -- go test ./...
+        entry: mise run unit-tests
         language: system
         pass_filenames: false
         files: \.go$

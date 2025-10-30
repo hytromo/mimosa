@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+#MISE description="Install pre-commit hooks for git"
+set -euo pipefail
+
+echo "Installing pre-commit hooks..."
+uv run pre-commit install

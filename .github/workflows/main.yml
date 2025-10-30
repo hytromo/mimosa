@@ -22,14 +22,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      - uses: actions/setup-go@v5
+      - uses: jdx/mise-action@v3
         with:
-          go-version-file: 'go.mod'
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v8
-        with:
-          version: v2.3.0
+
+      - name: Run go lint
+        run: golangci-lint run --fix
 
       - name: Run go vet
         run: go vet ./...
@@ -44,9 +43,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      - uses: actions/setup-go@v5
+      - uses: jdx/mise-action@v3
         with:
-          go-version-file: 'go.mod'
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
 
       # docker builds and dockerhub access required by tests
       - name: Set up QEMU
@@ -61,8 +61,8 @@ jobs:
           username: hytromo
           password: ${{ secrets.DOCKER_PAT }}
       
-      - name: Run tests
-        run: go test ./... -coverprofile=coverage.txt
+      - name: Run unit tests
+        run: mise run unit-tests
 
       - name: Upload results to Codecov
         uses: codecov/codecov-action@v5
@@ -76,9 +76,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      - uses: actions/setup-go@v5
+      - uses: jdx/mise-action@v3
         with:
-          go-version-file: 'go.mod'
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Go build
         run: |
@@ -104,11 +104,13 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v6
+      - uses: jdx/mise-action@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
 
       - name: Install Python dependencies
-        run: uv sync --all-groups
+        run: mise run init-python
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -125,13 +127,13 @@ jobs:
       - name: Make mimosa executable
         run: chmod +x /usr/local/bin/mimosa
 
-      - name: "Run tests"
+      - name: "Run integration tests"
         working-directory: tests-integration
         env:
           dockerignore: ${{ matrix.dockerignore }}
           bakefile_location: ${{ matrix.bakefile_location }}
           dockerfile_type: ${{ matrix.dockerfile_type }}
-        run: uv run run_tests.py
+        run: mise run integration-tests
 
       - name: Upload test summary artifact
         uses: actions/upload-artifact@v4
@@ -300,9 +302,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - uses: actions/setup-go@v5
+      - uses: jdx/mise-action@v3
         with:
-          go-version-file: 'go.mod'
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6

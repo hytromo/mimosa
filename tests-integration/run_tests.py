@@ -15,11 +15,9 @@ from typing import Dict, List, Tuple
 
 from command_creator import Command, generate_docker_command
 from docker import (
-    create_and_use_docker_builder,
     decompose_tag,
     get_manifest_ids_for_tag,
     get_manifests_for_tag,
-    start_docker_registry,
 )
 from test_creator import (
     create_bakefiles,
@@ -233,9 +231,6 @@ def env_variable_to_list(var_name: str, default_value: List[str]) -> List[str]:
 
 
 async def main():
-    start_docker_registry()
-    create_and_use_docker_builder()
-
     max_workers = 5
     total_tests_run = 0
 
