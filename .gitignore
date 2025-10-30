@@ -145,3 +145,5 @@ __tests__/runner/*
 *.code-workspace
 
 integration_tests_summary.json
+
+dist
