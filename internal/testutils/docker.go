@@ -16,8 +16,8 @@ import (
 )
 
 // CreateTestImage creates a simple test image and pushes it to the registry
-func CreateTestImage(t *testing.T, registry *TestRegistry, imageName, tag string) string {
-	fullImageName := fmt.Sprintf("%s/%s:%s", registry.Url, imageName, tag)
+func CreateTestImage(t *testing.T, imageName, tag string) string {
+	fullImageName := fmt.Sprintf("%s/%s:%s", "localhost:5000", imageName, tag)
 
 	// Create a simple Dockerfile
 	dockerfile := `FROM alpine:latest
@@ -55,8 +55,8 @@ CMD ["cat", "/test.txt"]`
 }
 
 // CreateMultiPlatformTestImage creates a multi-platform test image and pushes it to the registry
-func CreateMultiPlatformTestImage(t *testing.T, registry *TestRegistry, imageName, tag string, platforms []string) string {
-	fullImageName := fmt.Sprintf("%s/%s:%s", registry.Url, imageName, tag)
+func CreateMultiPlatformTestImage(t *testing.T, imageName, tag string, platforms []string) string {
+	fullImageName := fmt.Sprintf("%s/%s:%s", "localhost:5000", imageName, tag)
 
 	// Create a simple Dockerfile
 	dockerfile := `FROM alpine:latest
@@ -76,18 +76,6 @@ CMD ["cat", "/test.txt"]`
 	err = os.WriteFile(dockerfilePath, []byte(dockerfile), 0644)
 	require.NoError(t, err)
 
-	// Create a dedicated ephemeral builder for this test
-	builderName := fmt.Sprintf("test_builder_%s", GenerateTestID())
-	createCmd := exec.Command("docker", "buildx", "create", "--name", builderName, "--driver", "docker-container", "--driver-opt", "network=host", "--use")
-	output, err := createCmd.CombinedOutput()
-	require.NoError(t, err, "Failed to create test builder: %s", string(output))
-
-	// Clean up the builder after the test
-	defer func() {
-		removeCmd := exec.Command("docker", "buildx", "rm", builderName)
-		_, _ = removeCmd.CombinedOutput() // Ignore errors for cleanup
-	}()
-
 	// Build multi-platform image using the ephemeral builder
 	platformArgs := make([]string, 0, len(platforms)*2)
 	for _, platform := range platforms {
@@ -98,7 +86,7 @@ CMD ["cat", "/test.txt"]`
 	buildCmd.Args = append(buildCmd.Args, platformArgs...)
 	buildCmd.Args = append(buildCmd.Args, "-t", fullImageName, tempDir)
 
-	output, err = buildCmd.CombinedOutput()
+	output, err := buildCmd.CombinedOutput()
 	require.NoError(t, err, "Failed to build multi-platform test image: %s", string(output))
 
 	return fullImageName

@@ -3,6 +3,7 @@ package actions
 import (
 	"encoding/json"
 	"fmt"
+	"math/rand/v2"
 	"net/http"
 	"os"
 	"os/exec"
@@ -16,37 +17,14 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/hytromo/mimosa/internal/cacher"
 	"github.com/hytromo/mimosa/internal/configuration"
-	"github.com/hytromo/mimosa/internal/testutils"
 	"github.com/hytromo/mimosa/internal/utils/dockerutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// Global variable to hold the shared registry for tests
-var sharedRegistry *testutils.TestRegistry
-
-func TestMain(m *testing.M) {
-	// Get shared registry before running tests
-	registry, err := testutils.GetSharedRegistry()
-	defer testutils.CleanupSharedRegistry()
-
-	if err != nil || registry == nil {
-		fmt.Printf("Failed to get shared registry: %v\n", err)
-		os.Exit(1)
-		return
-	}
-
-	sharedRegistry = registry
-
-	exitCode := m.Run()
-
-	// Clean up before exiting
-	defer os.Exit(exitCode)
-}
-
 // createTestImage creates a simple test image and pushes it to the registry
-func createTestImage(t *testing.T, registry *testutils.TestRegistry, imageName, tag string) string {
-	fullImageName := fmt.Sprintf("%s/%s:%s", registry.Url, imageName, tag)
+func createTestImage(t *testing.T, imageName, tag string) string {
+	fullImageName := fmt.Sprintf("%s/%s:%s", "localhost:5000", imageName, tag)
 
 	// Create a simple Dockerfile
 	dockerfile := `FROM alpine:latest
@@ -169,19 +147,19 @@ func TestRetag_SingleTarget(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			actioner := New()
-			testID := testutils.GenerateTestID()
+			testID := rand.IntN(10000000000)
 
 			// Create test image
 			var originalImage string
 			if tc.multiPlatform {
 				platforms := []string{"linux/amd64", "linux/arm64"}
-				originalImage = createMultiPlatformTestImage(t, sharedRegistry, fmt.Sprintf("%s-%s", tc.imageName, testID), "v1.0.0", platforms)
+				originalImage = createMultiPlatformTestImage(t, fmt.Sprintf("%s-%d", tc.imageName, testID), "v1.0.0", platforms)
 			} else {
-				originalImage = createTestImage(t, sharedRegistry, fmt.Sprintf("%s-%s", tc.imageName, testID), "v1.0.0")
+				originalImage = createTestImage(t, fmt.Sprintf("%s-%d", tc.imageName, testID), "v1.0.0")
 			}
 
 			// Create mock cache entry
-			hash := fmt.Sprintf("test_hash_123_%s", testID)
+			hash := fmt.Sprintf("test_hash_123_%d", testID)
 			cacheEntry := createMockCacheEntry(t, hash, map[string][]string{
 				"default": {originalImage},
 			})
@@ -190,8 +168,8 @@ func TestRetag_SingleTarget(t *testing.T) {
 			parsedCommand := configuration.ParsedCommand{
 				TagsByTarget: map[string][]string{
 					"default": {
-						fmt.Sprintf("%s/%s-%s:v1.1.0", sharedRegistry.Url, tc.imageName, testID),
-						fmt.Sprintf("%s/%s-%s:latest", sharedRegistry.Url, tc.imageName, testID),
+						fmt.Sprintf("%s/%s-%d:v1.1.0", "localhost:5000", tc.imageName, testID),
+						fmt.Sprintf("%s/%s-%d:latest", "localhost:5000", tc.imageName, testID),
 					},
 				},
 				Hash:    hash,
@@ -241,21 +219,21 @@ func TestRetag_MultipleTargets(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			actioner := New()
-			testID := testutils.GenerateTestID()
+			testID := rand.IntN(10000000000)
 
 			// Create test images for multiple targets
 			var backendImage, frontendImage string
 			if tc.multiPlatform {
 				platforms := []string{"linux/amd64", "linux/arm64"}
-				backendImage = createMultiPlatformTestImage(t, sharedRegistry, fmt.Sprintf("backend-%s", testID), "v1.0.0", platforms)
-				frontendImage = createMultiPlatformTestImage(t, sharedRegistry, fmt.Sprintf("frontend-%s", testID), "v1.0.0", platforms)
+				backendImage = createMultiPlatformTestImage(t, fmt.Sprintf("backend-%d", testID), "v1.0.0", platforms)
+				frontendImage = createMultiPlatformTestImage(t, fmt.Sprintf("frontend-%d", testID), "v1.0.0", platforms)
 			} else {
-				backendImage = createTestImage(t, sharedRegistry, fmt.Sprintf("backend-%s", testID), "v1.0.0")
-				frontendImage = createTestImage(t, sharedRegistry, fmt.Sprintf("frontend-%s", testID), "v1.0.0")
+				backendImage = createTestImage(t, fmt.Sprintf("backend-%d", testID), "v1.0.0")
+				frontendImage = createTestImage(t, fmt.Sprintf("frontend-%d", testID), "v1.0.0")
 			}
 
 			// Create mock cache entry with multiple targets
-			hash := fmt.Sprintf("test_hash_multiple_%s", testID)
+			hash := fmt.Sprintf("test_hash_multiple_%d", testID)
 			cacheEntry := createMockCacheEntry(t, hash, map[string][]string{
 				"backend":  {backendImage},
 				"frontend": {frontendImage},
@@ -265,12 +243,12 @@ func TestRetag_MultipleTargets(t *testing.T) {
 			parsedCommand := configuration.ParsedCommand{
 				TagsByTarget: map[string][]string{
 					"backend": {
-						fmt.Sprintf("%s/backend-%s:v1.1.0", sharedRegistry.Url, testID),
-						fmt.Sprintf("%s/backend-%s:latest", sharedRegistry.Url, testID),
+						fmt.Sprintf("%s/backend-%d:v1.1.0", "localhost:5000", testID),
+						fmt.Sprintf("%s/backend-%d:latest", "localhost:5000", testID),
 					},
 					"frontend": {
-						fmt.Sprintf("%s/frontend-%s:v1.1.0", sharedRegistry.Url, testID),
-						fmt.Sprintf("%s/frontend-%s:latest", sharedRegistry.Url, testID),
+						fmt.Sprintf("%s/frontend-%d:v1.1.0", "localhost:5000", testID),
+						fmt.Sprintf("%s/frontend-%d:latest", "localhost:5000", testID),
 					},
 				},
 				Hash:    hash,
@@ -307,10 +285,10 @@ func TestRetag_MultipleTargets(t *testing.T) {
 
 func TestRetag_NonExistentCache(t *testing.T) {
 	actioner := New()
-	testID := testutils.GenerateTestID()
+	testID := rand.IntN(10000000000)
 
 	// Create cache entry that doesn't exist on disk
-	hash := fmt.Sprintf("non_existent_hash_%s", testID)
+	hash := fmt.Sprintf("non_existent_hash_%d", testID)
 	cacheEntry := cacher.Cache{
 		Hash:            hash,
 		CacheDir:        t.TempDir(),
@@ -319,7 +297,7 @@ func TestRetag_NonExistentCache(t *testing.T) {
 
 	parsedCommand := configuration.ParsedCommand{
 		TagsByTarget: map[string][]string{
-			"default": {fmt.Sprintf("%s/testapp-%s:v1.0.0", sharedRegistry.Url, testID)},
+			"default": {fmt.Sprintf("%s/testapp-%d:v1.0.0", "localhost:5000", testID)},
 		},
 		Hash:    hash,
 		Command: []string{"docker", "retag"},
@@ -333,13 +311,13 @@ func TestRetag_NonExistentCache(t *testing.T) {
 
 func TestRetag_MismatchedTargets(t *testing.T) {
 	actioner := New()
-	testID := testutils.GenerateTestID()
+	testID := rand.IntN(10000000000)
 
 	// Create test image
-	originalImage := createTestImage(t, sharedRegistry, fmt.Sprintf("testapp-%s", testID), "v1.0.0")
+	originalImage := createTestImage(t, fmt.Sprintf("testapp-%d", testID), "v1.0.0")
 
 	// Create mock cache entry
-	hash := fmt.Sprintf("test_hash_mismatch_%s", testID)
+	hash := fmt.Sprintf("test_hash_mismatch_%d", testID)
 	cacheEntry := createMockCacheEntry(t, hash, map[string][]string{
 		"default": {originalImage},
 	})
@@ -347,7 +325,7 @@ func TestRetag_MismatchedTargets(t *testing.T) {
 	// Create parsed command with different target
 	parsedCommand := configuration.ParsedCommand{
 		TagsByTarget: map[string][]string{
-			"different_target": {fmt.Sprintf("%s/testapp-%s:v1.1.0", sharedRegistry.Url, testID)},
+			"different_target": {fmt.Sprintf("%s/testapp-%d:v1.1.0", "localhost:5000", testID)},
 		},
 		Hash:    hash,
 		Command: []string{"docker", "retag"},
@@ -380,19 +358,19 @@ func TestRetag_DryRun(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			actioner := New()
-			testID := testutils.GenerateTestID()
+			testID := rand.IntN(10000000000)
 
 			// Create test image
 			var originalImage string
 			if tc.multiPlatform {
 				platforms := []string{"linux/amd64", "linux/arm64"}
-				originalImage = createMultiPlatformTestImage(t, sharedRegistry, fmt.Sprintf("%s-%s", tc.imageName, testID), "v1.0.0", platforms)
+				originalImage = createMultiPlatformTestImage(t, fmt.Sprintf("%s-%d", tc.imageName, testID), "v1.0.0", platforms)
 			} else {
-				originalImage = createTestImage(t, sharedRegistry, fmt.Sprintf("%s-%s", tc.imageName, testID), "v1.0.0")
+				originalImage = createTestImage(t, fmt.Sprintf("%s-%d", tc.imageName, testID), "v1.0.0")
 			}
 
 			// Create mock cache entry
-			hash := fmt.Sprintf("test_hash_dryrun_%s", testID)
+			hash := fmt.Sprintf("test_hash_dryrun_%d", testID)
 			cacheEntry := createMockCacheEntry(t, hash, map[string][]string{
 				"default": {originalImage},
 			})
@@ -400,7 +378,7 @@ func TestRetag_DryRun(t *testing.T) {
 			// Create parsed command
 			parsedCommand := configuration.ParsedCommand{
 				TagsByTarget: map[string][]string{
-					"default": {fmt.Sprintf("%s/%s-%s:v1.1.0", sharedRegistry.Url, tc.imageName, testID)},
+					"default": {fmt.Sprintf("%s/%s-%d:v1.1.0", "localhost:5000", tc.imageName, testID)},
 				},
 				Hash:    hash,
 				Command: []string{"docker", "retag"},
@@ -420,17 +398,17 @@ func TestRetag_DryRun(t *testing.T) {
 
 func TestRetag_InvalidImage(t *testing.T) {
 	actioner := New()
-	testID := testutils.GenerateTestID()
+	testID := rand.IntN(10000000000)
 
 	// Create mock cache entry with invalid image
-	hash := fmt.Sprintf("test_hash_invalid_%s", testID)
+	hash := fmt.Sprintf("test_hash_invalid_%d", testID)
 	cacheEntry := createMockCacheEntry(t, hash, map[string][]string{
 		"default": {"invalid-image:tag"},
 	})
 
 	parsedCommand := configuration.ParsedCommand{
 		TagsByTarget: map[string][]string{
-			"default": {fmt.Sprintf("%s/testapp-%s:v1.0.0", sharedRegistry.Url, testID)},
+			"default": {fmt.Sprintf("%s/testapp-%d:v1.0.0", "localhost:5000", testID)},
 		},
 		Hash:    hash,
 		Command: []string{"docker", "retag"},
@@ -442,8 +420,8 @@ func TestRetag_InvalidImage(t *testing.T) {
 }
 
 // createMultiPlatformTestImage creates a multi-platform test image and pushes it to the registry
-func createMultiPlatformTestImage(t *testing.T, registry *testutils.TestRegistry, imageName, tag string, platforms []string) string {
-	fullImageName := fmt.Sprintf("%s/%s:%s", registry.Url, imageName, tag)
+func createMultiPlatformTestImage(t *testing.T, imageName, tag string, platforms []string) string {
+	fullImageName := fmt.Sprintf("%s/%s:%s", "localhost:5000", imageName, tag)
 
 	// Create a simple Dockerfile
 	dockerfile := `FROM alpine:latest
@@ -463,18 +441,6 @@ CMD ["cat", "/test.txt"]`
 	err = os.WriteFile(dockerfilePath, []byte(dockerfile), 0644)
 	require.NoError(t, err)
 
-	// Create a dedicated ephemeral builder for this test
-	builderName := fmt.Sprintf("test_builder_%s", testutils.GenerateTestID())
-	createCmd := exec.Command("docker", "buildx", "create", "--name", builderName, "--driver", "docker-container", "--driver-opt", "network=host", "--use")
-	output, err := createCmd.CombinedOutput()
-	require.NoError(t, err, "Failed to create test builder: %s", string(output))
-
-	// Clean up the builder after the test
-	defer func() {
-		removeCmd := exec.Command("docker", "buildx", "rm", builderName)
-		_, _ = removeCmd.CombinedOutput() // Ignore errors for cleanup
-	}()
-
 	// Build multi-platform image using the ephemeral builder
 	platformArgs := make([]string, 0, len(platforms)*2)
 	for _, platform := range platforms {
@@ -485,7 +451,7 @@ CMD ["cat", "/test.txt"]`
 	buildCmd.Args = append(buildCmd.Args, platformArgs...)
 	buildCmd.Args = append(buildCmd.Args, "-t", fullImageName, tempDir)
 
-	output, err = buildCmd.CombinedOutput()
+	output, err := buildCmd.CombinedOutput()
 	require.NoError(t, err, "Failed to build multi-platform test image: %s", string(output))
 
 	return fullImageName

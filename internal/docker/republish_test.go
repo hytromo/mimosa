@@ -2,6 +2,7 @@ package docker
 
 import (
 	"fmt"
+	"math/rand/v2"
 	"testing"
 
 	"github.com/google/go-containerregistry/pkg/name"
@@ -12,21 +13,19 @@ import (
 )
 
 func TestPublishManifestsUnderTag_SingleImage(t *testing.T) {
-	registry, err := testutils.GetSharedRegistry()
-	assert.NoError(t, err)
-	testID := testutils.GenerateTestID()
-	originalImage := testutils.CreateTestImage(t, registry, fmt.Sprintf("testapp-%s", testID), "v1.0.0")
+	testID := rand.IntN(10000000000)
+	originalImage := testutils.CreateTestImage(t, fmt.Sprintf("testapp-%d", testID), "v1.0.0")
 
 	// Get the digests of the original image
 	originalDigests := testutils.GetImageDigests(t, originalImage)
 	require.Len(t, originalDigests, 1, "Single image should have exactly one digest")
 
 	// Extract image name without tag
-	imageName := fmt.Sprintf("%s/testapp-%s", registry.Url, testID)
+	imageName := fmt.Sprintf("%s/testapp-%d", "localhost:5000", testID)
 	newTag := "v1.1.0"
 
 	// Publish manifests under new tag
-	err = PublishManifestsUnderTag(imageName, newTag, originalDigests)
+	err := PublishManifestsUnderTag(imageName, newTag, originalDigests)
 	assert.NoError(t, err)
 
 	// Verify the new tag exists
@@ -40,22 +39,20 @@ func TestPublishManifestsUnderTag_SingleImage(t *testing.T) {
 }
 
 func TestPublishManifestsUnderTag_MultiPlatformImage(t *testing.T) {
-	registry, err := testutils.GetSharedRegistry()
-	assert.NoError(t, err)
-	testID := testutils.GenerateTestID()
+	testID := rand.IntN(10000000000)
 	platforms := []string{"linux/amd64", "linux/arm64"}
-	originalImage := testutils.CreateMultiPlatformTestImage(t, registry, fmt.Sprintf("multiplatform-app-%s", testID), "v1.0.0", platforms)
+	originalImage := testutils.CreateMultiPlatformTestImage(t, fmt.Sprintf("multiplatform-app-%d", testID), "v1.0.0", platforms)
 
 	// Get the digests of the original image
 	originalDigests := testutils.GetImageDigests(t, originalImage)
 	require.GreaterOrEqual(t, len(originalDigests), 2, "Multi-platform image should have at least 2 digests")
 
 	// Extract image name without tag
-	imageName := fmt.Sprintf("%s/multiplatform-app-%s", registry.Url, testID)
+	imageName := fmt.Sprintf("%s/multiplatform-app-%d", "localhost:5000", testID)
 	newTag := "v1.1.0"
 
 	// Publish manifests under new tag
-	err = PublishManifestsUnderTag(imageName, newTag, originalDigests)
+	err := PublishManifestsUnderTag(imageName, newTag, originalDigests)
 	assert.NoError(t, err)
 
 	// Verify the new tag exists
@@ -84,20 +81,18 @@ func TestPublishManifestsUnderTag_MultiPlatformImage(t *testing.T) {
 }
 
 func TestPublishManifestsUnderTag_MixedManifests(t *testing.T) {
-	registry, err := testutils.GetSharedRegistry()
-	assert.NoError(t, err)
-	testID := testutils.GenerateTestID()
+	testID := rand.IntN(10000000000)
 
 	// Create a multi-platform image to get multiple digests from the same image
-	imageName := fmt.Sprintf("%s/mixed-app-%s", registry.Url, testID)
-	multiImage := testutils.CreateMultiPlatformTestImage(t, registry, fmt.Sprintf("mixed-app-%s", testID), "v1.0.0", []string{"linux/amd64", "linux/arm64"})
+	imageName := fmt.Sprintf("%s/mixed-app-%d", "localhost:5000", testID)
+	multiImage := testutils.CreateMultiPlatformTestImage(t, fmt.Sprintf("mixed-app-%d", testID), "v1.0.0", []string{"linux/amd64", "linux/arm64"})
 
 	// Get digests from the multi-platform image
 	multiDigests := testutils.GetImageDigests(t, multiImage)
 
 	// Publish manifests under new tag
 	newTag := "v1.1.0"
-	err = PublishManifestsUnderTag(imageName, newTag, multiDigests)
+	err := PublishManifestsUnderTag(imageName, newTag, multiDigests)
 	assert.NoError(t, err)
 
 	// Verify the new tag exists
@@ -111,10 +106,8 @@ func TestPublishManifestsUnderTag_MixedManifests(t *testing.T) {
 }
 
 func TestPublishManifestsUnderTag_InvalidImageName(t *testing.T) {
-	registry, err := testutils.GetSharedRegistry()
-	assert.NoError(t, err)
-	testID := testutils.GenerateTestID()
-	originalImage := testutils.CreateTestImage(t, registry, fmt.Sprintf("testapp-%s", testID), "v1.0.0")
+	testID := rand.IntN(10000000000)
+	originalImage := testutils.CreateTestImage(t, fmt.Sprintf("testapp-%d", testID), "v1.0.0")
 
 	// Get the digests of the original image
 	originalDigests := testutils.GetImageDigests(t, originalImage)
@@ -124,93 +117,83 @@ func TestPublishManifestsUnderTag_InvalidImageName(t *testing.T) {
 	newTag := "v1.1.0"
 
 	// Publish manifests under new tag should fail
-	err = PublishManifestsUnderTag(invalidImageName, newTag, originalDigests)
+	err := PublishManifestsUnderTag(invalidImageName, newTag, originalDigests)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "creating tag ref")
 }
 
 func TestPublishManifestsUnderTag_InvalidDigest(t *testing.T) {
-	registry, err := testutils.GetSharedRegistry()
-	assert.NoError(t, err)
-	testID := testutils.GenerateTestID()
-	imageName := fmt.Sprintf("%s/testapp-%s", registry.Url, testID)
+	testID := rand.IntN(10000000000)
+	imageName := fmt.Sprintf("%s/testapp-%d", "localhost:5000", testID)
 	newTag := "v1.1.0"
 
 	// Test with invalid digest
 	invalidDigests := []string{"invalid:digest:format"}
 
 	// Publish manifests under new tag should fail
-	err = PublishManifestsUnderTag(imageName, newTag, invalidDigests)
+	err := PublishManifestsUnderTag(imageName, newTag, invalidDigests)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "creating digest ref")
 }
 
 func TestPublishManifestsUnderTag_NonExistentDigest(t *testing.T) {
-	registry, err := testutils.GetSharedRegistry()
-	assert.NoError(t, err)
-	testID := testutils.GenerateTestID()
-	imageName := fmt.Sprintf("%s/testapp-%s", registry.Url, testID)
+	testID := rand.IntN(10000000000)
+	imageName := fmt.Sprintf("%s/testapp-%d", "localhost:5000", testID)
 	newTag := "v1.1.0"
 
 	// Test with non-existent digest
 	nonExistentDigests := []string{"sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"}
 
 	// Publish manifests under new tag should fail
-	err = PublishManifestsUnderTag(imageName, newTag, nonExistentDigests)
+	err := PublishManifestsUnderTag(imageName, newTag, nonExistentDigests)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "fetching descriptor")
 }
 
 func TestPublishManifestsUnderTag_EmptyManifests(t *testing.T) {
-	registry, err := testutils.GetSharedRegistry()
-	assert.NoError(t, err)
-	testID := testutils.GenerateTestID()
-	imageName := fmt.Sprintf("%s/testapp-%s", registry.Url, testID)
+	testID := rand.IntN(10000000000)
+	imageName := fmt.Sprintf("%s/testapp-%d", "localhost:5000", testID)
 	newTag := "v1.1.0"
 
 	// Test with empty manifests list
 	emptyDigests := []string{}
 
 	// Publish manifests under new tag should fail
-	err = PublishManifestsUnderTag(imageName, newTag, emptyDigests)
+	err := PublishManifestsUnderTag(imageName, newTag, emptyDigests)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "no manifests provided")
 }
 
 func TestPublishManifestsUnderTag_InvalidTag(t *testing.T) {
-	registry, err := testutils.GetSharedRegistry()
-	assert.NoError(t, err)
-	testID := testutils.GenerateTestID()
-	originalImage := testutils.CreateTestImage(t, registry, fmt.Sprintf("testapp-%s", testID), "v1.0.0")
+	testID := rand.IntN(10000000000)
+	originalImage := testutils.CreateTestImage(t, fmt.Sprintf("testapp-%d", testID), "v1.0.0")
 
 	// Get the digests of the original image
 	originalDigests := testutils.GetImageDigests(t, originalImage)
 
 	// Extract image name without tag
-	imageName := fmt.Sprintf("%s/testapp-%s", registry.Url, testID)
+	imageName := fmt.Sprintf("%s/testapp-%d", "localhost:5000", testID)
 	invalidTag := "invalid:tag:format"
 
 	// Publish manifests under new tag should fail
-	err = PublishManifestsUnderTag(imageName, invalidTag, originalDigests)
+	err := PublishManifestsUnderTag(imageName, invalidTag, originalDigests)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "creating tag ref")
 }
 
 func TestPublishManifestsUnderTag_OverwriteExistingTag(t *testing.T) {
-	registry, err := testutils.GetSharedRegistry()
-	assert.NoError(t, err)
-	testID := testutils.GenerateTestID()
-	originalImage := testutils.CreateTestImage(t, registry, fmt.Sprintf("testapp-%s", testID), "v1.0.0")
+	testID := rand.IntN(10000000000)
+	originalImage := testutils.CreateTestImage(t, fmt.Sprintf("testapp-%d", testID), "v1.0.0")
 
 	// Get the digests of the original image
 	originalDigests := testutils.GetImageDigests(t, originalImage)
 
 	// Extract image name without tag
-	imageName := fmt.Sprintf("%s/testapp-%s", registry.Url, testID)
+	imageName := fmt.Sprintf("%s/testapp-%d", "localhost:5000", testID)
 	tag := "v1.1.0"
 
 	// Publish manifests under tag for the first time
-	err = PublishManifestsUnderTag(imageName, tag, originalDigests)
+	err := PublishManifestsUnderTag(imageName, tag, originalDigests)
 	assert.NoError(t, err)
 
 	// Verify the tag exists
@@ -232,18 +215,16 @@ func TestPublishManifestsUnderTag_OverwriteExistingTag(t *testing.T) {
 }
 
 func TestPublishManifestsUnderTag_LargeNumberOfManifests(t *testing.T) {
-	registry, err := testutils.GetSharedRegistry()
-	assert.NoError(t, err)
-	testID := testutils.GenerateTestID()
+	testID := rand.IntN(10000000000)
 
 	// Create a multi-platform image with multiple platforms to get more digests
-	imageName := fmt.Sprintf("%s/large-app-%s", registry.Url, testID)
-	multiImage := testutils.CreateMultiPlatformTestImage(t, registry, fmt.Sprintf("large-app-%s", testID), "v1.0.0", []string{"linux/amd64", "linux/arm64", "linux/386"})
+	imageName := fmt.Sprintf("%s/large-app-%d", "localhost:5000", testID)
+	multiImage := testutils.CreateMultiPlatformTestImage(t, fmt.Sprintf("large-app-%d", testID), "v1.0.0", []string{"linux/amd64", "linux/arm64", "linux/386"})
 	multiDigests := testutils.GetImageDigests(t, multiImage)
 
 	// Publish all manifests under new tag
 	newTag := "v1.1.0"
-	err = PublishManifestsUnderTag(imageName, newTag, multiDigests)
+	err := PublishManifestsUnderTag(imageName, newTag, multiDigests)
 	assert.NoError(t, err)
 
 	// Verify the new tag exists

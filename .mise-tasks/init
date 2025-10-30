@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+
+#MISE description="Initialize the project"
+
+set -euo pipefail
+
+
+echo "Downloading go deps..."
+go mod download
+
+echo "Downloading node deps..."
+
+npm install -g yarn@1.22.22
+
+cd gh/cache-action 
+yarn install
+cd -
+
+cd gh/setup-action
+yarn install
+cd -
+
+cd scripts/sync-example-confirmer-to-real-example
+yarn install
+
+echo "Downloading python deps..."
+uv sync --all-groups
+
+echo "Installing pre-commit hooks..."
+uv run pre-commit install

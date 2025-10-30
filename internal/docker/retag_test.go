@@ -2,7 +2,7 @@ package docker
 
 import (
 	"fmt"
-	"os"
+	"math/rand/v2"
 	"testing"
 
 	"github.com/google/go-containerregistry/pkg/name"
@@ -13,31 +13,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var sharedRegistry *testutils.TestRegistry
-
-func TestMain(m *testing.M) {
-	// Get shared registry before running tests
-	registry, err := testutils.GetSharedRegistry()
-	defer testutils.CleanupSharedRegistry()
-
-	if err != nil || registry == nil {
-		fmt.Printf("Failed to get shared registry: %v\n", err)
-		os.Exit(1)
-		return
-	}
-
-	sharedRegistry = registry
-
-	exitCode := m.Run()
-
-	// Clean up before exiting
-	defer os.Exit(exitCode)
-}
-
 func TestRetagSingle_SinglePlatform(t *testing.T) {
-	testID := testutils.GenerateTestID()
-	originalImage := testutils.CreateTestImage(t, sharedRegistry, fmt.Sprintf("testapp-%s", testID), "v1.0.0")
-	newTag := fmt.Sprintf("%s/testapp-%s:v1.1.0", sharedRegistry.Url, testID)
+	testID := rand.IntN(10000000000)
+	originalImage := testutils.CreateTestImage(t, fmt.Sprintf("testapp-%d", testID), "v1.0.0")
+	newTag := fmt.Sprintf("%s/testapp-%d:v1.1.0", "localhost:5000", testID)
 
 	// Test dry run
 	err := RetagSingle(originalImage, newTag, true)
@@ -57,10 +36,10 @@ func TestRetagSingle_SinglePlatform(t *testing.T) {
 }
 
 func TestRetagSingle_MultiPlatform(t *testing.T) {
-	testID := testutils.GenerateTestID()
+	testID := rand.IntN(10000000000)
 	platforms := []string{"linux/amd64", "linux/arm64"}
-	originalImage := testutils.CreateMultiPlatformTestImage(t, sharedRegistry, fmt.Sprintf("multiplatform-app-%s", testID), "v1.0.0", platforms)
-	newTag := fmt.Sprintf("%s/multiplatform-app-%s:v1.1.0", sharedRegistry.Url, testID)
+	originalImage := testutils.CreateMultiPlatformTestImage(t, fmt.Sprintf("multiplatform-app-%d", testID), "v1.0.0", platforms)
+	newTag := fmt.Sprintf("%s/multiplatform-app-%d:v1.1.0", "localhost:5000", testID)
 
 	// Test actual retag
 	err := RetagSingle(originalImage, newTag, false)
@@ -75,8 +54,8 @@ func TestRetagSingle_MultiPlatform(t *testing.T) {
 }
 
 func TestRetagSingle_InvalidSourceTag(t *testing.T) {
-	testID := testutils.GenerateTestID()
-	newTag := fmt.Sprintf("%s/testapp-%s:v1.0.0", sharedRegistry.Url, testID)
+	testID := rand.IntN(10000000000)
+	newTag := fmt.Sprintf("%s/testapp-%d:v1.0.0", "localhost:5000", testID)
 
 	// Test with invalid source tag
 	err := RetagSingle("invalid-image:tag", newTag, false)
@@ -85,8 +64,8 @@ func TestRetagSingle_InvalidSourceTag(t *testing.T) {
 }
 
 func TestRetagSingle_InvalidTargetTag(t *testing.T) {
-	testID := testutils.GenerateTestID()
-	originalImage := testutils.CreateTestImage(t, sharedRegistry, fmt.Sprintf("testapp-%s", testID), "v1.0.0")
+	testID := rand.IntN(10000000000)
+	originalImage := testutils.CreateTestImage(t, fmt.Sprintf("testapp-%d", testID), "v1.0.0")
 
 	// Test with invalid target tag
 	err := RetagSingle(originalImage, "invalid-target:tag", false)
@@ -116,15 +95,15 @@ func TestRetag_SingleTarget(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			testID := testutils.GenerateTestID()
+			testID := rand.IntN(10000000000)
 
 			// Create test image
 			var originalImage string
 			if tc.multiPlatform {
 				platforms := []string{"linux/amd64", "linux/arm64"}
-				originalImage = testutils.CreateMultiPlatformTestImage(t, sharedRegistry, fmt.Sprintf("%s-%s", tc.imageName, testID), "v1.0.0", platforms)
+				originalImage = testutils.CreateMultiPlatformTestImage(t, fmt.Sprintf("%s-%d", tc.imageName, testID), "v1.0.0", platforms)
 			} else {
-				originalImage = testutils.CreateTestImage(t, sharedRegistry, fmt.Sprintf("%s-%s", tc.imageName, testID), "v1.0.0")
+				originalImage = testutils.CreateTestImage(t, fmt.Sprintf("%s-%d", tc.imageName, testID), "v1.0.0")
 			}
 
 			// Create parsed command with new tags
@@ -133,8 +112,8 @@ func TestRetag_SingleTarget(t *testing.T) {
 			}
 			newTagsByTarget := map[string][]string{
 				"default": {
-					fmt.Sprintf("%s/%s-%s:v1.1.0", sharedRegistry.Url, tc.imageName, testID),
-					fmt.Sprintf("%s/%s-%s:latest", sharedRegistry.Url, tc.imageName, testID),
+					fmt.Sprintf("%s/%s-%d:v1.1.0", "localhost:5000", tc.imageName, testID),
+					fmt.Sprintf("%s/%s-%d:latest", "localhost:5000", tc.imageName, testID),
 				},
 			}
 
@@ -180,17 +159,17 @@ func TestRetag_MultipleTargets(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			testID := testutils.GenerateTestID()
+			testID := rand.IntN(10000000000)
 
 			// Create test images for multiple targets
 			var backendImage, frontendImage string
 			if tc.multiPlatform {
 				platforms := []string{"linux/amd64", "linux/arm64"}
-				backendImage = testutils.CreateMultiPlatformTestImage(t, sharedRegistry, fmt.Sprintf("backend-%s", testID), "v1.0.0", platforms)
-				frontendImage = testutils.CreateMultiPlatformTestImage(t, sharedRegistry, fmt.Sprintf("frontend-%s", testID), "v1.0.0", platforms)
+				backendImage = testutils.CreateMultiPlatformTestImage(t, fmt.Sprintf("backend-%d", testID), "v1.0.0", platforms)
+				frontendImage = testutils.CreateMultiPlatformTestImage(t, fmt.Sprintf("frontend-%d", testID), "v1.0.0", platforms)
 			} else {
-				backendImage = testutils.CreateTestImage(t, sharedRegistry, fmt.Sprintf("backend-%s", testID), "v1.0.0")
-				frontendImage = testutils.CreateTestImage(t, sharedRegistry, fmt.Sprintf("frontend-%s", testID), "v1.0.0")
+				backendImage = testutils.CreateTestImage(t, fmt.Sprintf("backend-%d", testID), "v1.0.0")
+				frontendImage = testutils.CreateTestImage(t, fmt.Sprintf("frontend-%d", testID), "v1.0.0")
 			}
 
 			// Create parsed command with new tags for multiple targets
@@ -200,12 +179,12 @@ func TestRetag_MultipleTargets(t *testing.T) {
 			}
 			newTagsByTarget := map[string][]string{
 				"backend": {
-					fmt.Sprintf("%s/backend-%s:v1.1.0", sharedRegistry.Url, testID),
-					fmt.Sprintf("%s/backend-%s:latest", sharedRegistry.Url, testID),
+					fmt.Sprintf("%s/backend-%d:v1.1.0", "localhost:5000", testID),
+					fmt.Sprintf("%s/backend-%d:latest", "localhost:5000", testID),
 				},
 				"frontend": {
-					fmt.Sprintf("%s/frontend-%s:v1.1.0", sharedRegistry.Url, testID),
-					fmt.Sprintf("%s/frontend-%s:latest", sharedRegistry.Url, testID),
+					fmt.Sprintf("%s/frontend-%d:v1.1.0", "localhost:5000", testID),
+					fmt.Sprintf("%s/frontend-%d:latest", "localhost:5000", testID),
 				},
 			}
 
@@ -238,15 +217,15 @@ func TestRetag_MultipleTargets(t *testing.T) {
 }
 
 func TestRetag_DifferentTargetCounts(t *testing.T) {
-	testID := testutils.GenerateTestID()
-	originalImage := testutils.CreateTestImage(t, sharedRegistry, fmt.Sprintf("testapp-%s", testID), "v1.0.0")
+	testID := rand.IntN(10000000000)
+	originalImage := testutils.CreateTestImage(t, fmt.Sprintf("testapp-%d", testID), "v1.0.0")
 
 	latestTagByTarget := map[string]string{
 		"default": originalImage,
 	}
 	newTagsByTarget := map[string][]string{
-		"default": {fmt.Sprintf("%s/testapp-%s:v1.1.0", sharedRegistry.Url, testID)},
-		"extra":   {fmt.Sprintf("%s/extra-%s:v1.1.0", sharedRegistry.Url, testID)},
+		"default": {fmt.Sprintf("%s/testapp-%d:v1.1.0", "localhost:5000", testID)},
+		"extra":   {fmt.Sprintf("%s/extra-%d:v1.1.0", "localhost:5000", testID)},
 	}
 
 	// Test should fail because target counts don't match
@@ -256,14 +235,14 @@ func TestRetag_DifferentTargetCounts(t *testing.T) {
 }
 
 func TestRetag_DifferentTargets(t *testing.T) {
-	testID := testutils.GenerateTestID()
-	originalImage := testutils.CreateTestImage(t, sharedRegistry, fmt.Sprintf("testapp-%s", testID), "v1.0.0")
+	testID := rand.IntN(10000000000)
+	originalImage := testutils.CreateTestImage(t, fmt.Sprintf("testapp-%d", testID), "v1.0.0")
 
 	latestTagByTarget := map[string]string{
 		"default": originalImage,
 	}
 	newTagsByTarget := map[string][]string{
-		"different_target": {fmt.Sprintf("%s/testapp-%s:v1.1.0", sharedRegistry.Url, testID)},
+		"different_target": {fmt.Sprintf("%s/testapp-%d:v1.1.0", "localhost:5000", testID)},
 	}
 
 	// Test should fail because targets don't match
@@ -292,15 +271,15 @@ func TestRetag_DryRun(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			testID := testutils.GenerateTestID()
+			testID := rand.IntN(10000000000)
 
 			// Create test image
 			var originalImage string
 			if tc.multiPlatform {
 				platforms := []string{"linux/amd64", "linux/arm64"}
-				originalImage = testutils.CreateMultiPlatformTestImage(t, sharedRegistry, fmt.Sprintf("%s-%s", tc.imageName, testID), "v1.0.0", platforms)
+				originalImage = testutils.CreateMultiPlatformTestImage(t, fmt.Sprintf("%s-%d", tc.imageName, testID), "v1.0.0", platforms)
 			} else {
-				originalImage = testutils.CreateTestImage(t, sharedRegistry, fmt.Sprintf("%s-%s", tc.imageName, testID), "v1.0.0")
+				originalImage = testutils.CreateTestImage(t, fmt.Sprintf("%s-%d", tc.imageName, testID), "v1.0.0")
 			}
 
 			// Create parsed command
@@ -308,7 +287,7 @@ func TestRetag_DryRun(t *testing.T) {
 				"default": originalImage,
 			}
 			newTagsByTarget := map[string][]string{
-				"default": {fmt.Sprintf("%s/%s-%s:v1.1.0", sharedRegistry.Url, tc.imageName, testID)},
+				"default": {fmt.Sprintf("%s/%s-%d:v1.1.0", "localhost:5000", tc.imageName, testID)},
 			}
 
 			// Test dry run - should not actually retag
@@ -324,9 +303,9 @@ func TestRetag_DryRun(t *testing.T) {
 }
 
 func TestSimpleRetag_Success(t *testing.T) {
-	testID := testutils.GenerateTestID()
-	originalImage := testutils.CreateTestImage(t, sharedRegistry, fmt.Sprintf("testapp-%s", testID), "v1.0.0")
-	newTag := fmt.Sprintf("%s/testapp-%s:v1.1.0", sharedRegistry.Url, testID)
+	testID := rand.IntN(10000000000)
+	originalImage := testutils.CreateTestImage(t, fmt.Sprintf("testapp-%d", testID), "v1.0.0")
+	newTag := fmt.Sprintf("%s/testapp-%d:v1.1.0", "localhost:5000", testID)
 
 	// Test simple retag
 	err := SimpleRetag(originalImage, newTag)
@@ -338,8 +317,8 @@ func TestSimpleRetag_Success(t *testing.T) {
 }
 
 func TestSimpleRetag_InvalidSourceReference(t *testing.T) {
-	testID := testutils.GenerateTestID()
-	newTag := fmt.Sprintf("%s/testapp-%s:v1.0.0", sharedRegistry.Url, testID)
+	testID := rand.IntN(10000000000)
+	newTag := fmt.Sprintf("%s/testapp-%d:v1.0.0", "localhost:5000", testID)
 
 	// Test with invalid source reference
 	err := SimpleRetag("invalid:reference:format", newTag)
@@ -348,8 +327,8 @@ func TestSimpleRetag_InvalidSourceReference(t *testing.T) {
 }
 
 func TestSimpleRetag_InvalidTargetReference(t *testing.T) {
-	testID := testutils.GenerateTestID()
-	originalImage := testutils.CreateTestImage(t, sharedRegistry, fmt.Sprintf("testapp-%s", testID), "v1.0.0")
+	testID := rand.IntN(10000000000)
+	originalImage := testutils.CreateTestImage(t, fmt.Sprintf("testapp-%d", testID), "v1.0.0")
 
 	// Test with invalid target reference
 	err := SimpleRetag(originalImage, "invalid:reference:format")
@@ -358,8 +337,8 @@ func TestSimpleRetag_InvalidTargetReference(t *testing.T) {
 }
 
 func TestSimpleRetag_NonExistentSource(t *testing.T) {
-	testID := testutils.GenerateTestID()
-	newTag := fmt.Sprintf("%s/testapp-%s:v1.0.0", sharedRegistry.Url, testID)
+	testID := rand.IntN(10000000000)
+	newTag := fmt.Sprintf("%s/testapp-%d:v1.0.0", "localhost:5000", testID)
 
 	// Test with non-existent source image
 	err := SimpleRetag("nonexistent/image:tag", newTag)
