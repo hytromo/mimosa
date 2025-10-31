@@ -48,7 +48,6 @@ class RegistryConnectionError(RegistryError):
 async def get_tag_manifest(registry_url: str, image: str, tag: str) -> ManifestResponse:
     url = urljoin(registry_url.rstrip("/") + "/", f"v2/{image}/manifests/{tag}")
 
-    # Request both the index and the image manifests
     headers = {
         "Accept": "application/vnd.oci.image.index.v1+json"  # Request OCI index format specifically
     }

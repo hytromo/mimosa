@@ -15,7 +15,7 @@
 </div>
 
 > [!WARNING]
-> While `mimosa` has an extensive testing suite, it is in beta state. If you find a bug, please [open an issue](https://github.com/hytromo/mimosa/issues/new). Caution is advised on production usage.
+> While `mimosa` has an extensive testing suite, it is in beta state. If you find a bug, please [open an issue](https://github.com/hytromo/mimosa/issues/new). Caution is advised for production usage.
 
 # What does it do
 

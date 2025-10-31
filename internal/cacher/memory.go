@@ -38,7 +38,7 @@ type CacheFileWithHash struct {
 // the cache loaded in memory as z85 key->cache
 type InMemoryCache = orderedmap.OrderedMap[string, CacheFile]
 
-// GetSeparatedInMemoryEntries returns "z85Key -> full cache value" cache entries
+// GetSeparatedInMemoryEntries extracts the "z85Key -> full cache value" cache entries from the environment variable "InjectCacheEnvVarName"
 func GetSeparatedInMemoryEntries() map[string]string {
 	allEntries := make(map[string]string)
 
@@ -63,7 +63,7 @@ func GetSeparatedInMemoryEntries() map[string]string {
 	return allEntries
 }
 
-// GetInMemoryEntries retrieves all in-memory cache entries from the environment variable.
+// GetInMemoryEntries retrieves all in-memory cache entries from the environment variable in a structured ordered map
 func GetAllInMemoryEntries() *InMemoryCache {
 	inMemoryEntries := orderedmap.NewOrderedMap[string, CacheFile]()
 

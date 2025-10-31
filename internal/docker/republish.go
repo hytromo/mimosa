@@ -13,7 +13,6 @@ func PublishManifestsUnderTag(imageName string, tag string, manifests []string) 
 	// imageName is expected to be like "hytromo/mimosa-example"
 	// tag is the new tag to push to (e.g. "v1")
 
-	// Validate input
 	if len(manifests) == 0 {
 		return fmt.Errorf("no manifests provided")
 	}

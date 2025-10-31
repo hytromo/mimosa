@@ -43,12 +43,10 @@ type OnlyMessageHandler struct {
 	level  slog.Level
 }
 
-// SetWriter sets the writer for the handler (useful for testing)
 func (h *OnlyMessageHandler) SetWriter(writer io.Writer) {
 	h.writer = writer
 }
 
-// GetWriter returns the current writer (useful for testing)
 func (h *OnlyMessageHandler) GetWriter() io.Writer {
 	return h.writer
 }
@@ -63,12 +61,10 @@ func (h *OnlyMessageHandler) Handle(ctx context.Context, record slog.Record) err
 }
 
 func (h *OnlyMessageHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	// For simplicity, we don't support attributes in the only-message handler
 	return h
 }
 
 func (h *OnlyMessageHandler) WithGroup(name string) slog.Handler {
-	// For simplicity, we don't support groups in the only-message handler
 	return h
 }
 
@@ -77,14 +73,6 @@ var CleanLog = slog.New(&OnlyMessageHandler{
 	writer: os.Stdout,
 	level:  slog.LevelInfo,
 })
-
-// GetCleanLogHandler returns the handler used by CleanLog (useful for testing)
-func GetCleanLogHandler() *OnlyMessageHandler {
-	if handler, ok := CleanLog.Handler().(*OnlyMessageHandler); ok {
-		return handler
-	}
-	return nil
-}
 
 // IsLevelEnabled checks if the given level is enabled (equivalent to logrus IsLevelEnabled)
 func IsLevelEnabled(level slog.Level) bool {

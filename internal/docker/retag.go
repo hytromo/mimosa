@@ -14,7 +14,7 @@ import (
 	"github.com/hytromo/mimosa/internal/utils/dockerutil"
 )
 
-func RetagSingle(fromTag string, toTag string, dryRun bool) error {
+func RetagSingleTag(fromTag string, toTag string, dryRun bool) error {
 	fromRef, err := dockerutil.ParseTag(fromTag)
 	if err != nil {
 		return err
@@ -92,7 +92,7 @@ func getTargetsCommaSeparated[V any](m map[string]V) string {
 
 // Retag an image by fetching its descriptor and pushing it under a new tag.
 // If the image is a manifest list, it will repush all manifests under the new tag
-// latestTagByTarget is the map of target->latest cached tag
+// cachedLatestTagByTarget is the map of target->latest cached tag
 // newTagsByTarget is the map of target->new tags to push based on the cached entries
 func Retag(cachedLatestTagByTarget map[string]string, newTagsByTarget map[string][]string, dryRun bool) error {
 	if len(cachedLatestTagByTarget) != len(newTagsByTarget) {
@@ -131,7 +131,7 @@ func Retag(cachedLatestTagByTarget map[string]string, newTagsByTarget map[string
 			slog.Info("Skipping retagging to itself", "tag", fromTag)
 			return
 		}
-		if err := RetagSingle(fromTag, toTag, dryRun); err != nil {
+		if err := RetagSingleTag(fromTag, toTag, dryRun); err != nil {
 			errChan <- err
 		}
 	}

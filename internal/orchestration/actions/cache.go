@@ -28,19 +28,15 @@ func (a *Actioner) SaveCache(cacheEntry cacher.Cache, tagsByTarget map[string][]
 }
 
 func (a *Actioner) ForgetCacheEntriesOlderThan(duration string, autoApprove bool, dryRun bool) error {
-	forgetDuration, err := parseDuration("0s") // purge
+	if duration == "" {
+		duration = "0s" // purge
+	}
+
+	forgetDuration, err := parseDuration(duration)
 
 	if err != nil {
 		slog.Error("Invalid forget duration", "error", err)
 		return err
-	}
-
-	if duration != "" {
-		forgetDuration, err = parseDuration(duration)
-		if err != nil {
-			slog.Error("Invalid forget duration", "error", err)
-			return err
-		}
 	}
 
 	forgetTime := time.Now().UTC().Add(-forgetDuration)
@@ -59,18 +55,17 @@ func (a *Actioner) ForgetCacheEntriesOlderThan(duration string, autoApprove bool
 }
 
 func (a *Actioner) PrintCacheDir() {
-	// use CleanLog
 	logger.CleanLog.Info(cacher.CacheDir)
 }
 
 func (a *Actioner) ExportCacheToFile(cacheDir string, filePath string) error {
-	diskEntries := cacher.GetDiskCacheToMemoryEntries(cacheDir)
-
 	file, err := os.Create(filePath)
 
 	if err != nil {
 		return err
 	}
+
+	diskEntries := cacher.GetDiskCacheToMemoryEntries(cacheDir)
 
 	slog.Debug("-- Disk Cache Entries --")
 	for z85Key, value := range diskEntries.AllFromFront() {

@@ -25,7 +25,7 @@ func HandleRememberOrForgetSubcommands(rememberOptions configuration.RememberSub
 		return errors.New("no subcommand enabled")
 	}
 
-	parsedCommand, err := getCommandHash(commandContainer, act)
+	parsedCommand, err := act.ParseCommand(commandContainer.GetCommandToRun())
 
 	if err != nil {
 		fallbackToExecutingCommandIfRemembering(err, dryRun, rememberOptions.Enabled, act, parsedCommand.Command)
@@ -39,8 +39,8 @@ func HandleRememberOrForgetSubcommands(rememberOptions configuration.RememberSub
 	if forgetOptions.Enabled {
 		return act.RemoveCacheEntry(cacheEntry, dryRun)
 	}
-	// remember branch
 
+	// remember branch
 	cacheHit := cacheEntry.Exists()
 
 	if cacheHit {
@@ -65,10 +65,6 @@ func HandleRememberOrForgetSubcommands(rememberOptions configuration.RememberSub
 
 	// regardless of whether the cache already exists or not, we need to save/update it on disk
 	return act.SaveCache(cacheEntry, parsedCommand.TagsByTarget, dryRun)
-}
-
-func getCommandHash(commandContainer configuration.CommandContainer, act actions.Actions) (configuration.ParsedCommand, error) {
-	return act.ParseCommand(commandContainer.GetCommandToRun())
 }
 
 func fallbackToExecutingCommandIfRemembering(err error, dryRun bool, remembering bool, act actions.Actions, commandToRun []string) {

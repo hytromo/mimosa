@@ -44,7 +44,6 @@ func (cache *Cache) GetLatestTagByTarget() (map[string]string, error) {
 	if exists {
 		tagsByTarget = inMemoryEntry.TagsByTarget
 	} else {
-		// read the cache file and for each of the targets get the most recent cached tag:
 		data, err := os.ReadFile(cache.DataPath())
 		if err != nil {
 			return nil, err
@@ -63,6 +62,7 @@ func (cache *Cache) GetLatestTagByTarget() (map[string]string, error) {
 
 	for target, tags := range tagsByTarget {
 		if len(tags) > 0 {
+			// for each of the targets get the most recent cached tag
 			latestTagByTarget[target] = tags[len(tags)-1]
 		}
 	}

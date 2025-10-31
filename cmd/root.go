@@ -10,7 +10,7 @@ import (
 var rootCmd = &cobra.Command{
 	Use:   "mimosa",
 	Short: "Zero-config docker image promotion",
-	Long:  `Mimosa creates a unique hash<->tag association for each docker build - for the same build, mimosa will retag your image, instead of building it again!`,
+	Long:  `Mimosa saves a unique hash for each docker build - if it bumps into the same exact build, it will simply retag your image instead of rebuilding it.`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		forceDebug, _ := cmd.Flags().GetBool(debugFlag)
 		logger.InitLogging(forceDebug)

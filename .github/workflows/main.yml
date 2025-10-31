@@ -286,7 +286,7 @@ jobs:
 
   release:
     name: Release
-    needs: [build, unit-tests, e2e-tests, integration-tests]
+    needs: [build, unit-tests, e2e-tests, integration-tests, linting-tests]
     permissions:
       contents: write # write release
     if: startsWith(github.ref, 'refs/tags/v') # only on version tags

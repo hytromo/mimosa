@@ -150,7 +150,6 @@ func ParseBuildCommand(dockerBuildCmd []string) (parsedCommand configuration.Par
 		return parsedCommand, fmt.Errorf("not enough arguments for a docker build command")
 	}
 
-	// Use argsparser logic to check docker and build/buildx
 	executable := dockerBuildCmd[0]
 	if executable != "docker" {
 		return parsedCommand, fmt.Errorf("only 'docker' executable is supported for caching, got: %s", executable)
@@ -164,25 +163,22 @@ func ParseBuildCommand(dockerBuildCmd []string) (parsedCommand configuration.Par
 		return parsedCommand, fmt.Errorf("only image building is supported")
 	}
 
-	allTags, allBuildContexts, dockerfilePath, err := extractBuildFlags(args)
-
-	// dockerfilePath is relative to CWD
+	allTags, allBuildContexts, relativeDockerfilePath, err := extractBuildFlags(args)
 
 	if err != nil {
 		return parsedCommand, err
 	}
 
-	contextPath, err := findContextPath(dockerBuildCmd)
+	relativeContextPath, err := findContextPath(dockerBuildCmd)
 	if err != nil {
 		return parsedCommand, err
 	}
 
 	// Get absolute path for contextPath
-	absCtxPath, err := filepath.Abs(contextPath)
+	absoluteContextPath, err := filepath.Abs(relativeContextPath)
 	if err != nil {
 		return parsedCommand, err
 	}
-	contextPath = absCtxPath
 
 	allRegistryDomains := []string{}
 	for _, tag := range allTags {
@@ -195,14 +191,14 @@ func ParseBuildCommand(dockerBuildCmd []string) (parsedCommand configuration.Par
 		return parsedCommand, err
 	}
 
-	dockerfilePath = fileresolution.ResolveAbsoluteDockerfilePath(cwd, dockerfilePath)
-	dockerignorePath := fileresolution.ResolveAbsoluteDockerIgnorePath(contextPath, dockerfilePath)
+	absoluteDockerfilePath := fileresolution.ResolveAbsoluteDockerfilePath(cwd, relativeDockerfilePath)
+	dockerignorePath := fileresolution.ResolveAbsoluteDockerIgnorePath(absoluteContextPath, relativeDockerfilePath)
 
 	// add the context in all the build contexts:
-	allBuildContexts[configuration.MainBuildContextName] = contextPath
+	allBuildContexts[configuration.MainBuildContextName] = absoluteContextPath
 
 	parsedCommand.Hash = hasher.HashBuildCommand(hasher.DockerBuildCommand{
-		DockerfilePath:         dockerfilePath,
+		DockerfilePath:         absoluteDockerfilePath,
 		DockerignorePath:       dockerignorePath,
 		BuildContexts:          allBuildContexts,
 		AllRegistryDomains:     lo.Uniq(allRegistryDomains),

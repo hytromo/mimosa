@@ -41,7 +41,7 @@ func HashBuildCommand(command DockerBuildCommand) string {
 	registryDomainsHash := registryDomainsHash(command.AllRegistryDomains)
 
 	allLocalContexts := map[string]string{} // context name -> context path
-	// find all the included files of the build contexts that are local (not https://, not docker-image://, not oci-layout://)
+	// find all the included files of the build contexts that are local
 	for contextName, contextPath := range command.BuildContexts {
 		if !strings.HasPrefix(contextPath, "https://") && !strings.HasPrefix(contextPath, "docker-image://") && !strings.HasPrefix(contextPath, "oci-layout://") {
 			allLocalContexts[contextName] = contextPath
@@ -137,7 +137,7 @@ func HashBuildCommand(command DockerBuildCommand) string {
 	filesHash := HashFiles(allFilesAcrossContexts, nWorkers)
 
 	if logger.IsDebugEnabled() {
-		slog.Debug("Hashing files across build contexts", "fileCount", len(allFilesAcrossContexts), "contextCount", len(allLocalContexts))
+		slog.Debug("Hashed files across build contexts", "fileCount", len(allFilesAcrossContexts), "contextCount", len(allLocalContexts))
 		slog.Debug("Build command hashes", "cmdHash", cmdHash, "filesHash", filesHash, "registryDomainsHash", registryDomainsHash)
 	}
 
@@ -146,9 +146,9 @@ func HashBuildCommand(command DockerBuildCommand) string {
 		cmdHash,
 		// the domains used to push the image to
 		// including this is important for the edge case where the same
-		// exact build is repeated with different domains - promotion doesn't work then
+		// exact build is repeated with different domains - retagging wouldn't work then
 		registryDomainsHash,
-		// includes all the build contexts' files, plus dockerfile (and dockerignore optionally)
+		// includes all the build contexts' files, plus dockerfile (and maybe dockerignore)
 		filesHash,
 	})
 }

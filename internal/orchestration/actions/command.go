@@ -33,7 +33,7 @@ func (a *Actioner) RunCommand(dryRun bool, command []string) int {
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			if status, ok := exitErr.Sys().(interface{ ExitStatus() int }); ok {
-				// trying to exit the same using the same exit status like docker
+				// exit using the same exit code from the command for consistency
 				return status.ExitStatus()
 			}
 		}

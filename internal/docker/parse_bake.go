@@ -90,7 +90,6 @@ func extractBakeFlags(args []string) (bakeFiles, targetNames, overrides []string
 		for _, file := range defaultBakeLookupOrder {
 			if _, err := os.Stat(file); err == nil {
 				bakeFiles = append(bakeFiles, file)
-				break
 			}
 		}
 	}
@@ -142,11 +141,9 @@ func ParseBakeCommand(dockerBakeCmd []string) (parsedCommand configuration.Parse
 	}
 
 	if logger.IsDebugEnabled() {
-		slog.Debug("Parsed bake command")
-		slog.Debug("Bake files", "files", bakeFiles)
-		slog.Debug("Target names", "names", targetNames)
+		slog.Debug("Parsed bake command", "bakeFiles", bakeFiles, "targets", targetNames, "overrides", overrides)
 		for name, target := range targets {
-			slog.Debug("Target", "name", name, "tags", target.Tags)
+			slog.Debug("Tags per target", "target-name", name, "tags", target.Tags)
 		}
 	}
 

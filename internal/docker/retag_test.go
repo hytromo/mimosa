@@ -19,7 +19,7 @@ func TestRetagSingle_SinglePlatform(t *testing.T) {
 	newTag := fmt.Sprintf("%s/testapp-%d:v1.1.0", "localhost:5000", testID)
 
 	// Test dry run
-	err := RetagSingle(originalImage, newTag, true)
+	err := RetagSingleTag(originalImage, newTag, true)
 	assert.NoError(t, err)
 
 	// Verify the new tag doesn't exist (because it was dry run)
@@ -27,7 +27,7 @@ func TestRetagSingle_SinglePlatform(t *testing.T) {
 	assert.Error(t, err, "Image should not exist in dry run mode: %s", newTag)
 
 	// Test actual retag
-	err = RetagSingle(originalImage, newTag, false)
+	err = RetagSingleTag(originalImage, newTag, false)
 	assert.NoError(t, err)
 
 	// Verify the new tag exists
@@ -42,7 +42,7 @@ func TestRetagSingle_MultiPlatform(t *testing.T) {
 	newTag := fmt.Sprintf("%s/multiplatform-app-%d:v1.1.0", "localhost:5000", testID)
 
 	// Test actual retag
-	err := RetagSingle(originalImage, newTag, false)
+	err := RetagSingleTag(originalImage, newTag, false)
 	assert.NoError(t, err)
 
 	// Verify the new tag exists
@@ -58,7 +58,7 @@ func TestRetagSingle_InvalidSourceTag(t *testing.T) {
 	newTag := fmt.Sprintf("%s/testapp-%d:v1.0.0", "localhost:5000", testID)
 
 	// Test with invalid source tag
-	err := RetagSingle("invalid-image:tag", newTag, false)
+	err := RetagSingleTag("invalid-image:tag", newTag, false)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to get descriptor")
 }
@@ -68,7 +68,7 @@ func TestRetagSingle_InvalidTargetTag(t *testing.T) {
 	originalImage := testutils.CreateTestImage(t, fmt.Sprintf("testapp-%d", testID), "v1.0.0")
 
 	// Test with invalid target tag
-	err := RetagSingle(originalImage, "invalid-target:tag", false)
+	err := RetagSingleTag(originalImage, "invalid-target:tag", false)
 	assert.Error(t, err)
 }
 
