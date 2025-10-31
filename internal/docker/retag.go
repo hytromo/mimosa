@@ -3,6 +3,7 @@ package docker
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 
 	"log/slog"
@@ -81,27 +82,35 @@ func RetagSingle(fromTag string, toTag string, dryRun bool) error {
 	return nil
 }
 
+func getTargetsCommaSeparated[V any](m map[string]V) string {
+	var targets []string
+	for k := range m {
+		targets = append(targets, k)
+	}
+	return strings.Join(targets, ",")
+}
+
 // Retag an image by fetching its descriptor and pushing it under a new tag.
 // If the image is a manifest list, it will repush all manifests under the new tag
 // latestTagByTarget is the map of target->latest cached tag
 // newTagsByTarget is the map of target->new tags to push based on the cached entries
-func Retag(latestTagByTarget map[string]string, newTagsByTarget map[string][]string, dryRun bool) error {
-	if len(latestTagByTarget) != len(newTagsByTarget) {
-		return fmt.Errorf("different amount of targets between cache and new tags")
+func Retag(cachedLatestTagByTarget map[string]string, newTagsByTarget map[string][]string, dryRun bool) error {
+	if len(cachedLatestTagByTarget) != len(newTagsByTarget) {
+		return fmt.Errorf("different amount of targets between cache and new tags (cache=%s - new=%s)", getTargetsCommaSeparated(cachedLatestTagByTarget), getTargetsCommaSeparated(newTagsByTarget))
 	}
 
-	for target := range latestTagByTarget {
+	for target := range cachedLatestTagByTarget {
 		if _, ok := newTagsByTarget[target]; !ok {
-			return fmt.Errorf("different targets between cache and new tags")
+			return fmt.Errorf("different targets between cache and new tags (cache=%s - new=%s)", getTargetsCommaSeparated(cachedLatestTagByTarget), getTargetsCommaSeparated(newTagsByTarget))
 		}
 	}
 
 	if dryRun {
-		slog.Info("> DRY RUN: would be retagged", "from", latestTagByTarget, "to", newTagsByTarget)
+		slog.Info("> DRY RUN: would be retagged", "from", cachedLatestTagByTarget, "to", newTagsByTarget)
 		return nil
 	}
 
-	slog.Info("Retagging", "from", latestTagByTarget, "to", newTagsByTarget)
+	slog.Info("Retagging", "from", cachedLatestTagByTarget, "to", newTagsByTarget)
 
 	// each worker will do 1 retag operation, so the total workers needs to be len(newTagsByTarget[*])
 	nWorkers := 0
@@ -128,7 +137,7 @@ func Retag(latestTagByTarget map[string]string, newTagsByTarget map[string][]str
 	}
 
 	// Launch workers
-	for target, latestTag := range latestTagByTarget {
+	for target, latestTag := range cachedLatestTagByTarget {
 		for _, newTag := range newTagsByTarget[target] {
 			slog.Debug("Starting retag worker", "from", latestTag, "to", newTag)
 			go worker(latestTag, newTag)

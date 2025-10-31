@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 #MISE description="Run the integration tests"
-#MISE depends=["init-tests"]
+#MISE depends=["tests:init"]
 
 set -euo pipefail
 

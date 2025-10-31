@@ -6,22 +6,12 @@ import (
 	"log/slog"
 	"os"
 	"strings"
-
-	"golang.org/x/term"
 )
 
 // Global log level for checking if debug logging is enabled
 var globalLogLevel slog.Level = slog.LevelInfo
 
-func isTerminal() bool {
-	return term.IsTerminal(int(os.Stdout.Fd()))
-}
-
-func InitLogging(customIsTerminal func() bool, forceDebug bool) {
-	if customIsTerminal == nil {
-		customIsTerminal = isTerminal
-	}
-
+func InitLogging(forceDebug bool) {
 	var level slog.Level
 	if forceDebug {
 		level = slog.LevelDebug
@@ -41,24 +31,10 @@ func InitLogging(customIsTerminal func() bool, forceDebug bool) {
 		}
 	}
 
+	slog.SetLogLoggerLevel(level)
+
 	// Store the global log level
 	globalLogLevel = level
-
-	var handler slog.Handler
-	if customIsTerminal() {
-		// For terminal output, use a simple text handler that only shows messages
-		handler = &OnlyMessageHandler{
-			writer: os.Stdout,
-			level:  level,
-		}
-	} else {
-		// For non-terminal output, use JSON handler for structured logging
-		handler = slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-			Level: level,
-		})
-	}
-
-	slog.SetDefault(slog.New(handler))
 }
 
 // OnlyMessageHandler is a custom slog handler that only outputs the message

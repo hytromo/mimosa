@@ -11,3 +11,4 @@ class SetupConfig(BaseModel):
     targets: Literal["single", "multiple"]
     dockerignore: Literal["single", "multiple", "none"]
     context: Literal["cwd", "subdir"]
+    cache_source: Literal["disk", "memory"]

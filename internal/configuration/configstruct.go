@@ -30,9 +30,9 @@ func (f ForgetSubcommandOptions) GetCommandToRun() []string {
 
 // CacheSubcommandOptions defines the options of the cache subcommand
 type CacheSubcommandOptions struct {
-	Enabled    bool
-	Show       bool
-	ToEnvValue bool
+	Enabled      bool
+	Show         bool
+	ExportToFile string
 }
 
 // AppOptions defines the options of the application

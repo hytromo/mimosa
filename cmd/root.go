@@ -13,7 +13,7 @@ var rootCmd = &cobra.Command{
 	Long:  `Mimosa creates a unique hash<->tag association for each docker build - for the same build, mimosa will retag your image, instead of building it again!`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		forceDebug, _ := cmd.Flags().GetBool(debugFlag)
-		logger.InitLogging(nil, forceDebug)
+		logger.InitLogging(forceDebug)
 	},
 }
 

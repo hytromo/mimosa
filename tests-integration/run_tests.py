@@ -68,11 +68,12 @@ async def assert_tags_have_platforms(
     assert at_least_one_checked, "Expected at least one tag to be checked"
 
 
-async def run_command_with_expectation(
+async def run_command_with_expectations(
     command: Command,
     cwd: Path,
     cache_hit: bool,
     expect_same_manifests_with_on_cache_hit: List[str] = None,
+    extra_output_expectation=None,
 ):
     try:
         # Print directory structure
@@ -119,6 +120,14 @@ async def run_command_with_expectation(
             raise ValueError(f"Expected {expected_output} in stdout")
         else:
             print(f"👍 Cache hit expectation met: {expected_output}")
+
+        if extra_output_expectation:
+            if (extra_output_expectation not in result.stdout) and (
+                extra_output_expectation not in result.stderr
+            ):
+                raise ValueError(f"Expected {extra_output_expectation} in stdout or stderr")
+            else:
+                print(f"👍 Extra output expectation met: {extra_output_expectation}")
 
         if not cache_hit:
             # the original manifests need to include information about the platforms
@@ -259,35 +268,43 @@ async def main():
                             for context in env_variable_to_list(
                                 "context", ["cwd", "subdir"]
                             ):
-                                if bakefile_type == "none":
-                                    if (
-                                        dockerfile_type == "multiple"
-                                        or dockerignore == "multiple"
-                                        or targets == "multiple"
+                                for cache_source in env_variable_to_list(
+                                    "cache_source", ["memory", "disk"]
+                                ):
+                                    if bakefile_type == "none":
+                                        if (
+                                            dockerfile_type == "multiple"
+                                            or dockerignore == "multiple"
+                                            or targets == "multiple"
+                                        ):
+                                            continue
+                                    elif (
+                                        bakefile_type == "single"
+                                        and context == "subdir"
                                     ):
                                         continue
-                                elif bakefile_type == "single" and context == "subdir":
-                                    continue
-                                elif (
-                                    bakefile_type == "multiple" and context == "subdir"
-                                ):
-                                    continue
+                                    elif (
+                                        bakefile_type == "multiple"
+                                        and context == "subdir"
+                                    ):
+                                        continue
 
-                                setup_config = {
-                                    "bakefile_type": bakefile_type,
-                                    "bakefile_location": bakefile_location,
-                                    "dockerfile_type": dockerfile_type,
-                                    "dockerfile_location": dockerfile_location,
-                                    "targets": targets,
-                                    "dockerignore": dockerignore,
-                                    "context": context,
-                                }
-                                output_dir = Path(
-                                    tempfile.mkdtemp(
-                                        prefix="mimosa_", suffix="_workdir"
+                                    setup_config = {
+                                        "bakefile_type": bakefile_type,
+                                        "bakefile_location": bakefile_location,
+                                        "dockerfile_type": dockerfile_type,
+                                        "dockerfile_location": dockerfile_location,
+                                        "targets": targets,
+                                        "dockerignore": dockerignore,
+                                        "cache_source": cache_source,
+                                        "context": context,
+                                    }
+                                    output_dir = Path(
+                                        tempfile.mkdtemp(
+                                            prefix="mimosa_", suffix="_workdir"
+                                        )
                                     )
-                                )
-                                test_configs.append((setup_config, str(output_dir)))
+                                    test_configs.append((setup_config, str(output_dir)))
 
     # Run tests in processes, keep per-test logs at output_dir/test.log
     pending_test_configs = deque(test_configs)
@@ -383,6 +400,7 @@ async def run_test(setup_config: SetupConfig, output_dir: Path):
             "dockerfiles": dockerfiles,
             "bakefiles": bakefiles,
             "output_dir": output_dir,
+            "cache_source": setup_config.cache_source,
             **target_tags,
         }
         initial_1st_target_tags: List[str] = original_command_options[
@@ -394,7 +412,7 @@ async def run_test(setup_config: SetupConfig, output_dir: Path):
         command_options_no_tags.pop("first_target_tags", None)
         command_options_no_tags.pop("second_target_tags", None)
 
-        await run_command_with_expectation(command, cwd=output_dir, cache_hit=False)
+        await run_command_with_expectations(command, cwd=output_dir, cache_hit=False)
 
         # change the content of an excluded file and expect cache hit
         tested_changes = {}
@@ -409,15 +427,19 @@ async def run_test(setup_config: SetupConfig, output_dir: Path):
                     _, new_tags = generate_target_tags(
                         f"modified-{file_type}", original_uuid
                     )
-                    await run_command_with_expectation(
+                    cache_hit_expected = True if file_type == "excluded" else False
+                    await run_command_with_expectations(
                         generate_docker_command(
                             **command_options_no_tags,
                             **new_tags,
                             cache_dir=command.env["MIMOSA_CACHE_DIR"],
                         ),
                         cwd=output_dir,
-                        cache_hit=True if file_type == "excluded" else False,
+                        cache_hit=cache_hit_expected,
                         expect_same_manifests_with_on_cache_hit=initial_1st_target_tags,
+                        extra_output_expectation="Cache hit in memory"
+                        if setup_config.cache_source == "memory" and cache_hit_expected
+                        else None,
                     )
                     tested_changes[file_type] = True
 
@@ -437,7 +459,7 @@ async def run_test(setup_config: SetupConfig, output_dir: Path):
                 _, new_tags = generate_target_tags(
                     "modified-cache-miss-bakefile", original_uuid
                 )
-                await run_command_with_expectation(
+                await run_command_with_expectations(
                     generate_docker_command(
                         **command_options_no_tags,
                         **new_tags,
@@ -459,7 +481,7 @@ async def run_test(setup_config: SetupConfig, output_dir: Path):
                 _, new_tags = generate_target_tags(
                     "modified-cache-miss-dockerfile", original_uuid
                 )
-                await run_command_with_expectation(
+                await run_command_with_expectations(
                     generate_docker_command(
                         **command_options_no_tags,
                         **new_tags,

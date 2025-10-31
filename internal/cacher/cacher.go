@@ -27,7 +27,7 @@ type CacheFile struct {
 // Cache represents the final hash of the currently running command and files
 // and the current available in-memory cache entries
 type Cache struct {
-	InMemoryEntries *InMemoryCache // populated by the "envVarName" environment variable and taking precedence over the cache directory
+	InMemoryEntries *InMemoryCache // populated by the "InjectCacheEnvVarName" environment variable and taking precedence over the cache directory
 	CacheDir        string         // the directory where the cache files are stored - defaults to CacheDir
 	Hash            string         // the final hash of the current command and files
 }

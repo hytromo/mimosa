@@ -1,10 +1,10 @@
 import os
+import subprocess
 import tempfile
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Literal
 
 from pydantic import BaseModel
-
 from test_creator import (
     TemplatedFile,
 )
@@ -18,6 +18,29 @@ class Command(BaseModel):
     cwd: Path
 
 
+def get_disk_cache_to_env(cache_dir: str) -> Dict[str, str]:
+    _, tmp_file = tempfile.mkstemp(prefix="mimosa-env")
+
+    subprocess.run(
+        f"/usr/local/bin/mimosa cache --export-to '{tmp_file}'",
+        env={"MIMOSA_CACHE_DIR": cache_dir},
+        shell=True,
+        check=True,
+        capture_output=True,
+    )
+
+    # the contents of this file is the mimosa cache
+    cache = ""
+    with open(tmp_file, "r") as f:
+        cache = f.read()
+
+    os.remove(tmp_file)
+
+    return {
+        "MIMOSA_CACHE": cache,
+    }
+
+
 def generate_docker_command(
     setup_config: SetupConfig,
     dockerfiles: List[TemplatedFile],
@@ -26,12 +49,17 @@ def generate_docker_command(
     first_target_tags: List[str],
     second_target_tags: List[str],
     cache_dir: str = None,
+    cache_source: Literal["disk", "memory"] = None,
 ) -> Command:
     cwd = Path(output_dir)
 
     final_cache_dir = (
         cache_dir if cache_dir else tempfile.mkdtemp(prefix="mimosa_", suffix="_cache")
     )
+
+    extra_env = {}
+    if cache_source == "memory":
+        extra_env = get_disk_cache_to_env(final_cache_dir)
 
     if setup_config.bakefile_type == "none":
         if len(dockerfiles) > 1:
@@ -61,6 +89,7 @@ def generate_docker_command(
                 **os.environ.copy(),
                 "LOG_LEVEL": "DEBUG",
                 "MIMOSA_CACHE_DIR": final_cache_dir,
+                **extra_env,
             },
         )
 
@@ -88,5 +117,6 @@ def generate_docker_command(
             "TARGET1_TAGS": ",".join(first_target_tags),
             "TARGET2_TAGS": ",".join(second_target_tags),
             "MIMOSA_CACHE_DIR": final_cache_dir,
+            **extra_env,
         },
     )

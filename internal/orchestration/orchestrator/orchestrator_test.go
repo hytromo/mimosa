@@ -61,8 +61,9 @@ func (m *MockActions) PrintCacheDir() {
 	m.Called()
 }
 
-func (m *MockActions) PrintCacheToEnvValue(cacheDir string) {
-	m.Called(cacheDir)
+func (m *MockActions) ExportCacheToFile(cacheDir string, cacheFile string) error {
+	args := m.Called(cacheDir)
+	return args.Error(0)
 }
 
 func (m *MockActions) Retag(cacheEntry cacher.Cache, parsedCommand configuration.ParsedCommand, dryRun bool) error {
@@ -589,22 +590,6 @@ func TestRun_CacheEnabled_Show(t *testing.T) {
 	mockActions := &MockActions{}
 
 	mockActions.On("PrintCacheDir").Return()
-
-	err := HandleCacheSubcommand(cacheOptions, mockActions)
-
-	assert.NoError(t, err)
-	mockActions.AssertExpectations(t)
-}
-
-func TestRun_CacheEnabled_ToEnvValue(t *testing.T) {
-	cacheOptions := configuration.CacheSubcommandOptions{
-		Enabled:    true,
-		ToEnvValue: true,
-	}
-
-	mockActions := &MockActions{}
-
-	mockActions.On("PrintCacheToEnvValue", cacher.CacheDir).Return()
 
 	err := HandleCacheSubcommand(cacheOptions, mockActions)
 

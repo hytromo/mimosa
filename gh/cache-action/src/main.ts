@@ -2,6 +2,9 @@ import * as core from '@actions/core'
 import * as github from '@actions/github'
 import { Octokit } from '@octokit/rest'
 import { execSync } from 'node:child_process'
+import fs, { mkdtempSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 
 export async function run(): Promise<void> {
   try {
@@ -57,12 +60,16 @@ export async function run(): Promise<void> {
       }
     }
 
-    // combines the current MIMOSA_CACHE with the existing disk cache and displays its value to stdout
-    let newMimosaCacheEnv = execSync(`mimosa cache --to-env-variable`, {
+    const tmpDir = mkdtempSync(path.join(tmpdir(), 'mimosa-'))
+    const envTmpFilePath = path.join(tmpDir, 'tempfile.txt')
+
+    execSync(`mimosa cache --export-to "${envTmpFilePath}"`, {
       env: mimosaEnv
     })
-      .toString()
-      .trim()
+
+    let newMimosaCacheEnv = fs.readFileSync(envTmpFilePath, 'utf-8').trim()
+
+    fs.rmSync(tmpDir, { recursive: true, force: true })
 
     if (newMimosaCacheEnv.length > maxLength) {
       // we need to remove as many lines from the end of newMimosaCacheEnv as needed in order to fit the max length

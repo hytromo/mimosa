@@ -12,9 +12,8 @@ func HandleCacheSubcommand(cacheOptions configuration.CacheSubcommandOptions, ac
 		return nil
 	}
 
-	if cacheOptions.ToEnvValue {
-		act.PrintCacheToEnvValue(cacher.CacheDir)
-		return nil
+	if cacheOptions.ExportToFile != "" {
+		return act.ExportCacheToFile(cacher.CacheDir, cacheOptions.ExportToFile)
 	}
 
 	return nil

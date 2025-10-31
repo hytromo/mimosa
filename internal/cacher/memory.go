@@ -19,15 +19,15 @@ import (
 const (
 	// variable is of the form key->cache with optional target name if only one (default)
 	// the cache key is z85 encoded
-	// key1 (target1.1:)value1.1,(target1.2:)value1.2,...
-	// key2 (target2.1:)value2.1,...
+	// key1 (target1.1=)value1.1,(target1.2=)value1.2,...
+	// key2 (target2.1=)value2.1,...
 	// ... etc
-	targetAndTagSeparator     = ":"
+	targetAndTagSeparator     = "="
 	targetsSeparator          = ","
 	cachesSeparator           = "\n"
 	cacheKeyAndValueSeparator = " "
 
-	EnvVarName = "MIMOSA_CACHE"
+	InjectCacheEnvVarName = "MIMOSA_CACHE"
 )
 
 type CacheFileWithHash struct {
@@ -38,11 +38,36 @@ type CacheFileWithHash struct {
 // the cache loaded in memory as z85 key->cache
 type InMemoryCache = orderedmap.OrderedMap[string, CacheFile]
 
+// GetSeparatedInMemoryEntries returns "z85Key -> full cache value" cache entries
+func GetSeparatedInMemoryEntries() map[string]string {
+	allEntries := make(map[string]string)
+
+	if mimosaEnvCache := os.Getenv(InjectCacheEnvVarName); mimosaEnvCache != "" {
+		for _, line := range strings.Split(mimosaEnvCache, cachesSeparator) {
+			line = strings.TrimSpace(line)
+			if line == "" {
+				continue
+			}
+
+			parts := strings.Split(line, cacheKeyAndValueSeparator)
+			if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+				continue
+			}
+			z85CacheKey := parts[0]
+			cacheValue := parts[1]
+
+			allEntries[z85CacheKey] = cacheValue
+		}
+	}
+
+	return allEntries
+}
+
 // GetInMemoryEntries retrieves all in-memory cache entries from the environment variable.
 func GetAllInMemoryEntries() *InMemoryCache {
 	inMemoryEntries := orderedmap.NewOrderedMap[string, CacheFile]()
 
-	if mimosaEnvCache := os.Getenv(EnvVarName); mimosaEnvCache != "" {
+	if mimosaEnvCache := os.Getenv(InjectCacheEnvVarName); mimosaEnvCache != "" {
 		for _, line := range strings.Split(mimosaEnvCache, cachesSeparator) {
 			line = strings.TrimSpace(line)
 			if line == "" {

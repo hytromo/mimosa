@@ -3,14 +3,13 @@ package actions
 import (
 	"encoding/json"
 	"os"
+	"path"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/hytromo/mimosa/internal/cacher"
 	"github.com/hytromo/mimosa/internal/hasher"
-	logger "github.com/hytromo/mimosa/internal/logger"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -166,9 +165,9 @@ func TestPrintCacheDir(t *testing.T) {
 	})
 }
 
-func TestPrintCacheToEnvValue(t *testing.T) {
-	// This test verifies that PrintCacheToEnvValue actually produces output
+func TestExportCacheToFile(t *testing.T) {
 	actioner := &Actioner{}
+	tmpDir := t.TempDir()
 
 	// Set up test environment variable with some cache data
 	originalEnv := os.Getenv("MIMOSA_CACHE")
@@ -179,30 +178,19 @@ func TestPrintCacheToEnvValue(t *testing.T) {
 	assert.NoError(t, err)
 	_ = os.Setenv("MIMOSA_CACHE", z85Hash+" testimage:latest")
 
-	// Capture the CleanLog output
-	handler := logger.GetCleanLogHandler()
-	if handler == nil {
-		t.Fatal("Could not get CleanLog handler")
-	}
-
-	var output strings.Builder
-	originalWriter := handler.GetWriter()
-	handler.SetWriter(&output)
-	defer func() {
-		handler.SetWriter(originalWriter)
-	}()
-
 	// Should not panic and should produce output
 	assert.NotPanics(t, func() {
-		actioner.PrintCacheToEnvValue(cacher.CacheDir)
+		err := actioner.ExportCacheToFile(cacher.CacheDir, filepath.Join(tmpDir, "cache.txt"))
+		assert.NoError(t, err)
 	})
 
-	// Check that some output was produced
-	outputStr := output.String()
-	assert.NotEmpty(t, outputStr, "PrintCacheToEnvValue should produce output")
+	// Check that the file was written to
+	file, err := os.ReadFile(filepath.Join(tmpDir, "cache.txt"))
+	assert.NoError(t, err)
+	assert.NotEmpty(t, string(file))
 }
 
-func TestPrintCacheToEnvValue_WithDiskAndEnvEntries(t *testing.T) {
+func TestExportCacheToFile_WithDiskAndEnvEntries(t *testing.T) {
 	// This test verifies the case where both disk and env cache entries exist
 	actioner := &Actioner{}
 
@@ -229,34 +217,23 @@ func TestPrintCacheToEnvValue_WithDiskAndEnvEntries(t *testing.T) {
 	assert.NoError(t, err)
 	_ = os.Setenv("MIMOSA_CACHE", z85Hash+" envimage:latest")
 
-	// Capture the CleanLog output
-	handler := logger.GetCleanLogHandler()
-	if handler == nil {
-		t.Fatal("Could not get CleanLog handler")
-	}
-
-	var output strings.Builder
-	originalWriter := handler.GetWriter()
-	handler.SetWriter(&output)
-	defer func() {
-		handler.SetWriter(originalWriter)
-	}()
-
 	// Should not panic and should produce output
 	assert.NotPanics(t, func() {
-		actioner.PrintCacheToEnvValue(tempDir)
+		err := actioner.ExportCacheToFile(tempDir, filepath.Join(tempDir, "env-file"))
+		assert.NoError(t, err)
 	})
 
-	// Check that some output was produced
-	outputStr := output.String()
-	assert.NotEmpty(t, outputStr, "PrintCacheToEnvValue should produce output")
+	// read the file back
+	file, err := os.ReadFile(filepath.Join(tempDir, "env-file"))
+	assert.NoError(t, err)
+	assert.NotEmpty(t, string(file), "ExportCacheToFile should produce output")
 
 	// Should contain both disk and env entries
-	assert.Contains(t, outputStr, "diskimage:latest", "Should contain disk cache entry")
-	assert.Contains(t, outputStr, "envimage", "Should contain env cache entry")
+	assert.Contains(t, string(file), "diskimage:latest", "Should contain disk cache entry")
+	assert.Contains(t, string(file), "envimage", "Should contain env cache entry")
 }
 
-func TestPrintCacheToEnvValue_EnvEntryExistsInDisk(t *testing.T) {
+func TestExportCacheToFile_EnvEntryExistsInDisk(t *testing.T) {
 	// This test verifies the case where env cache entry exists but is also in disk cache
 	actioner := &Actioner{}
 
@@ -283,29 +260,18 @@ func TestPrintCacheToEnvValue_EnvEntryExistsInDisk(t *testing.T) {
 	assert.NoError(t, err)
 	_ = os.Setenv("MIMOSA_CACHE", z85Hash+" sameimage:latest")
 
-	// Capture the CleanLog output
-	handler := logger.GetCleanLogHandler()
-	if handler == nil {
-		t.Fatal("Could not get CleanLog handler")
-	}
-
-	var output strings.Builder
-	originalWriter := handler.GetWriter()
-	handler.SetWriter(&output)
-	defer func() {
-		handler.SetWriter(originalWriter)
-	}()
-
 	// Should not panic and should produce output
 	assert.NotPanics(t, func() {
-		actioner.PrintCacheToEnvValue(tempDir)
+		err := actioner.ExportCacheToFile(tempDir, path.Join(tempDir, "env-file"))
+		assert.NoError(t, err)
 	})
 
-	// Check that some output was produced
-	outputStr := output.String()
-	assert.NotEmpty(t, outputStr, "PrintCacheToEnvValue should produce output")
+	// read the file back
+	file, err := os.ReadFile(path.Join(tempDir, "env-file"))
+	assert.NoError(t, err)
+	assert.NotEmpty(t, string(file), "ExportCacheToFile should produce output")
 
 	// Should contain disk entry but not duplicate env entry
-	assert.Contains(t, outputStr, "sameimage:latest", "Should contain disk cache entry")
+	assert.Contains(t, string(file), "sameimage:latest", "Should contain disk cache entry")
 	// The env entry should not be printed again since it exists in disk cache
 }

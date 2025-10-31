@@ -14,12 +14,12 @@ var cacheCmd = &cobra.Command{
 Use the MIMOSA_CACHE_DIR environment variable to override the default cache location.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		cacheShow, _ := cmd.Flags().GetBool(showFlag)
-		cacheToEnvValue, _ := cmd.Flags().GetBool(toEnvValueFlag)
+		exportToFile, _ := cmd.Flags().GetString(exportCacheToFileFlag)
 
 		err := orchestrator.HandleCacheSubcommand(configuration.CacheSubcommandOptions{
-			Enabled:    true,
-			Show:       cacheShow,
-			ToEnvValue: cacheToEnvValue,
+			Enabled:      true,
+			Show:         cacheShow,
+			ExportToFile: exportToFile,
 		}, actions.New())
 
 		if err != nil {
@@ -32,5 +32,5 @@ func init() {
 	rootCmd.AddCommand(cacheCmd)
 
 	cacheCmd.Flags().BoolP(showFlag, "s", false, "Show the cache directory")
-	cacheCmd.Flags().BoolP(toEnvValueFlag, "", false, "Print the mimosa cache as a string to stdout")
+	cacheCmd.Flags().StringP(exportCacheToFileFlag, "", "", "Export the mimosa cache to a file using z85 encoding")
 }

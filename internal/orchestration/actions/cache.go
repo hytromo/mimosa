@@ -2,6 +2,7 @@ package actions
 
 import (
 	"fmt"
+	"os"
 	"time"
 
 	"log/slog"
@@ -62,19 +63,38 @@ func (a *Actioner) PrintCacheDir() {
 	logger.CleanLog.Info(cacher.CacheDir)
 }
 
-func (a *Actioner) PrintCacheToEnvValue(cacheDir string) {
+func (a *Actioner) ExportCacheToFile(cacheDir string, filePath string) error {
 	diskEntries := cacher.GetDiskCacheToMemoryEntries(cacheDir)
-	slog.Debug("-- Disk Cache Entries --")
-	for key, value := range diskEntries.AllFromFront() {
-		logger.CleanLog.Info(fmt.Sprintf("%s %s", key, value))
+
+	file, err := os.Create(filePath)
+
+	if err != nil {
+		return err
 	}
 
-	envEntries := cacher.GetAllInMemoryEntries()
-	slog.Debug("-- Env Cache Entries --")
-	for key, value := range envEntries.AllFromFront() {
-		if _, exists := diskEntries.Get(key); !exists {
-			// print only entries that are not in the disk cache
-			logger.CleanLog.Info(fmt.Sprintf("%s %s", key, value))
+	slog.Debug("-- Disk Cache Entries --")
+	for z85Key, value := range diskEntries.AllFromFront() {
+		// print the entry to the file
+		slog.Debug("entry", "key", z85Key, "value", value)
+		_, err = fmt.Fprintf(file, "%s %s\n", z85Key, value)
+		if err != nil {
+			return err
 		}
 	}
+
+	slog.Debug("-- Env Cache Entries --")
+	for z85Key, value := range cacher.GetSeparatedInMemoryEntries() {
+		if _, ok := diskEntries.Get(z85Key); ok {
+			slog.Debug("skipping duplicate entry", "key", z85Key, "value", value)
+			continue
+		}
+		slog.Debug("entry", "key", z85Key, "value", value)
+		_, err = fmt.Fprintf(file, "%s %s\n", z85Key, value)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

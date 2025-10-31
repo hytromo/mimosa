@@ -1,6 +1,0 @@
-#!/usr/bin/env bash
-
-#MISE description="Initialize the whole project"
-#MISE depends=["init-go", "init-node", "init-python", "install-pre-commit"]
-
-

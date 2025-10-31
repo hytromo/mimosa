@@ -305,16 +305,16 @@ func TestForgetCacheEntriesOlderThan(t *testing.T) {
 
 func TestGetAllInMemoryEntries(t *testing.T) {
 	// Test case 1: No environment variable
-	originalEnvValue := os.Getenv(EnvVarName)
-	defer func() { _ = os.Setenv(EnvVarName, originalEnvValue) }()
+	originalEnvValue := os.Getenv(InjectCacheEnvVarName)
+	defer func() { _ = os.Setenv(InjectCacheEnvVarName, originalEnvValue) }()
 
-	err := os.Unsetenv(EnvVarName)
+	err := os.Unsetenv(InjectCacheEnvVarName)
 	assert.NoError(t, err)
 	entries := GetAllInMemoryEntries()
 	assert.Equal(t, 0, entries.Len())
 
-	envValue := testZ85Hash + " default:latest"
-	err = os.Setenv(EnvVarName, envValue)
+	envValue := testZ85Hash + " default" + targetAndTagSeparator + "latest"
+	err = os.Setenv(InjectCacheEnvVarName, envValue)
 	assert.NoError(t, err)
 
 	entries = GetAllInMemoryEntries()
@@ -326,8 +326,8 @@ func TestGetAllInMemoryEntries(t *testing.T) {
 	assert.Equal(t, "latest", entry.TagsByTarget["default"][0])
 
 	// Test case 3: Multiple targets
-	envValue = testZ85Hash + " target1:tag1,target2:tag2"
-	err = os.Setenv(EnvVarName, envValue)
+	envValue = testZ85Hash + " target1" + targetAndTagSeparator + "tag1" + targetsSeparator + "target2" + targetAndTagSeparator + "tag2"
+	err = os.Setenv(InjectCacheEnvVarName, envValue)
 	assert.NoError(t, err)
 
 	entries = GetAllInMemoryEntries()
@@ -339,8 +339,8 @@ func TestGetAllInMemoryEntries(t *testing.T) {
 	assert.Equal(t, "tag2", entry.TagsByTarget["target2"][0])
 
 	// Test case 4: Multiple cache entries
-	envValue = testZ85Hash + " default:latest\n" + testZ85Hash2 + " default:new"
-	err = os.Setenv(EnvVarName, envValue)
+	envValue = testZ85Hash + " default" + targetAndTagSeparator + "latest" + cachesSeparator + testZ85Hash2 + " default" + targetAndTagSeparator + "new"
+	err = os.Setenv(InjectCacheEnvVarName, envValue)
 	assert.NoError(t, err)
 
 	entries = GetAllInMemoryEntries()
@@ -407,8 +407,8 @@ func TestGetDiskCacheToMemoryEntries(t *testing.T) {
 
 	value, exists = entries.Get(z85MultiHash)
 	assert.True(t, exists)
-	assert.Contains(t, value, "target1:tag1")
-	assert.Contains(t, value, "target2:tag2")
+	assert.Contains(t, value, "target1"+targetAndTagSeparator+"tag1")
+	assert.Contains(t, value, "target2"+targetAndTagSeparator+"tag2")
 }
 
 func TestGetLatestTagByTargetEmptyTagsSlice(t *testing.T) {
@@ -612,14 +612,14 @@ func TestForgetCacheEntriesOlderThanWithDeleteError(t *testing.T) {
 func TestGetAllInMemoryEntriesWithMalformedLine(t *testing.T) {
 	// Test GetAllInMemoryEntries with malformed lines
 	envValue := "key-only\nkey value extra\n default:latest"
-	err := os.Setenv(EnvVarName, envValue)
+	err := os.Setenv(InjectCacheEnvVarName, envValue)
 	assert.NoError(t, err)
 
 	entries := GetAllInMemoryEntries()
 	assert.Equal(t, 0, entries.Len())
 
 	// Clean up
-	err = os.Unsetenv(EnvVarName)
+	err = os.Unsetenv(InjectCacheEnvVarName)
 	assert.NoError(t, err)
 }
 
@@ -628,21 +628,20 @@ func TestGetAllInMemoryEntriesWithEmptyTarget(t *testing.T) {
 	z85Hash, err := hasher.HexToZ85(testHexHash)
 	require.NoError(t, err)
 
-	envValue := z85Hash + " :latest" // Empty target name
-	_ = os.Setenv(EnvVarName, envValue)
+	envValue := z85Hash + cacheKeyAndValueSeparator + "latest" // Empty target name
+	_ = os.Setenv(InjectCacheEnvVarName, envValue)
 
 	entries := GetAllInMemoryEntries()
 	assert.Equal(t, 1, entries.Len())
 
 	entry, exists := entries.Get(z85Hash)
 	assert.True(t, exists)
-	// When target name is empty, it should be stored as empty string
-	assert.Contains(t, entry.TagsByTarget, "")
-	assert.Len(t, entry.TagsByTarget[""], 1)
-	assert.Equal(t, "latest", entry.TagsByTarget[""][0])
+	assert.Contains(t, entry.TagsByTarget, "default")
+	assert.Len(t, entry.TagsByTarget["default"], 1)
+	assert.Equal(t, "latest", entry.TagsByTarget["default"][0])
 
 	// Clean up
-	err = os.Unsetenv(EnvVarName)
+	err = os.Unsetenv(InjectCacheEnvVarName)
 	assert.NoError(t, err)
 }
 
@@ -742,7 +741,7 @@ func TestGetDiskCacheToMemoryEntriesWithMixedEmptyAndNonEmptyTags(t *testing.T) 
 
 	value, exists := entries.Get(z85Hash)
 	assert.True(t, exists)
-	assert.Contains(t, value, "target1:tag2") // Should only include non-empty targets
+	assert.Contains(t, value, "target1"+targetAndTagSeparator+"tag2")
 }
 
 func TestSaveWithExistingInvalidJsonFile(t *testing.T) {
