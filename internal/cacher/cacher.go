@@ -165,7 +165,7 @@ func (cache *Cache) Save(tagsByTarget map[string][]string, dryRun bool) error {
 	return fileutil.SaveJSON(dataFile, td)
 }
 
-func ForgetCacheEntriesOlderThan(forgetTime time.Time, cacheDir string) error {
+func ForgetCacheEntriesOlderThan(forgetTime time.Time, cacheDir string, dryRun bool) error {
 	slog.Debug("Forgetting cache entries older than", "forgetTime", forgetTime, "cacheDir", cacheDir)
 
 	if _, err := os.Stat(cacheDir); errors.Is(err, os.ErrNotExist) {
@@ -201,9 +201,13 @@ func ForgetCacheEntriesOlderThan(forgetTime time.Time, cacheDir string) error {
 		}
 
 		slog.Debug("Cache file is older than forget time, deleting", "path", path)
-		if err := os.Remove(path); err != nil {
-			slog.Error("Failed to delete cache file", "path", path, "error", err)
-			return nil
+		if dryRun {
+			slog.Info("File not deleted due to dry run", "path", path)
+		} else {
+			if err := os.Remove(path); err != nil {
+				slog.Error("Failed to delete cache file", "path", path, "error", err)
+				return nil
+			}
 		}
 
 		deletedCount++

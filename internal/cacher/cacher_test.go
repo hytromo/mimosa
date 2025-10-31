@@ -278,7 +278,7 @@ func TestForgetCacheEntriesOlderThan(t *testing.T) {
 
 	// Test forgetting entries older than 12 hours ago
 	forgetTime := time.Now().Add(-12 * time.Hour)
-	err = ForgetCacheEntriesOlderThan(forgetTime, tempDir)
+	err = ForgetCacheEntriesOlderThan(forgetTime, tempDir, false)
 	assert.NoError(t, err)
 
 	// Verify old cache was deleted
@@ -295,7 +295,7 @@ func TestForgetCacheEntriesOlderThan(t *testing.T) {
 
 	// Test forgetting entries older than 10 minutes ago
 	forgetTime = time.Now().Add(-10 * time.Minute)
-	err = ForgetCacheEntriesOlderThan(forgetTime, tempDir)
+	err = ForgetCacheEntriesOlderThan(forgetTime, tempDir, false)
 	assert.NoError(t, err)
 
 	// Verify new cache is also deleted
@@ -568,7 +568,7 @@ func TestSaveWithFileWriteError(t *testing.T) {
 
 func TestForgetCacheEntriesOlderThanWithNonExistentDirectory(t *testing.T) {
 	// Test ForgetCacheEntriesOlderThan with a non-existent directory
-	err := ForgetCacheEntriesOlderThan(time.Now(), "/non/existent/directory")
+	err := ForgetCacheEntriesOlderThan(time.Now(), "/non/existent/directory", false)
 	assert.NoError(t, err)
 }
 
@@ -580,7 +580,7 @@ func TestForgetCacheEntriesOlderThanWithInvalidJson(t *testing.T) {
 	require.NoError(t, err)
 
 	// This should not fail, but should log an error
-	err = ForgetCacheEntriesOlderThan(time.Now().Add(-1*time.Hour), tempDir)
+	err = ForgetCacheEntriesOlderThan(time.Now().Add(-1*time.Hour), tempDir, false)
 	assert.NoError(t, err)
 }
 
@@ -605,7 +605,7 @@ func TestForgetCacheEntriesOlderThanWithDeleteError(t *testing.T) {
 	require.NoError(t, err)
 
 	// This should not fail
-	err = ForgetCacheEntriesOlderThan(time.Now().Add(-12*time.Hour), tempDir)
+	err = ForgetCacheEntriesOlderThan(time.Now().Add(-12*time.Hour), tempDir, false)
 	assert.NoError(t, err)
 }
 

@@ -138,7 +138,7 @@ func TestForgetCacheEntriesOlderThan(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			actioner := &Actioner{}
 
-			err := actioner.ForgetCacheEntriesOlderThan(tt.duration, tt.autoApprove)
+			err := actioner.ForgetCacheEntriesOlderThan(tt.duration, tt.autoApprove, false)
 
 			if tt.expectError {
 				assert.Error(t, err)
@@ -146,7 +146,7 @@ func TestForgetCacheEntriesOlderThan(t *testing.T) {
 				// For non-auto-approve cases, we can't easily test the user input
 				// but we can verify it doesn't panic
 				assert.NotPanics(t, func() {
-					err := actioner.ForgetCacheEntriesOlderThan(tt.duration, tt.autoApprove)
+					err := actioner.ForgetCacheEntriesOlderThan(tt.duration, tt.autoApprove, false)
 					assert.NoError(t, err)
 				})
 			}

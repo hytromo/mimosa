@@ -4,12 +4,12 @@
 
 set -euo pipefail
 
-if ! docker buildx ls | grep host-network-builder; then
+if ! docker buildx ls | grep mimosa-host-network-builder; then
   echo "Creating docker buildx builder with host network..."
-  docker buildx create --use --name host-network-builder --driver docker-container --driver-opt network=host --use
+  docker buildx create --use --name mimosa-host-network-builder --driver docker-container --driver-opt network=host --use
 fi
 
-docker buildx use host-network-builder
+docker buildx use mimosa-host-network-builder
 
 CONTAINER_NAME="mimosa_registry"
 if [ "$(docker ps -q -f name="$CONTAINER_NAME")" == "" ]; then

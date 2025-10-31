@@ -52,8 +52,8 @@ func (m *MockActions) SaveCache(cacheEntry cacher.Cache, tagsByTarget map[string
 	return args.Error(0)
 }
 
-func (m *MockActions) ForgetCacheEntriesOlderThan(duration string, autoApprove bool) error {
-	args := m.Called(duration, autoApprove)
+func (m *MockActions) ForgetCacheEntriesOlderThan(duration string, autoApprove bool, dryRun bool) error {
+	args := m.Called(duration, autoApprove, dryRun)
 	return args.Error(0)
 }
 
@@ -539,7 +539,7 @@ func TestRun_CacheEnabled_Forget(t *testing.T) {
 
 	mockActions := &MockActions{}
 
-	mockActions.On("ForgetCacheEntriesOlderThan", "24h", true).Return(nil)
+	mockActions.On("ForgetCacheEntriesOlderThan", "24h", true, false).Return(nil)
 
 	err := HandleForgetPeriodOrEverything(forgetOptions, mockActions)
 
@@ -556,7 +556,7 @@ func TestRun_CacheEnabled_ForgetError(t *testing.T) {
 
 	mockActions := &MockActions{}
 
-	mockActions.On("ForgetCacheEntriesOlderThan", "24h", true).Return(errors.New("forget error"))
+	mockActions.On("ForgetCacheEntriesOlderThan", "24h", true, false).Return(errors.New("forget error"))
 
 	err := HandleForgetPeriodOrEverything(forgetOptions, mockActions)
 
@@ -573,7 +573,7 @@ func TestRun_CacheEnabled_Purge(t *testing.T) {
 
 	mockActions := &MockActions{}
 
-	mockActions.On("ForgetCacheEntriesOlderThan", "", false).Return(nil)
+	mockActions.On("ForgetCacheEntriesOlderThan", "", false, false).Return(nil)
 
 	err := HandleForgetPeriodOrEverything(forgetOptions, mockActions)
 

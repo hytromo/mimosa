@@ -17,7 +17,7 @@ type Actions interface {
 	GetCacheEntry(hash string) cacher.Cache
 	RemoveCacheEntry(cacheEntry cacher.Cache, dryRun bool) error
 	SaveCache(cacheEntry cacher.Cache, tagsByTarget map[string][]string, dryRun bool) error
-	ForgetCacheEntriesOlderThan(duration string, autoApprove bool) error
+	ForgetCacheEntriesOlderThan(duration string, autoApprove bool, dryRun bool) error
 	PrintCacheDir()
 	ExportCacheToFile(cacheDir string, filePath string) error
 

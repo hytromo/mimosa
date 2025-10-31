@@ -2,7 +2,7 @@
 
 * Clone the repo: `git clone https://github.com/hytromo/mimosa.git`
 
-* Initialize the whole project without polluting your global environment: `mise run local-init`
+* Initialize the whole project without polluting your global environment: `mise run init:local`
 
 Start hacking! The pre-commit hooks will help ensuring that the github actions are bundled or that the go code does not have code smells. Have a look at `.pre-commit-config.yaml` for details
 

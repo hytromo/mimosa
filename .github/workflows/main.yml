@@ -149,8 +149,6 @@ jobs:
           path: test-summaries
 
       - name: Calculate and print totals
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
           total_tests=$(find test-summaries -name "integration_tests_summary.json" -exec cat {} + | jq -s '[.[] | .total_tests_run] | add')
 

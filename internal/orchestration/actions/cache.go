@@ -27,7 +27,7 @@ func (a *Actioner) SaveCache(cacheEntry cacher.Cache, tagsByTarget map[string][]
 	return cacheEntry.Save(tagsByTarget, dryRun)
 }
 
-func (a *Actioner) ForgetCacheEntriesOlderThan(duration string, autoApprove bool) error {
+func (a *Actioner) ForgetCacheEntriesOlderThan(duration string, autoApprove bool, dryRun bool) error {
 	forgetDuration, err := parseDuration("0s") // purge
 
 	if err != nil {
@@ -55,7 +55,7 @@ func (a *Actioner) ForgetCacheEntriesOlderThan(duration string, autoApprove bool
 		}
 	}
 
-	return cacher.ForgetCacheEntriesOlderThan(forgetTime, cacher.CacheDir)
+	return cacher.ForgetCacheEntriesOlderThan(forgetTime, cacher.CacheDir, dryRun)
 }
 
 func (a *Actioner) PrintCacheDir() {

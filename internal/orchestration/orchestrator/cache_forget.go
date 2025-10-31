@@ -7,7 +7,7 @@ import (
 
 func HandleForgetPeriodOrEverything(forgetOptions configuration.ForgetSubcommandOptions, act actions.Actions) error {
 	if forgetOptions.Period != "" || forgetOptions.Everything {
-		return act.ForgetCacheEntriesOlderThan(forgetOptions.Period, forgetOptions.AutoYes)
+		return act.ForgetCacheEntriesOlderThan(forgetOptions.Period, forgetOptions.AutoYes, forgetOptions.DryRun)
 	}
 
 	return nil

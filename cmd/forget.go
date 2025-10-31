@@ -57,7 +57,7 @@ var forgetCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(forgetCmd)
 
-	forgetCmd.Flags().BoolP(dryRunFlag, "", false, "Dry run - do not really forget the cache entry, just show what would happen")
+	forgetCmd.Flags().BoolP(dryRunFlag, "", false, "Dry run - do not really forget any cache entry, just show what would happen")
 	forgetCmd.Flags().BoolP(everythingFlag, "", false, "Forget all cache entries")
 	forgetCmd.Flags().StringP(olderThanFlag, "", "", "Forget cache entries older than the given age, e.g. 1h, 2d etc.")
 	forgetCmd.Flags().BoolP(yesFlag, "y", false, "Do not ask for user confirmation before cache deletion")
