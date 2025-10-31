@@ -10,7 +10,7 @@
   <a href="https://github.com/hytromo/mimosa/actions/workflows/main.yml"><img alt="GitHub Workflow Status" src="https://img.shields.io/github/actions/workflow/status/hytromo/mimosa/main.yml?style=for-the-badge"></a>
   <a href="https://app.codecov.io/gh/hytromo/mimosa/"><img alt="Code coverage" src="https://img.shields.io/codecov/c/github/hytromo/mimosa/main?style=for-the-badge&logo=codecov"></a>
   <a href="https://github.com/hytromo/mimosa/stargazers"><img alt="GitHub Repo stars" src="https://img.shields.io/github/stars/hytromo/mimosa?style=for-the-badge"></a>
-  <p><em>Zero-config docker image promotion</em></p>
+  <p><em>Zero-config Docker image promotion</em></p>
 
 </div>
 
@@ -59,7 +59,7 @@ Just prepend your docker build commands like this: `mimosa remember -- docker bu
     version: v0.1.0
 ```
 
-See the [the GitHub Action docs](./docs/gh-actions/README.md) for details on how to use `mimosa` in your GitHub Actions.
+See the [GitHub Action docs](./docs/gh-actions/README.md) for details on how to use `mimosa` in your GitHub Actions.
 
 ## On your system
 
@@ -82,7 +82,7 @@ mimosa remember -- docker buildx build --build-arg MYARG=MYVALUE --platform linu
 mimosa remember -- docker buildx bake -f docker-bake.hcl
 
 # dry run - do not build, retag or write to cache, just show what would happen
-mimosa remember -dry-run -- docker buildx build --build-arg MYARG=MYVALUE --platform linux/amd64,linux/arm64 --push -t hytromo/mimosa-example:v2 .
+mimosa remember --dry-run -- docker buildx build --build-arg MYARG=MYVALUE --platform linux/amd64,linux/arm64 --push -t hytromo/mimosa-example:v2 .
 ```
 
 * The `remember` subcommand tells Mimosa to retag the image, if the same build has been run before, otherwise to run and cache the build.
