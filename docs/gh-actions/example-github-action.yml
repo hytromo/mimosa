@@ -83,7 +83,7 @@ jobs:
 
       - name: Save mimosa cache
         id: save-cache
-        uses: hytromo/mimosa/gh/cache-action@v1-cache
+        uses: hytromo/mimosa/gh/cache-action@v2-cache
         with:
           github-token: ${{ secrets.WRITE_VARIABLES_GH_PAT }}
 

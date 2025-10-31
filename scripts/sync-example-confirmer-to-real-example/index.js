@@ -50,7 +50,7 @@ if (isMap(jobs)) {
 			}
 
 			if (uses?.value?.includes('./gh/cache-action')) {
-				stepNode.set('uses', 'hytromo/mimosa/gh/cache-action@v1-cache');
+				stepNode.set('uses', 'hytromo/mimosa/gh/cache-action@v2-cache');
 			}
 
 			newSteps.push(stepNode);

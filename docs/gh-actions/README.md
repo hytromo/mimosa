@@ -28,7 +28,7 @@ The recommended way is to use the repo variable cache. This enables you to have 
 3. Save the cache back
 
 ```yaml
-- uses: hytromo/mimosa/gh/cache-action@v1-cache
+- uses: hytromo/mimosa/gh/cache-action@v2-cache
   with:
     # important: a PAT with variables:write permission is required
     # create one here: https://github.com/settings/personal-access-tokens and add it to your repo secrets
