@@ -8,453 +8,807 @@ import (
 	"testing"
 	"time"
 
-	"github.com/elliotchance/orderedmap/v3"
-	"github.com/hytromo/mimosa/internal/docker"
 	"github.com/hytromo/mimosa/internal/hasher"
-	"github.com/hytromo/mimosa/internal/utils/fileutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func setupTempCacheDir(t *testing.T) (string, func()) {
-	dir := t.TempDir()
-	CacheDir = dir
-	return dir, func() { _ = os.RemoveAll(dir) }
+const (
+	testHexHash  = "406b7725b0e93838b460e38d30903899"
+	testZ85Hash  = "kX>M&U<1bbV%.{NfPXnZ"
+	testHexHash2 = "993080d3e8e460b838e3b0e5727b6406"
+	testZ85Hash2 = "Nj%fu>&ucYiodm8A^Is3"
+)
+
+func TestCache_DataPath(t *testing.T) {
+	tempDir := t.TempDir()
+	cache := &Cache{
+		Hash:     testHexHash,
+		CacheDir: tempDir,
+	}
+	expectedPath := filepath.Join(tempDir, fmt.Sprintf("%s.json", testHexHash))
+	assert.Equal(t, expectedPath, cache.DataPath())
 }
 
-func newTestCache(hash string) *Cache {
-	return &Cache{
-		FinalHash:       hash,
-		InMemoryEntries: orderedmap.NewOrderedMap[string, string](),
+func TestCache_GetLatestTagByTarget(t *testing.T) {
+	tempDir := t.TempDir()
+
+	cache := &Cache{
+		Hash:     testHexHash,
+		CacheDir: tempDir,
 	}
+
+	// Test case 1: File doesn't exist
+	_, err := cache.GetLatestTagByTarget()
+	assert.Error(t, err)
+
+	// Test case 2: Valid cache file
+	cacheFile := CacheFile{
+		TagsByTarget: map[string][]string{
+			"target1": {"tag1", "tag2", "tag3"},
+			"target2": {"tagA", "tagB"},
+		},
+	}
+
+	assert.False(t, cache.ExistsInFilesystem())
+	err = cache.Save(cacheFile.TagsByTarget, false)
+	require.NoError(t, err)
+	assert.True(t, cache.ExistsInFilesystem())
+
+	result, err := cache.GetLatestTagByTarget()
+	require.NoError(t, err)
+
+	expected := map[string]string{
+		"target1": "tag3",
+		"target2": "tagB",
+	}
+	assert.Equal(t, expected, result)
 }
 
-func readCacheFile(t *testing.T, path string) CacheFile {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("failed to read cache file: %v", err)
-	}
-	var cf CacheFile
-	if err := json.Unmarshal(data, &cf); err != nil {
-		t.Fatalf("failed to unmarshal cache file: %v", err)
-	}
-	return cf
-}
+func TestCache_Remove(t *testing.T) {
+	tempDir := t.TempDir()
 
-func TestCache_Save_DryRun(t *testing.T) {
-	_, cleanup := setupTempCacheDir(t)
-	defer cleanup()
-
-	cache := newTestCache("abc123")
-	dataFile, err := cache.Save("tag1", true)
-	if err != nil {
-		t.Fatalf("Save returned error: %v", err)
-	}
-	if _, err := os.Stat(dataFile); !os.IsNotExist(err) {
-		t.Errorf("Expected no file created on dry run, but file exists: %v", dataFile)
-	}
-}
-
-func TestCache_Save_NewFile(t *testing.T) {
-	_, cleanup := setupTempCacheDir(t)
-	defer cleanup()
-
-	cache := newTestCache("abc456")
-	dataFile, err := cache.Save("tag1", false)
-	if err != nil {
-		t.Fatalf("Save returned error: %v", err)
-	}
-	cf := readCacheFile(t, dataFile)
-	if len(cf.Tags) != 1 || cf.Tags[0] != "tag1" {
-		t.Errorf("Expected tags [tag1], got %v", cf.Tags)
-	}
-	if time.Since(cf.LastUpdatedAt) > time.Minute {
-		t.Errorf("LastUpdatedAt not recent: %v", cf.LastUpdatedAt)
-	}
-}
-
-func TestCache_Save_AppendsUniqueTagsAndKeepsLast10(t *testing.T) {
-	_, cleanup := setupTempCacheDir(t)
-	defer cleanup()
-
-	cache := newTestCache("abc789")
-	// Save 12 unique tags
-	for i := 1; i <= 12; i++ {
-		tag := "tag" + fmt.Sprint('A'+i-1)
-		_, err := cache.Save(tag, false)
-		if err != nil {
-			t.Fatalf("Save returned error: %v", err)
-		}
-	}
-	cf := readCacheFile(t, cache.DataPath())
-	if len(cf.Tags) != 10 {
-		t.Errorf("Expected 10 tags, got %d: %v", len(cf.Tags), cf.Tags)
-	}
-	want := []string{"tag67", "tag68", "tag69", "tag70", "tag71", "tag72", "tag73", "tag74", "tag75", "tag76"}
-	for i, tag := range want {
-		if cf.Tags[i] != tag {
-			t.Errorf("Tag at %d: got %q, want %q", i, cf.Tags[i], tag)
-		}
-	}
-}
-
-func TestCache_Save_DoesNotDuplicateTags(t *testing.T) {
-	_, cleanup := setupTempCacheDir(t)
-	defer cleanup()
-
-	cache := newTestCache("abcdup")
-	_, err := cache.Save("tagX", false)
-	if err != nil {
-		t.Fatalf("Save returned error: %v", err)
-	}
-	_, err = cache.Save("tagX", false)
-	if err != nil {
-		t.Fatalf("Save returned error: %v", err)
-	}
-	cf := readCacheFile(t, cache.DataPath())
-	if len(cf.Tags) != 1 || cf.Tags[0] != "tagX" {
-		t.Errorf("Expected tags [tagX], got %v", cf.Tags)
-	}
-}
-
-func TestCache_Save_ExistingFileWithInvalidJSON(t *testing.T) {
-	_, cleanup := setupTempCacheDir(t)
-	defer cleanup()
-
-	cache := newTestCache("abcinvalid")
-	dataFile := cache.DataPath()
-	err := os.MkdirAll(filepath.Dir(dataFile), 0755)
-	if err != nil {
-		t.Fatalf("failed to create cache dir: %v", err)
+	cache := &Cache{
+		Hash:     testHexHash,
+		CacheDir: tempDir,
 	}
 
-	err = os.WriteFile(dataFile, []byte("{invalid json"), 0644)
-	if err != nil {
-		t.Fatalf("failed to write cache file: %v", err)
-	}
+	// Create a test file
+	err := os.WriteFile(cache.DataPath(), []byte("{}"), 0644)
+	require.NoError(t, err)
+	assert.True(t, cache.ExistsInFilesystem())
 
-	_, err = cache.Save("tagZ", false)
-	if err != nil {
-		t.Fatalf("Save returned error: %v", err)
-	}
-	cf := readCacheFile(t, dataFile)
-	if len(cf.Tags) != 1 || cf.Tags[0] != "tagZ" {
-		t.Errorf("Expected tags [tagZ], got %v", cf.Tags)
-	}
-}
-
-func TestCache_Save_ExistingFileWithEmptyTags(t *testing.T) {
-	_, cleanup := setupTempCacheDir(t)
-	defer cleanup()
-
-	cache := newTestCache("abcempt")
-	dataFile := cache.DataPath()
-	err := fileutil.SaveJSON(dataFile, CacheFile{Tags: []string{""}, LastUpdatedAt: time.Now().Add(-time.Hour)})
-	if err != nil {
-		t.Fatalf("failed to write cache file: %v", err)
-	}
-
-	_, err = cache.Save("tagY", false)
-	if err != nil {
-		t.Fatalf("Save returned error: %v", err)
-	}
-	cf := readCacheFile(t, dataFile)
-	if len(cf.Tags) != 1 || cf.Tags[0] != "tagY" {
-		t.Errorf("Expected tags [tagY], got %v", cf.Tags)
-	}
-}
-
-func TestCache_Remove_DryRun(t *testing.T) {
-	_, cleanup := setupTempCacheDir(t)
-	defer cleanup()
-
-	cache := newTestCache("rmtest")
-	dataFile, err := cache.Save("tag1", false)
-	if err != nil {
-		t.Fatalf("Save returned error: %v", err)
-	}
-	if _, err := os.Stat(dataFile); err != nil {
-		t.Fatalf("Expected file to exist before remove: %v", err)
-	}
+	// Test case 1: Dry run - file should still exist
 	err = cache.Remove(true)
-	if err != nil {
-		t.Fatalf("Remove (dry run) returned error: %v", err)
-	}
-	if _, err := os.Stat(dataFile); err != nil {
-		// File should still exist
-		t.Errorf("Expected file to still exist after dry run remove, got error: %v", err)
-	}
+	assert.NoError(t, err)
+	assert.True(t, cache.ExistsInFilesystem())
+
+	// Test case 2: Actual removal
+	err = cache.Remove(false)
+	assert.NoError(t, err)
+	assert.False(t, cache.ExistsInFilesystem())
 }
 
-func TestCache_Remove_Actual(t *testing.T) {
-	_, cleanup := setupTempCacheDir(t)
-	defer cleanup()
+func TestCache_GetInMemoryEntry(t *testing.T) {
+	tmpDir := t.TempDir()
 
-	cache := newTestCache("rmtest2")
-	dataFile, err := cache.Save("tag1", false)
-	if err != nil {
-		t.Fatalf("Save returned error: %v", err)
+	cache := &Cache{
+		Hash:     testHexHash,
+		CacheDir: tmpDir,
 	}
-	if _, err := os.Stat(dataFile); err != nil {
-		t.Fatalf("Expected file to exist before remove: %v", err)
+
+	// Test case 1: No in-memory entries
+	cache.InMemoryEntries = GetAllInMemoryEntries()
+	entry, exists := cache.GetInMemoryEntry()
+	assert.False(t, exists)
+	assert.Equal(t, CacheFile{}, entry)
+
+	// Test case 2: With in-memory entries
+	z85Hash, err := hasher.HexToZ85(testHexHash)
+	require.NoError(t, err)
+
+	inMemoryEntries := GetAllInMemoryEntries()
+	cacheFile := CacheFile{
+		TagsByTarget: map[string][]string{
+			"default": {"latest"},
+		},
+		LastUpdatedAt: time.Now(),
 	}
-	err = cache.Remove(false)
-	if err != nil {
-		t.Fatalf("Remove returned error: %v", err)
-	}
-	if _, err := os.Stat(dataFile); !os.IsNotExist(err) {
-		t.Errorf("Expected file to be deleted after remove, but it exists or another error: %v", err)
-	}
+	inMemoryEntries.Set(z85Hash, cacheFile)
+
+	cache.InMemoryEntries = inMemoryEntries
+	entry, exists = cache.GetInMemoryEntry()
+	assert.True(t, exists)
+	assert.Equal(t, cacheFile, entry)
 }
 
 func TestCache_Exists(t *testing.T) {
-	_, cleanup := setupTempCacheDir(t)
-	defer cleanup()
+	tempDir := t.TempDir()
 
-	cache := newTestCache("existtest")
-	// Should not exist yet
-	if cache.Exists() {
-		t.Errorf("Expected Exists to be false before saving")
+	cache := &Cache{
+		Hash:     testHexHash,
+		CacheDir: tempDir,
 	}
-	_, err := cache.Save("tag1", false)
-	if err != nil {
-		t.Fatalf("Save returned error: %v", err)
-	}
-	if !cache.Exists() {
-		t.Errorf("Expected Exists to be true after saving")
-	}
-	// Remove and check again
+	cache.InMemoryEntries = GetAllInMemoryEntries()
+
+	// Test case 1: Neither in-memory nor filesystem
+	assert.False(t, cache.Exists())
+
+	// Test case 2: Exists in filesystem
+	err := cache.Save(map[string][]string{}, false)
+	assert.NoError(t, err)
+	assert.True(t, cache.Exists())
+
 	err = cache.Remove(false)
-	if err != nil {
-		t.Fatalf("Remove returned error: %v", err)
+	assert.NoError(t, err)
+	assert.False(t, cache.Exists())
+
+	// Test case 3: Exists in memory
+	z85Hash, err := hasher.HexToZ85(testHexHash)
+	require.NoError(t, err)
+
+	inMemoryEntries := GetAllInMemoryEntries()
+	cacheFile := CacheFile{
+		TagsByTarget: map[string][]string{
+			"default": {"latest"},
+		},
+		LastUpdatedAt: time.Now(),
 	}
-	if cache.Exists() {
-		t.Errorf("Expected Exists to be false after remove")
-	}
+	inMemoryEntries.Set(z85Hash, cacheFile)
+
+	cache.InMemoryEntries = inMemoryEntries
+	assert.True(t, cache.Exists())
 }
 
-func TestCache_LatestTag(t *testing.T) {
-	_, cleanup := setupTempCacheDir(t)
-	defer cleanup()
+func TestCache_Save(t *testing.T) {
+	tempDir := t.TempDir()
 
-	cache := newTestCache("latesttag")
-	_, err := cache.Save("tag1", false)
-	if err != nil {
-		t.Fatalf("Save returned error: %v", err)
+	cache := &Cache{
+		Hash:     testHexHash,
+		CacheDir: tempDir,
 	}
-	_, err = cache.Save("tag2", false)
-	if err != nil {
-		t.Fatalf("Save returned error: %v", err)
-	}
-	tag, err := cache.LatestTag()
-	if err != nil {
-		t.Fatalf("LatestTag returned error: %v", err)
-	}
-	if tag != "tag2" {
-		t.Errorf("Expected latest tag to be 'tag2', got %q", tag)
-	}
-}
 
-func TestCache_LatestTag_Empty(t *testing.T) {
-	_, cleanup := setupTempCacheDir(t)
-	defer cleanup()
+	// Test case 1: Dry run
+	tagsByTarget := map[string][]string{
+		"target1": {"tag1", "tag2"},
+		"target2": {"tagA"},
+	}
 
-	cache := newTestCache("emptytag")
-	dataFile := cache.DataPath()
-	err := fileutil.SaveJSON(dataFile, CacheFile{Tags: []string{}, LastUpdatedAt: time.Now()})
-	if err != nil {
-		t.Fatalf("failed to write cache file: %v", err)
+	err := cache.Save(tagsByTarget, true)
+	assert.NoError(t, err)
+	assert.False(t, cache.ExistsInFilesystem())
+
+	// Test case 2: Actual save
+	err = cache.Save(tagsByTarget, false)
+	assert.NoError(t, err)
+	assert.True(t, cache.ExistsInFilesystem())
+
+	// Verify the saved content
+	data, err := os.ReadFile(cache.DataPath())
+	require.NoError(t, err)
+
+	var savedCache CacheFile
+	err = json.Unmarshal(data, &savedCache)
+	require.NoError(t, err)
+
+	assert.Equal(t, tagsByTarget, savedCache.TagsByTarget)
+	assert.False(t, savedCache.LastUpdatedAt.IsZero())
+
+	// Test case 3: Append to existing cache
+	newTags := map[string][]string{
+		"target1": {"tag3"},
+		"target3": {"tagX"},
 	}
-	tag, err := cache.LatestTag()
-	if err != nil {
-		t.Fatalf("LatestTag returned error: %v", err)
+
+	err = cache.Save(newTags, false)
+	assert.NoError(t, err)
+
+	// Verify appended content
+	data, err = os.ReadFile(cache.DataPath())
+	require.NoError(t, err)
+
+	var updatedCache CacheFile
+	err = json.Unmarshal(data, &updatedCache)
+	require.NoError(t, err)
+
+	expected := map[string][]string{
+		"target1": {"tag1", "tag2", "tag3"},
+		"target2": {"tagA"},
+		"target3": {"tagX"},
 	}
-	if tag != "" {
-		t.Errorf("Expected empty latest tag, got %q", tag)
+	assert.Equal(t, expected, updatedCache.TagsByTarget)
+
+	// Test case 4: Limit to 10 tags per target
+	manyTags := make([]string, 15)
+	for i := range manyTags {
+		manyTags[i] = "tag" + string(rune('A'+i))
 	}
+
+	overflowTags := map[string][]string{
+		"target1": manyTags,
+	}
+
+	err = cache.Save(overflowTags, false)
+	assert.NoError(t, err)
+
+	data, err = os.ReadFile(cache.DataPath())
+	require.NoError(t, err)
+
+	var limitedCache CacheFile
+	err = json.Unmarshal(data, &limitedCache)
+	require.NoError(t, err)
+
+	assert.Len(t, limitedCache.TagsByTarget["target1"], 10)
+	assert.Equal(t, "tagO", limitedCache.TagsByTarget["target1"][9]) // Last tag should be 'O'
 }
 
 func TestForgetCacheEntriesOlderThan(t *testing.T) {
-	_, cleanup := setupTempCacheDir(t)
-	defer cleanup()
+	tempDir := t.TempDir()
 
-	// Create 3 cache files: one old, two new
-	oldCache := newTestCache("oldcache")
-	oldFile := oldCache.DataPath()
-	err := fileutil.SaveJSON(oldFile, CacheFile{Tags: []string{"old"}, LastUpdatedAt: time.Now().Add(-2 * time.Hour)})
-	if err != nil {
-		t.Fatalf("Failed to write json")
-	}
+	// Create test cache files
+	oldTime := time.Now().Add(-24 * time.Hour)
+	newTime := time.Now().Add(-1 * time.Hour)
 
-	newCache := newTestCache("newcache")
-	newFile := newCache.DataPath()
-	err = fileutil.SaveJSON(newFile, CacheFile{Tags: []string{"new"}, LastUpdatedAt: time.Now()})
-	if err != nil {
-		t.Fatalf("Failed to write json")
+	oldCache := CacheFile{
+		TagsByTarget:  map[string][]string{"default": {"old"}},
+		LastUpdatedAt: oldTime,
 	}
 
-	newCache2 := newTestCache("newcache2")
-	newFile2 := newCache2.DataPath()
-	err = fileutil.SaveJSON(newFile2, CacheFile{Tags: []string{"new2"}, LastUpdatedAt: time.Now()})
-	if err != nil {
-		t.Fatalf("Failed to write json")
+	newCache := CacheFile{
+		TagsByTarget:  map[string][]string{"default": {"new"}},
+		LastUpdatedAt: newTime,
 	}
 
-	ForgetCacheEntriesOlderThan(time.Now().Add(-1 * time.Hour))
+	// manual saving in order to control the last updated at time
+	// Save old cache
+	oldData, err := json.Marshal(oldCache)
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(tempDir, "old-hash.json"), oldData, 0644)
+	require.NoError(t, err)
 
-	// Old file should be deleted
-	if _, err := os.Stat(oldFile); !os.IsNotExist(err) {
-		t.Errorf("Expected old cache file to be deleted, but it exists or another error: %v", err)
-	}
-	// New files should remain
-	if _, err := os.Stat(newFile); err != nil {
-		t.Errorf("Expected new cache file to exist, got error: %v", err)
-	}
-	if _, err := os.Stat(newFile2); err != nil {
-		t.Errorf("Expected new cache file 2 to exist, got error: %v", err)
-	}
+	// Save new cache
+	newData, err := json.Marshal(newCache)
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(tempDir, "new-hash.json"), newData, 0644)
+	require.NoError(t, err)
+
+	// Create a non-json file (should be ignored)
+	err = os.WriteFile(filepath.Join(tempDir, "ignore.txt"), []byte("ignore"), 0644)
+	require.NoError(t, err)
+
+	// Test forgetting entries older than 12 hours ago
+	forgetTime := time.Now().Add(-12 * time.Hour)
+	err = ForgetCacheEntriesOlderThan(forgetTime, tempDir, false)
+	assert.NoError(t, err)
+
+	// Verify old cache was deleted
+	_, err = os.Stat(filepath.Join(tempDir, "old-hash.json"))
+	assert.True(t, os.IsNotExist(err))
+
+	// Verify new cache still exists
+	_, err = os.Stat(filepath.Join(tempDir, "new-hash.json"))
+	assert.NoError(t, err)
+
+	// Verify non-json file still exists
+	_, err = os.Stat(filepath.Join(tempDir, "ignore.txt"))
+	assert.NoError(t, err)
+
+	// Test forgetting entries older than 10 minutes ago
+	forgetTime = time.Now().Add(-10 * time.Minute)
+	err = ForgetCacheEntriesOlderThan(forgetTime, tempDir, false)
+	assert.NoError(t, err)
+
+	// Verify new cache is also deleted
+	_, err = os.Stat(filepath.Join(tempDir, "new-hash.json"))
+	assert.True(t, os.IsNotExist(err))
 }
 
-func TestForgetCacheEntriesOlderThan_NoFiles(t *testing.T) {
-	_, cleanup := setupTempCacheDir(t)
-	defer cleanup()
+func TestGetAllInMemoryEntries(t *testing.T) {
+	// Test case 1: No environment variable
+	originalEnvValue := os.Getenv(InjectCacheEnvVarName)
+	defer func() { _ = os.Setenv(InjectCacheEnvVarName, originalEnvValue) }()
 
-	// Should not panic or error if no files exist
-	ForgetCacheEntriesOlderThan(time.Now())
+	err := os.Unsetenv(InjectCacheEnvVarName)
+	assert.NoError(t, err)
+	entries := GetAllInMemoryEntries()
+	assert.Equal(t, 0, entries.Len())
+
+	envValue := testZ85Hash + " default" + targetAndTagSeparator + "latest"
+	err = os.Setenv(InjectCacheEnvVarName, envValue)
+	assert.NoError(t, err)
+
+	entries = GetAllInMemoryEntries()
+	assert.Equal(t, 1, entries.Len())
+
+	entry, exists := entries.Get(testZ85Hash)
+	assert.True(t, exists)
+	assert.NotEmpty(t, entry.TagsByTarget["default"])
+	assert.Equal(t, "latest", entry.TagsByTarget["default"][0])
+
+	// Test case 3: Multiple targets
+	envValue = testZ85Hash + " target1" + targetAndTagSeparator + "tag1" + targetsSeparator + "target2" + targetAndTagSeparator + "tag2"
+	err = os.Setenv(InjectCacheEnvVarName, envValue)
+	assert.NoError(t, err)
+
+	entries = GetAllInMemoryEntries()
+	assert.Equal(t, 1, entries.Len())
+
+	entry, exists = entries.Get(testZ85Hash)
+	assert.True(t, exists)
+	assert.Equal(t, "tag1", entry.TagsByTarget["target1"][0])
+	assert.Equal(t, "tag2", entry.TagsByTarget["target2"][0])
+
+	// Test case 4: Multiple cache entries
+	envValue = testZ85Hash + " default" + targetAndTagSeparator + "latest" + cachesSeparator + testZ85Hash2 + " default" + targetAndTagSeparator + "new"
+	err = os.Setenv(InjectCacheEnvVarName, envValue)
+	assert.NoError(t, err)
+
+	entries = GetAllInMemoryEntries()
+	assert.Equal(t, 2, entries.Len())
 }
 
-func TestGetCache_WithTempDockerfileAndContext(t *testing.T) {
-	dir, cleanup := setupTempCacheDir(t)
-	defer cleanup()
+func TestGetDiskCacheToMemoryEntries(t *testing.T) {
+	tempDir := t.TempDir()
 
-	// Create a Dockerfile in the temp dir
-	dockerfilePath := filepath.Join(dir, "Dockerfile")
-	err := os.WriteFile(dockerfilePath, []byte("FROM busybox\n"), 0644)
-	if err != nil {
-		t.Fatalf("Failed to write Dockerfile: %v", err)
-	}
+	// Create test cache files with proper hex hashes
+	oldTime := time.Now().Add(-1 * time.Hour)
+	newTime := time.Now()
 
-	cmd := docker.ParsedBuildCommand{
-		CmdWithTagPlaceholder: []string{"docker", "build", "-t", "some:TAG", "."},
-		RegistryDomain:        "docker.io",
-		ContextPath:           dir,
-		DockerignorePath:      "",
-		DockerfilePath:        dockerfilePath,
+	oldCache := CacheFile{
+		TagsByTarget:  map[string][]string{"default": {"old"}},
+		LastUpdatedAt: oldTime,
 	}
 
-	cache, err := GetCache(cmd)
-	if err != nil {
-		t.Fatalf("GetCache returned error: %v", err)
+	newCache := CacheFile{
+		TagsByTarget:  map[string][]string{"default": {"new"}},
+		LastUpdatedAt: newTime,
 	}
-	if cache.FinalHash == "" {
-		t.Errorf("Expected FinalHash to be set, got empty string")
+
+	multiTargetCache := CacheFile{
+		TagsByTarget: map[string][]string{
+			"target1": {"tag1"},
+			"target2": {"tag2"},
+		},
+		LastUpdatedAt: newTime,
 	}
-	if cache.InMemoryEntries == nil {
-		t.Errorf("Expected InMemoryEntries to be initialized")
-	}
+
+	// Save cache files with proper hex hashes
+	oldData, err := json.Marshal(oldCache)
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(tempDir, fmt.Sprintf("%s.json", testHexHash)), oldData, 0644)
+	require.NoError(t, err)
+
+	newData, err := json.Marshal(newCache)
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(tempDir, fmt.Sprintf("%s.json", testHexHash2)), newData, 0644)
+	require.NoError(t, err)
+
+	multiData, err := json.Marshal(multiTargetCache)
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(tempDir, "1234567890abcdef1234567890abcdef.json"), multiData, 0644)
+	require.NoError(t, err)
+
+	// Create a non-json file (should be ignored)
+	err = os.WriteFile(filepath.Join(tempDir, "ignore.txt"), []byte("ignore"), 0644)
+	require.NoError(t, err)
+
+	// Test getting disk cache entries
+	entries := GetDiskCacheToMemoryEntries(tempDir)
+	assert.Equal(t, 3, entries.Len())
+
+	// Test single target format
+	value, exists := entries.Get(testZ85Hash2)
+	assert.True(t, exists)
+	assert.Equal(t, "new", value)
+
+	// Test multi-target format
+	z85MultiHash, err := hasher.HexToZ85("1234567890abcdef1234567890abcdef")
+	require.NoError(t, err)
+
+	value, exists = entries.Get(z85MultiHash)
+	assert.True(t, exists)
+	assert.Contains(t, value, "target1"+targetAndTagSeparator+"tag1")
+	assert.Contains(t, value, "target2"+targetAndTagSeparator+"tag2")
 }
 
-func TestGetCache_WithDockerignoreAndDockerfile(t *testing.T) {
-	_, cleanup := setupTempCacheDir(t)
-	defer cleanup()
-
-	// Create dummy files
-	dockerignore := filepath.Join(CacheDir, ".dockerignore")
-	dockerfile := filepath.Join(CacheDir, "Dockerfile")
-	err := os.WriteFile(dockerignore, []byte("node_modules"), 0644)
-	if err != nil {
-		t.Fatalf("Failed to write .dockerignore: %v", err)
-	}
-	err = os.WriteFile(dockerfile, []byte("FROM busybox"), 0644)
-	if err != nil {
-		t.Fatalf("Failed to write Dockerfile: %v", err)
+func TestGetLatestTagByTargetEmptyTagsSlice(t *testing.T) {
+	cache := &Cache{
+		Hash:     testHexHash,
+		CacheDir: t.TempDir(),
 	}
 
-	cmd := docker.ParsedBuildCommand{
-		CmdWithTagPlaceholder: []string{"docker", "build", "-t", "some:TAG", "."},
-		RegistryDomain:        "docker.io",
-		ContextPath:           CacheDir,
-		DockerignorePath:      dockerignore,
-		DockerfilePath:        dockerfile,
-	}
+	err := cache.Save(map[string][]string{
+		"target1": {},
+	}, false)
 
-	cache, err := GetCache(cmd)
-	if err != nil {
-		t.Fatalf("GetCache returned error: %v", err)
-	}
-	if cache.FinalHash == "" {
-		t.Errorf("Expected FinalHash to be set, got empty string")
-	}
+	require.NoError(t, err)
+
+	tagsByTarget, err := cache.GetLatestTagByTarget()
+	assert.NoError(t, err)
+	assert.Empty(t, tagsByTarget)
 }
 
-func TestGetCache_ErrorOnMissingFile(t *testing.T) {
-	_, cleanup := setupTempCacheDir(t)
-	defer cleanup()
-
-	cmd := docker.ParsedBuildCommand{
-		CmdWithTagPlaceholder: []string{"docker", "build", "-t", "some:TAG", "."},
-		RegistryDomain:        "docker.io",
-		ContextPath:           "/nonexistent/path",
-		DockerignorePath:      "/nonexistent/.dockerignore",
-		DockerfilePath:        "/nonexistent/Dockerfile",
-	}
-
-	_, err := GetCache(cmd)
-	if err == nil {
-		t.Errorf("Expected error due to missing files, got nil")
-	}
-}
-
-func TestCache_GetInMemoryEntry_Found(t *testing.T) {
-	_, cleanup := setupTempCacheDir(t)
-	defer cleanup()
-
-	// Prepare a hash and its Z85 encoding
-	hash := "0123456789abcdef0123456789abcdef"
-	z85Hash, err := hasher.HexToZ85(hash)
-	if err != nil {
-		t.Fatalf("Failed to convert hash to Z85: %v", err)
-	}
+func TestGetDiskCacheToMemoryEntriesEmptyTagsSlice(t *testing.T) {
+	tempDir := t.TempDir()
 
 	cache := &Cache{
-		FinalHash:       hash,
-		InMemoryEntries: orderedmap.NewOrderedMap[string, string](),
+		Hash:     testHexHash,
+		CacheDir: tempDir,
 	}
-	cache.InMemoryEntries.Set(z85Hash, "mytag")
 
-	val, ok := cache.GetInMemoryEntry()
-	if !ok {
-		t.Errorf("Expected to find in-memory entry, but did not")
-	}
-	if val != "mytag" {
-		t.Errorf("Expected value 'mytag', got %q", val)
-	}
+	err := cache.Save(map[string][]string{
+		"target1": {},
+	}, false)
+	require.NoError(t, err)
+
+	entries := GetDiskCacheToMemoryEntries(tempDir)
+	assert.Equal(t, 0, entries.Len())
+	_, exists := entries.Get(testZ85Hash)
+	assert.False(t, exists)
 }
 
-func TestCache_GetInMemoryEntry_NotFound(t *testing.T) {
-	_, cleanup := setupTempCacheDir(t)
-	defer cleanup()
-
+func TestSaveInvalidJsonInExistingFile(t *testing.T) {
 	cache := &Cache{
-		FinalHash:       "deadbeefdeadbeefdeadbeefdeadbeef",
-		InMemoryEntries: orderedmap.NewOrderedMap[string, string](),
+		Hash:     testHexHash,
+		CacheDir: t.TempDir(),
 	}
-	// No entry set
-	val, ok := cache.GetInMemoryEntry()
-	if ok {
-		t.Errorf("Expected not to find in-memory entry, but got one: %q", val)
+
+	// Create a corrupted cache file
+	err := os.WriteFile(cache.DataPath(), []byte("invalid json content"), 0644)
+	require.NoError(t, err)
+
+	// Try to save new tags
+	tagsByTarget := map[string][]string{
+		"target1": {"newtag"},
 	}
+
+	err = cache.Save(tagsByTarget, false)
+	// This should not fail, but the corrupted data will be lost
+	assert.NoError(t, err)
+
+	// assert cache file exists and has the correct tags
+	assert.True(t, cache.ExistsInFilesystem())
+
+	data, err := os.ReadFile(cache.DataPath())
+	require.NoError(t, err)
+
+	var cacheFile CacheFile
+
+	err = json.Unmarshal(data, &cacheFile)
+	require.NoError(t, err)
+
+	assert.Equal(t, "newtag", cacheFile.TagsByTarget["target1"][0])
+	assert.Equal(t, 1, len(cacheFile.TagsByTarget["target1"]))
 }
 
-func TestCache_GetInMemoryEntry_InvalidHash(t *testing.T) {
-	_, cleanup := setupTempCacheDir(t)
-	defer cleanup()
+func TestSaveDuplicateTags(t *testing.T) {
+	cache := &Cache{
+		Hash:     testHexHash,
+		CacheDir: t.TempDir(),
+	}
+
+	// Save the same tag multiple times
+	tagsByTarget := map[string][]string{
+		"target1": {"duplicate"},
+	}
+
+	err := cache.Save(tagsByTarget, false)
+	assert.NoError(t, err)
+
+	// Save the same tag again
+	err = cache.Save(tagsByTarget, false)
+	assert.NoError(t, err)
+
+	latestTags, err := cache.GetLatestTagByTarget()
+	assert.NoError(t, err)
+
+	assert.Equal(t, "duplicate", latestTags["target1"])
+
+	// Read the raw file to check for duplicates
+	data, err := os.ReadFile(cache.DataPath())
+	require.NoError(t, err)
+
+	var cacheFile CacheFile
+	err = json.Unmarshal(data, &cacheFile)
+	require.NoError(t, err)
+
+	// assert only a single tag is present
+	assert.Equal(t, 1, len(cacheFile.TagsByTarget["target1"]))
+	assert.Equal(t, "duplicate", cacheFile.TagsByTarget["target1"][0])
+}
+
+func TestGetLatestTagByTargetWithInvalidJson(t *testing.T) {
+	cache := &Cache{
+		Hash:     testHexHash,
+		CacheDir: t.TempDir(),
+	}
+
+	// Create a cache file with invalid JSON
+	err := os.WriteFile(cache.DataPath(), []byte("invalid json content"), 0644)
+	require.NoError(t, err)
+
+	_, err = cache.GetLatestTagByTarget()
+	assert.Error(t, err)
+}
+
+func TestSaveWithDirectoryCreationError(t *testing.T) {
+	// Test Save when directory creation fails
+	cache := &Cache{
+		Hash:     testHexHash,
+		CacheDir: "/invalid/path/that/cannot/be/created", // This should cause MkdirAll to fail
+	}
+
+	tagsByTarget := map[string][]string{
+		"target1": {"tag1"},
+	}
+
+	err := cache.Save(tagsByTarget, false)
+	assert.Error(t, err)
+}
+
+func TestSaveWithFileWriteError(t *testing.T) {
+	// Test Save when file writing fails
+	// Create a read-only directory
+	readOnlyDir := filepath.Join(t.TempDir(), "readonly")
+	err := os.MkdirAll(readOnlyDir, 0444) // Read-only permissions
+	require.NoError(t, err)
 
 	cache := &Cache{
-		FinalHash:       "not-a-hex-hash",
-		InMemoryEntries: orderedmap.NewOrderedMap[string, string](),
+		Hash:     testHexHash,
+		CacheDir: readOnlyDir,
 	}
-	// Should not panic, just return false
-	val, ok := cache.GetInMemoryEntry()
-	if ok {
-		t.Errorf("Expected not to find in-memory entry for invalid hash, but got: %q", val)
+
+	tagsByTarget := map[string][]string{
+		"target1": {"tag1"},
 	}
+
+	err = cache.Save(tagsByTarget, false)
+	assert.Error(t, err)
+}
+
+func TestForgetCacheEntriesOlderThanWithNonExistentDirectory(t *testing.T) {
+	// Test ForgetCacheEntriesOlderThan with a non-existent directory
+	err := ForgetCacheEntriesOlderThan(time.Now(), "/non/existent/directory", false)
+	assert.NoError(t, err)
+}
+
+func TestForgetCacheEntriesOlderThanWithInvalidJson(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Create a cache file with invalid JSON
+	err := os.WriteFile(filepath.Join(tempDir, "invalid.json"), []byte("invalid json"), 0644)
+	require.NoError(t, err)
+
+	// This should not fail, but should log an error
+	err = ForgetCacheEntriesOlderThan(time.Now().Add(-1*time.Hour), tempDir, false)
+	assert.NoError(t, err)
+}
+
+func TestForgetCacheEntriesOlderThanWithDeleteError(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Create a cache file
+	cacheFile := CacheFile{
+		TagsByTarget:  map[string][]string{"default": {"old"}},
+		LastUpdatedAt: time.Now().Add(-24 * time.Hour), // Old file
+	}
+
+	data, err := json.Marshal(cacheFile)
+	require.NoError(t, err)
+
+	cachePath := filepath.Join(tempDir, "old-hash.json")
+	err = os.WriteFile(cachePath, data, 0644)
+	require.NoError(t, err)
+
+	// Make the file read-only to prevent deletion
+	err = os.Chmod(cachePath, 0444)
+	require.NoError(t, err)
+
+	// This should not fail
+	err = ForgetCacheEntriesOlderThan(time.Now().Add(-12*time.Hour), tempDir, false)
+	assert.NoError(t, err)
+}
+
+func TestGetAllInMemoryEntriesWithMalformedLine(t *testing.T) {
+	// Test GetAllInMemoryEntries with malformed lines
+	envValue := "key-only\nkey value extra\n default:latest"
+	err := os.Setenv(InjectCacheEnvVarName, envValue)
+	assert.NoError(t, err)
+
+	entries := GetAllInMemoryEntries()
+	assert.Equal(t, 0, entries.Len())
+
+	// Clean up
+	err = os.Unsetenv(InjectCacheEnvVarName)
+	assert.NoError(t, err)
+}
+
+func TestGetAllInMemoryEntriesWithEmptyTarget(t *testing.T) {
+	// Test GetAllInMemoryEntries with empty target
+	z85Hash, err := hasher.HexToZ85(testHexHash)
+	require.NoError(t, err)
+
+	envValue := z85Hash + cacheKeyAndValueSeparator + "latest" // Empty target name
+	_ = os.Setenv(InjectCacheEnvVarName, envValue)
+
+	entries := GetAllInMemoryEntries()
+	assert.Equal(t, 1, entries.Len())
+
+	entry, exists := entries.Get(z85Hash)
+	assert.True(t, exists)
+	assert.Contains(t, entry.TagsByTarget, "default")
+	assert.Len(t, entry.TagsByTarget["default"], 1)
+	assert.Equal(t, "latest", entry.TagsByTarget["default"][0])
+
+	// Clean up
+	err = os.Unsetenv(InjectCacheEnvVarName)
+	assert.NoError(t, err)
+}
+
+func TestGetDiskCacheToMemoryEntriesWithWalkError(t *testing.T) {
+	// Test GetDiskCacheToMemoryEntries with non-existent directory
+	entries := GetDiskCacheToMemoryEntries("/non/existent/directory")
+	assert.Equal(t, 0, entries.Len())
+}
+
+func TestGetDiskCacheToMemoryEntriesWithReadError(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Create a directory with the same name as a cache file to cause read error
+	err := os.MkdirAll(filepath.Join(tempDir, "cache-file.json"), 0755)
+	require.NoError(t, err)
+
+	entries := GetDiskCacheToMemoryEntries(tempDir)
+	assert.Equal(t, 0, entries.Len())
+}
+
+func TestGetDiskCacheToMemoryEntriesWithInvalidJson(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Create a cache file with invalid JSON
+	err := os.WriteFile(filepath.Join(tempDir, fmt.Sprintf("%s.json", testHexHash)), []byte("invalid json"), 0644)
+	require.NoError(t, err)
+
+	entries := GetDiskCacheToMemoryEntries(tempDir)
+	assert.Equal(t, 0, entries.Len())
+}
+
+func TestGetDiskCacheToMemoryEntriesWithInvalidHash(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Create a cache file with invalid hash name
+	cacheFile := CacheFile{
+		TagsByTarget:  map[string][]string{"default": {"latest"}},
+		LastUpdatedAt: time.Now(),
+	}
+
+	data, err := json.Marshal(cacheFile)
+	require.NoError(t, err)
+
+	// Use invalid hash that can't be converted to Z85
+	err = os.WriteFile(filepath.Join(tempDir, "invalid-hash.json"), data, 0644)
+	require.NoError(t, err)
+
+	entries := GetDiskCacheToMemoryEntries(tempDir)
+	assert.Equal(t, 0, entries.Len())
+}
+
+func TestGetDiskCacheToMemoryEntriesWithEmptyTags(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Create a cache file with empty tags for all targets
+	cacheFile := CacheFile{
+		TagsByTarget: map[string][]string{
+			"target1": {},
+			"target2": {},
+		},
+		LastUpdatedAt: time.Now(),
+	}
+
+	data, err := json.Marshal(cacheFile)
+	require.NoError(t, err)
+
+	err = os.WriteFile(filepath.Join(tempDir, fmt.Sprintf("%s.json", testHexHash)), data, 0644)
+	require.NoError(t, err)
+
+	entries := GetDiskCacheToMemoryEntries(tempDir)
+	assert.Equal(t, 0, entries.Len())
+}
+
+func TestGetDiskCacheToMemoryEntriesWithMixedEmptyAndNonEmptyTags(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Create a cache file with mixed empty and non-empty tags
+	cacheFile := CacheFile{
+		TagsByTarget: map[string][]string{
+			"target1": {"tag1", "tag2"},
+			"target2": {}, // Empty tags
+		},
+		LastUpdatedAt: time.Now(),
+	}
+
+	data, err := json.Marshal(cacheFile)
+	require.NoError(t, err)
+
+	err = os.WriteFile(filepath.Join(tempDir, fmt.Sprintf("%s.json", testHexHash)), data, 0644)
+	require.NoError(t, err)
+
+	entries := GetDiskCacheToMemoryEntries(tempDir)
+	assert.Equal(t, 1, entries.Len())
+
+	z85Hash, err := hasher.HexToZ85(testHexHash)
+	require.NoError(t, err)
+
+	value, exists := entries.Get(z85Hash)
+	assert.True(t, exists)
+	assert.Contains(t, value, "target1"+targetAndTagSeparator+"tag2")
+}
+
+func TestSaveWithExistingInvalidJsonFile(t *testing.T) {
+	cache := &Cache{
+		Hash:     testHexHash,
+		CacheDir: t.TempDir(),
+	}
+
+	// Create an existing cache file with invalid JSON
+	err := os.WriteFile(cache.DataPath(), []byte("invalid json content"), 0644)
+	require.NoError(t, err)
+
+	// Try to save new tags - should handle the invalid JSON gracefully
+	tagsByTarget := map[string][]string{
+		"target1": {"newtag"},
+	}
+
+	err = cache.Save(tagsByTarget, false)
+	assert.NoError(t, err)
+
+	// Verify the file was overwritten with valid content
+	data, err := os.ReadFile(cache.DataPath())
+	require.NoError(t, err)
+
+	var cacheFile CacheFile
+	err = json.Unmarshal(data, &cacheFile)
+	require.NoError(t, err)
+
+	assert.Equal(t, "newtag", cacheFile.TagsByTarget["target1"][0])
+}
+
+func TestSaveWithMoreThan10Tags(t *testing.T) {
+	cache := &Cache{
+		Hash:     testHexHash,
+		CacheDir: t.TempDir(),
+	}
+
+	// Create initial cache with 5 tags
+	initialTags := make([]string, 5)
+	for i := range initialTags {
+		initialTags[i] = fmt.Sprintf("tag%d", i)
+	}
+
+	err := cache.Save(map[string][]string{"target1": initialTags}, false)
+	assert.NoError(t, err)
+
+	// Add 8 more tags (total 13, should be limited to 10)
+	additionalTags := make([]string, 8)
+	for i := range additionalTags {
+		additionalTags[i] = fmt.Sprintf("newtag%d", i)
+	}
+
+	err = cache.Save(map[string][]string{"target1": additionalTags}, false)
+	assert.NoError(t, err)
+
+	// Verify only the last 10 tags are kept
+	latestTags, err := cache.GetLatestTagByTarget()
+	require.NoError(t, err)
+
+	// Read the raw file to check the number of tags
+	data, err := os.ReadFile(cache.DataPath())
+	require.NoError(t, err)
+
+	var cacheFile CacheFile
+	err = json.Unmarshal(data, &cacheFile)
+	require.NoError(t, err)
+
+	assert.Len(t, cacheFile.TagsByTarget["target1"], 10)
+	assert.Equal(t, "newtag7", latestTags["target1"]) // Last tag should be newtag7
 }

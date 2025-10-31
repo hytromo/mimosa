@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+#MISE description="Install pre-commit hooks for git"
+#MISE depends=["init:python"]
+
+set -euo pipefail
+
+echo "Installing pre-commit hooks..."
+uv run pre-commit install

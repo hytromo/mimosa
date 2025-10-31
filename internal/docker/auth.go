@@ -1,6 +1,8 @@
 package docker
 
 import (
+	"io"
+
 	ecr "github.com/awslabs/amazon-ecr-credential-helper/ecr-login"
 	ecrapi "github.com/awslabs/amazon-ecr-credential-helper/ecr-login/api"
 	acr "github.com/chrismellard/docker-credential-acr-env/pkg/credhelper"
@@ -13,6 +15,7 @@ var Keychain = cntauthn.NewMultiKeychain(
 	google.Keychain,
 	cntauthn.NewKeychainFromHelper(ecr.NewECRHelper(
 		ecr.WithClientFactory(ecrapi.DefaultClientFactory{}),
+		ecr.WithLogger(io.Discard), // ECR keychain is too noisy when the target is a non-ecr registry
 	)),
 	cntauthn.NewKeychainFromHelper(acr.ACRCredHelper{}),
 )

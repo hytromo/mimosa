@@ -1,7 +1,10 @@
 import * as core from '@actions/core'
 import * as github from '@actions/github'
 import { Octokit } from '@octokit/rest'
-import { execSync } from 'child_process'
+import { execSync } from 'node:child_process'
+import fs, { mkdtempSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 
 export async function run(): Promise<void> {
   try {
@@ -9,7 +12,7 @@ export async function run(): Promise<void> {
     const repoVariableName: string = core.getInput('variable-name')
     const maxLength: number = parseInt(core.getInput('max-length'), 10)
 
-    if (isNaN(maxLength)) {
+    if (Number.isNaN(maxLength)) {
       core.warning(`max-length is invalid: ${maxLength}`)
       return
     }
@@ -57,12 +60,16 @@ export async function run(): Promise<void> {
       }
     }
 
-    // combines the current MIMOSA_CACHE with the existing disk cache and displays its value
-    let newMimosaCacheEnv = execSync(`mimosa cache --to-env-value`, {
+    const tmpDir = mkdtempSync(path.join(tmpdir(), 'mimosa-'))
+    const envTmpFilePath = path.join(tmpDir, 'tempfile.txt')
+
+    execSync(`mimosa cache --export-to "${envTmpFilePath}"`, {
       env: mimosaEnv
     })
-      .toString()
-      .trim()
+
+    let newMimosaCacheEnv = fs.readFileSync(envTmpFilePath, 'utf-8').trim()
+
+    fs.rmSync(tmpDir, { recursive: true, force: true })
 
     if (newMimosaCacheEnv.length > maxLength) {
       // we need to remove as many lines from the end of newMimosaCacheEnv as needed in order to fit the max length
@@ -99,6 +106,8 @@ export async function run(): Promise<void> {
         `Trimmed cache to fit max length: ${newMimosaCacheEnv.length} characters by removing ${linesToRemove} entries`
       )
     }
+
+    core.setOutput('new-cache-value', newMimosaCacheEnv)
 
     if (mimosaEnv['MIMOSA_CACHE'] === newMimosaCacheEnv) {
       console.log(

@@ -42,7 +42,7 @@ if (isMap(jobs)) {
 
 			if (id?.value === 'setup-mimosa') {
 				stepNode.set('uses', 'hytromo/mimosa/gh/setup-action@v1-setup');
-				stepNode.set('with', doc.createNode({ version: 'v0.0.11' }));
+				stepNode.set('with', doc.createNode({ version: 'v0.1.0' }));
 				stepNode.delete('run');
 
 				newSteps.push(stepNode);
@@ -50,7 +50,7 @@ if (isMap(jobs)) {
 			}
 
 			if (uses?.value?.includes('./gh/cache-action')) {
-				stepNode.set('uses', 'hytromo/mimosa/gh/cache-action@v1-cache');
+				stepNode.set('uses', 'hytromo/mimosa/gh/cache-action@v2-cache');
 			}
 
 			newSteps.push(stepNode);

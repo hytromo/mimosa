@@ -3,7 +3,7 @@ project_name: mimosa
 
 builds:
   - id: mimosa
-    main: ./cmd/mimosa
+    main: ./
     goos:
       - linux
       - darwin
@@ -13,6 +13,9 @@ builds:
       - arm64
     ldflags:
       - -s -w
+      - -X github.com/hytromo/mimosa/cmd.Version={{ .Version }}
+      - -X github.com/hytromo/mimosa/cmd.Commit={{ .ShortCommit }}
+      - -X github.com/hytromo/mimosa/cmd.Date={{ .Date }}
     env:
       - CGO_ENABLED=0
 archives:

@@ -3,31 +3,30 @@ package hasher
 import (
 	"encoding/hex"
 	"math"
-	"runtime"
 	"sort"
 	"sync"
 
-	log "github.com/sirupsen/logrus"
+	"log/slog"
 
+	"github.com/hytromo/mimosa/internal/logger"
 	"github.com/kalafut/imohash"
 )
 
 // HashFiles computes a hash of all files in the provided list
 // and returns a single hash representing the unique state of all files.
-func HashFiles(filePaths []string) (string, error) {
+// It produces the same hash for the same files, regardless of the order of the files.
+func HashFiles(filePaths []string, nWorkers int) string {
 	if len(filePaths) == 0 {
-		return "", nil
+		return ""
 	}
-
-	// as many workers as files, up to num of CPUs-1
-	nWorkers := int(math.Min(float64(len(filePaths)), math.Max(float64(runtime.NumCPU()-1), 1)))
 
 	fileChan := make(chan string, len(filePaths))
 	hashChan := make(chan []byte, len(filePaths))
+	finalWorkerCount := int(math.Max(1, float64(nWorkers)))
 	workerCountChan := make(chan struct {
 		workerID int
 		count    int
-	}, nWorkers)
+	}, finalWorkerCount)
 	var wg sync.WaitGroup
 
 	// Worker function
@@ -37,8 +36,13 @@ func HashFiles(filePaths []string) (string, error) {
 		for path := range fileChan {
 			hash, err := imohash.SumFile(path)
 			if err == nil {
+				if logger.IsDebugEnabled() {
+					slog.Debug("Hashed file", "path", path, "hash", hex.EncodeToString(hash[:]))
+				}
 				hashChan <- hash[:]
 				count++
+			} else {
+				slog.Debug("Error hashing file", "path", path, "error", err)
 			}
 		}
 		workerCountChan <- struct {
@@ -47,8 +51,8 @@ func HashFiles(filePaths []string) (string, error) {
 		}{id, count}
 	}
 
-	wg.Add(nWorkers)
-	for i := 0; i < nWorkers; i++ {
+	wg.Add(finalWorkerCount)
+	for i := 0; i < finalWorkerCount; i++ {
 		go worker(i)
 	}
 
@@ -68,21 +72,21 @@ func HashFiles(filePaths []string) (string, error) {
 	}
 
 	// Collect worker stats
-	workerStats := make([]int, nWorkers)
+	workerStats := make([]int, finalWorkerCount)
 	for stat := range workerCountChan {
 		workerStats[stat.workerID] = stat.count
 	}
 
-	if log.IsLevelEnabled(log.DebugLevel) {
+	if logger.IsDebugEnabled() {
 		// Print the number of files and their paths
-		log.Debugf("Deducting file hash from %d files:", len(filePaths))
+		slog.Debug("Deducting file hash from files", "count", len(filePaths))
 		for _, path := range filePaths {
-			log.Debugln(path)
+			slog.Debug("File path", "path", path)
 		}
-		log.Debugf("Files hashed per worker (%v total workers):", nWorkers)
+		slog.Debug("Files hashed per worker", "workers", nWorkers)
 		for i, c := range workerStats {
 			if c > 0 {
-				log.Debugf("  Worker %d: %d files", i, c)
+				slog.Debug("Worker stats", "worker", i, "count", c)
 			}
 		}
 	}
@@ -95,7 +99,7 @@ func HashFiles(filePaths []string) (string, error) {
 	// Concatenate all hashes and hash the result for a final hash
 	joined := joinHashes(fileHashes)
 	finalHash := imohash.Sum(joined)
-	return hex.EncodeToString(finalHash[:]), nil
+	return hex.EncodeToString(finalHash[:])
 }
 
 func joinHashes(hashes [][]byte) []byte {

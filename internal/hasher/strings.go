@@ -7,7 +7,7 @@ import (
 	"github.com/kalafut/imohash"
 	"github.com/tilinna/z85"
 
-	log "github.com/sirupsen/logrus"
+	"log/slog"
 )
 
 func HashStrings(toHash []string) string {
@@ -37,7 +37,7 @@ func BytesToZ85(data []byte) string {
 	_, err := z85.Encode(encoded, data)
 
 	if err != nil {
-		log.Debugf("Failed to encode bytes to Z85: %v", err)
+		slog.Debug("Failed to encode bytes to Z85", "error", err)
 	}
 
 	return string(encoded)

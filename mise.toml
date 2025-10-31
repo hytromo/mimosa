@@ -3,28 +3,4 @@ go = '1.24.5'
 golangci-lint = '2.3.0'
 node = '20'
 python = '3.12'
-uv = '0.8.3'
-
-[tasks.init]
-description = 'Initialize the project along with all subprojects'
-run = '''
-  echo "Downloading go deps..."
-  go mod download
-
-  echo "Downloading node deps..."
-  npm install -g yarn@1.22.22
-  cd gh/cache-action 
-  yarn install
-  cd -
-  cd gh/setup-action
-  yarn install
-  cd -
-  cd scripts/sync-example-confirmer-to-real-example
-  yarn install
-
-  echo "Downloading python deps..."
-  uv sync
-
-  echo "Installing pre-commit hooks..."
-  uv run pre-commit install
-'''
+uv = '0.9.3'

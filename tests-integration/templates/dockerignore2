@@ -1,0 +1,4 @@
+dockerfile-2-ignored-file
+dockerfile-2-ignored-folder/**
+
+**/*excluded*

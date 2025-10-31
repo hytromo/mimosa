@@ -25,8 +25,12 @@ import require$$1$4 from 'url';
 import require$$3$2 from 'zlib';
 import require$$6 from 'string_decoder';
 import require$$0$9 from 'diagnostics_channel';
-import require$$2$3, { execSync } from 'child_process';
+import require$$2$3 from 'child_process';
 import require$$6$1 from 'timers';
+import { execSync } from 'node:child_process';
+import fs, { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 
 var commonjsGlobal = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
 
@@ -35624,7 +35628,7 @@ async function run() {
         const githubToken = coreExports.getInput('github-token');
         const repoVariableName = coreExports.getInput('variable-name');
         const maxLength = parseInt(coreExports.getInput('max-length'), 10);
-        if (isNaN(maxLength)) {
+        if (Number.isNaN(maxLength)) {
             coreExports.warning(`max-length is invalid: ${maxLength}`);
             return;
         }
@@ -35662,12 +35666,13 @@ async function run() {
                 console.error(`Failed to get existing variable ${repoVariableName}:`, error);
             }
         }
-        // combines the current MIMOSA_CACHE with the existing disk cache and displays its value
-        let newMimosaCacheEnv = execSync(`mimosa cache --to-env-value`, {
+        const tmpDir = mkdtempSync(path.join(tmpdir(), 'mimosa-'));
+        const envTmpFilePath = path.join(tmpDir, 'tempfile.txt');
+        execSync(`mimosa cache --export-to "${envTmpFilePath}"`, {
             env: mimosaEnv
-        })
-            .toString()
-            .trim();
+        });
+        let newMimosaCacheEnv = fs.readFileSync(envTmpFilePath, 'utf-8').trim();
+        fs.rmSync(tmpDir, { recursive: true, force: true });
         if (newMimosaCacheEnv.length > maxLength) {
             // we need to remove as many lines from the end of newMimosaCacheEnv as needed in order to fit the max length
             // this is due to Github Actions variable length limits or stricter limits imposed by the user
@@ -35692,6 +35697,7 @@ async function run() {
                 .trim();
             console.log(`Trimmed cache to fit max length: ${newMimosaCacheEnv.length} characters by removing ${linesToRemove} entries`);
         }
+        coreExports.setOutput('new-cache-value', newMimosaCacheEnv);
         if (mimosaEnv['MIMOSA_CACHE'] === newMimosaCacheEnv) {
             console.log(`Mimosa cache is already up to date with the latest version of variable ${repoVariableName} - skipping update.`);
             return;

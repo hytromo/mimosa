@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+
+#MISE description="Install node deps"
+
+set -euo pipefail
+
+echo "Downloading node deps..."
+
+npm install -g yarn@1.22.22
+
+cd gh/cache-action 
+yarn install
+cd -
+
+cd gh/setup-action
+yarn install
+cd -
+
+cd scripts/sync-example-confirmer-to-real-example
+yarn install
