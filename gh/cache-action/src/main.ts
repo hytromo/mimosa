@@ -107,6 +107,8 @@ export async function run(): Promise<void> {
       )
     }
 
+    core.setOutput('new-cache-value', newMimosaCacheEnv)
+
     if (mimosaEnv['MIMOSA_CACHE'] === newMimosaCacheEnv) {
       console.log(
         `Mimosa cache is already up to date with the latest version of variable ${repoVariableName} - skipping update.`

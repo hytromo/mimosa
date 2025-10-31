@@ -86,33 +86,19 @@ jobs:
           grep -q "mimosa-cache-hit: false" mimosa.log
 
       - name: Save mimosa cache
+        id: save-cache
         uses: ./gh/cache-action
         with:
           github-token: ${{ secrets.WRITE_VARIABLES_GH_PAT }}
 
       ### That's it! - the next steps are just proving that the cache is working - you DO NOT need to include them in your typical workflow
-
-      # dynamically fetch the new value of the variable
-      - name: Fetch mimosa cache variable
-        uses: actions/github-script@v8
-        id: fetch-mimosa-cache
-        with:
-          github-token: ${{ secrets.WRITE_VARIABLES_GH_PAT }}
-          script: |
-            const variable = await github.rest.actions.getRepoVariable({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              variable_name: "MIMOSA_CACHE"
-            });
-            core.setOutput("value", variable.data.value);
-
       - name: Use mimosa for dockerhub
         working-directory: docs/gh-actions/actions-example
         env:
           REPOSITORY: mimosa-testing
           IMAGE_TAG: recommended-example-cache-hit-${{ github.sha }}
           LOG_LEVEL: DEBUG # remove this once you have confirmed that mimosa is working
-          MIMOSA_CACHE: ${{ steps.fetch-mimosa-cache.outputs.value }}
+          MIMOSA_CACHE: ${{ steps.save-cache.outputs.new-cache-value }}
         run: |
           # we are going to work only with the MIMOSA_CACHE variable, so clean the disk cache to ensure we do not read anything from there
           mimosa forget everything --yes
@@ -134,7 +120,7 @@ jobs:
           REPOSITORY: mimosa-testing
           IMAGE_TAG: recommended-example-cache-hit-${{ github.sha }}
           LOG_LEVEL: DEBUG # remove this once you have confirmed that mimosa is working
-          MIMOSA_CACHE: ${{ vars.MIMOSA_CACHE }}
+          MIMOSA_CACHE: ${{ steps.save-cache.outputs.new-cache-value }}
         run: |
           # we are going to work only with the MIMOSA_CACHE variable, so clean the disk cache to ensure we do not read anything from there
           mimosa forget everything --yes

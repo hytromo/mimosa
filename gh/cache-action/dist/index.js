@@ -35697,6 +35697,7 @@ async function run() {
                 .trim();
             console.log(`Trimmed cache to fit max length: ${newMimosaCacheEnv.length} characters by removing ${linesToRemove} entries`);
         }
+        coreExports.setOutput('new-cache-value', newMimosaCacheEnv);
         if (mimosaEnv['MIMOSA_CACHE'] === newMimosaCacheEnv) {
             console.log(`Mimosa cache is already up to date with the latest version of variable ${repoVariableName} - skipping update.`);
             return;

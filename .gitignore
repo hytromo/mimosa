@@ -146,4 +146,4 @@ __tests__/runner/*
 
 integration_tests_summary.json
 
-dist
+./dist

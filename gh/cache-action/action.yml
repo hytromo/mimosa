@@ -26,10 +26,9 @@ inputs:
     default: '48000'
 
 outputs:
-  success:
-    description: Whether the action was successful or not
-  cache-entries-count:
-    description: The number of entries saved in the cache
+  new-cache-value:
+    description:
+      The new calculated cache value saved back as a GitHub Actions variable
 
 runs:
   using: node20

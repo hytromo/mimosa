@@ -133,7 +133,7 @@ jobs:
           dockerignore: ${{ matrix.dockerignore }}
           bakefile_location: ${{ matrix.bakefile_location }}
           dockerfile_type: ${{ matrix.dockerfile_type }}
-        run: mise run integration-tests
+        run: mise run tests:integration
 
       - name: Upload test summary artifact
         uses: actions/upload-artifact@v4
