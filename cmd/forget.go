@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"log/slog"
+
 	"github.com/hytromo/mimosa/internal/configuration"
 	"github.com/hytromo/mimosa/internal/orchestration/actions"
 	"github.com/hytromo/mimosa/internal/orchestration/orchestrator"
@@ -27,8 +29,9 @@ var forgetCmd = &cobra.Command{
 					DryRun:       dryRun,
 					CommandToRun: positionalArguments,
 				}, actions.New())
+
 			if err != nil {
-				panic(err)
+				slog.Error(err.Error())
 			}
 			return
 		}
@@ -43,6 +46,7 @@ var forgetCmd = &cobra.Command{
 			Period:     olderThan,
 			AutoYes:    yes,
 		}, actions.New())
+
 		if err != nil {
 			panic(err)
 		}

@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"log/slog"
+
 	"github.com/hytromo/mimosa/internal/configuration"
 	"github.com/hytromo/mimosa/internal/orchestration/actions"
 	"github.com/hytromo/mimosa/internal/orchestration/orchestrator"
@@ -51,7 +53,7 @@ var rememberCmd = &cobra.Command{
 			actions.New())
 
 		if err != nil {
-			panic(err)
+			slog.Error(err.Error())
 		}
 	},
 }

@@ -97,7 +97,7 @@ jobs:
           MIMOSA_CACHE: ${{ steps.save-cache.outputs.new-cache-value }}
         run: |
           # we are going to work only with the MIMOSA_CACHE variable, so clean the disk cache to ensure we do not read anything from there
-          mimosa forget everything --yes
+          mimosa forget --everything --yes
 
           echo $RANDOM > to-ignore.txt
           echo "${{ github.sha }}" > useful.txt
@@ -118,7 +118,7 @@ jobs:
           MIMOSA_CACHE: ${{ steps.save-cache.outputs.new-cache-value }}
         run: |
           # we are going to work only with the MIMOSA_CACHE variable, so clean the disk cache to ensure we do not read anything from there
-          mimosa forget everything --yes
+          mimosa forget --everything --yes
 
           echo $RANDOM > to-ignore.txt
           echo "${{ github.sha }}" > useful.txt

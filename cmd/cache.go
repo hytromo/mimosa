@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"log/slog"
+
 	"github.com/hytromo/mimosa/internal/configuration"
 	"github.com/hytromo/mimosa/internal/orchestration/actions"
 	"github.com/hytromo/mimosa/internal/orchestration/orchestrator"
@@ -23,7 +25,7 @@ Use the MIMOSA_CACHE_DIR environment variable to override the default cache loca
 		}, actions.New())
 
 		if err != nil {
-			panic(err)
+			slog.Error(err.Error())
 		}
 	},
 }
