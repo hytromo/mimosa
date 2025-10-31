@@ -12,7 +12,7 @@ import (
 var rememberCmd = &cobra.Command{
 	Use:   "remember [flags] -- <docker buildx build/bake command>",
 	Short: "Build new images, or retag existing ones",
-	Long: `The remember subcommand will run the provided command as is and store its hash<->tag association in the cache. If the same command is run again under the same context, mimosa will retag the docker image instead of rebuilding it.
+	Long: `The remember subcommand will run the provided command as is and store the hash-tag association in the cache. If the same command is run again under the same context, mimosa will retag the docker image instead of rebuilding it.
 
   * buildx build
     If the same hash has been seen before, mimosa will use the cached tag to retag your image instead of building it.
@@ -31,7 +31,7 @@ var rememberCmd = &cobra.Command{
     Bake works the same as build - a single hash is generated for the bake command regardless of how many targets are defined inside the bake file. This means that either all targets are retagged (cache hit) all the whole "docker buildx bake" command is run and cached (cache miss). This follows mimosa's philosophy of not changing the original command's behavior on cache miss (like breaking down a single bake command into multiple build commands).
 
     Example:
-      # mimosa doesn'tt remember! - it runs normally the command following it and it saves it in its cache
+      # mimosa doesn't remember! - it runs normally the command following it and it saves it in its cache
       mimosa remember -- docker buildx bake -f docker-bake.hcl
 
       # ... introduce changes in .dockerignored-files (or other irrelevant files) ...
