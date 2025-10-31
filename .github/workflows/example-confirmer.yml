@@ -66,7 +66,6 @@ jobs:
           # ensure that we do not get a mimosa cache hit
           grep -q "mimosa-cache-hit: false" mimosa.log
 
-
       - name: Use mimosa for ECR
         working-directory: docs/gh-actions/actions-example
         env:
@@ -112,7 +111,6 @@ jobs:
           # ensure that we DO get a mimosa cache hit now
           grep -q "mimosa-cache-hit: true" mimosa.log
 
-
       - name: Use mimosa for ECR
         working-directory: docs/gh-actions/actions-example
         env:
@@ -133,7 +131,6 @@ jobs:
 
           # ensure that we DO get a mimosa cache hit now
           grep -q "mimosa-cache-hit: true" mimosa.log
-
 
   not-recommended-example-github-action:
     name: "Not recommended: actions/cache"

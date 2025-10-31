@@ -26,7 +26,6 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
-
       - name: Run go lint
         run: golangci-lint run --fix
 
@@ -46,7 +45,6 @@ jobs:
       - uses: jdx/mise-action@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-
 
       # docker builds and dockerhub access required by tests
       - name: Set up QEMU
@@ -108,7 +106,6 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
-
       - name: Install Python dependencies
         run: mise run init:python
 
@@ -146,8 +143,6 @@ jobs:
     runs-on: ubuntu-24.04
     name: "Summarize test results"
     steps:
-      - uses: actions/checkout@v5
-
       - name: Download all test summary artifacts
         uses: actions/download-artifact@v4
         with:
@@ -305,7 +300,6 @@ jobs:
       - uses: jdx/mise-action@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
