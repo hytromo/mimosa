@@ -62,7 +62,7 @@ jobs:
           password: ${{ secrets.DOCKER_PAT }}
       
       - name: Run unit tests
-        run: mise run unit-tests
+        run: mise run tests:unit
 
       - name: Upload results to Codecov
         uses: codecov/codecov-action@v5
@@ -110,7 +110,7 @@ jobs:
 
 
       - name: Install Python dependencies
-        run: mise run init-python
+        run: mise run init:python
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3

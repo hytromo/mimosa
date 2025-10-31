@@ -6,4 +6,4 @@
 
 Start hacking! The pre-commit hooks will help ensuring that the github actions are bundled or that the go code does not have code smells. Have a look at `.pre-commit-config.yaml` for details
 
-See `mise tasks` for all the possible tasks, e.g. `mise run unit-tests`, `mise run integration-tests`, `mise run cleanup-tests`
+See `mise tasks` for all the possible tasks, e.g. `mise run tests:unit`, `mise run tests:integration`, `mise run tests:cleanup`
