@@ -1,15 +1,10 @@
 import * as core from '@actions/core'
 import * as github from '@actions/github'
-import { RestEndpointMethodTypes } from '@octokit/plugin-rest-endpoint-methods'
-import { execSync } from 'child_process'
-import * as fs from 'fs'
-import { createWriteStream } from 'fs'
-import * as os from 'os'
-import * as path from 'path'
-import { pipeline } from 'stream'
-import { promisify } from 'util'
-
-const streamPipeline = promisify(pipeline)
+import toolCache from '@actions/tool-cache'
+import type { RestEndpointMethodTypes } from '@octokit/plugin-rest-endpoint-methods'
+import { execSync } from 'node:child_process'
+import * as fs from 'node:fs'
+import * as path from 'node:path'
 
 type LatestReleaseResponse =
   RestEndpointMethodTypes['repos']['getLatestRelease']['response']['data']
@@ -23,18 +18,6 @@ const platformMap: Record<string, string> = {
 const archMap: Record<string, string> = {
   x64: 'amd64',
   arm64: 'arm64'
-}
-
-async function downloadToFile(url: string, dest: string): Promise<void> {
-  const res = await fetch(url)
-
-  if (!res.ok || !res.body) {
-    throw new Error(
-      `Failed to download ${url} to ${dest}: ${res.status} ${res.statusText}`
-    )
-  }
-
-  await streamPipeline(res.body, createWriteStream(dest))
 }
 
 async function getLatestVersion(): Promise<string> {
@@ -61,7 +44,7 @@ export async function run(): Promise<void> {
     const toolFile: string = core.getInput('tool-file')
 
     if (toolFile) {
-      let mimosaLine = fs
+      const mimosaLine = fs
         .readFileSync(toolFile)
         .toString()
         .split('\n')
@@ -75,16 +58,16 @@ export async function run(): Promise<void> {
       version = mimosaLine.replaceAll('mimosa', '')
     }
 
-    if (!version) {
-      core.setFailed(`Invalid version ${version}`)
-      return
-    }
-
     version = version.replaceAll('v', '').trim()
 
     if (version === 'latest' || (!toolFile && !version)) {
       version = await getLatestVersion()
       console.log(`Using latest version: ${version}`)
+    }
+
+    if (!version) {
+      core.setFailed(`Invalid version ${version}`)
+      return
     }
 
     const runner = {
@@ -100,29 +83,46 @@ export async function run(): Promise<void> {
       return
     }
 
-    const downloadUrl = `https://github.com/hytromo/mimosa/releases/download/v${version}/mimosa_${version}_${runner.os}_${runner.arch}.tar.gz`
+    // let's see if we find the tool in the cache first
+    const cachedToolPath = toolCache.find('mimosa', version)
+    let binaryPath = ''
+    const binaryFileName = runner.os === 'windows' ? 'mimosa.exe' : 'mimosa'
 
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mimosa-'))
-    const archivePath = path.join(tmpDir, 'mimosa.tar.gz')
+    if (cachedToolPath) {
+      core.addPath(cachedToolPath)
+      binaryPath = path.join(cachedToolPath, binaryFileName)
+    } else {
+      const downloadUrl = `https://github.com/hytromo/mimosa/releases/download/v${version}/mimosa_${version}_${runner.os}_${runner.arch}.tar.gz`
 
-    await downloadToFile(downloadUrl, archivePath)
+      core.info(`Downloading ${downloadUrl}`)
+      const downloadPath = await toolCache.downloadTool(downloadUrl)
 
-    execSync(`tar -xzf ${archivePath} -C ${tmpDir}`)
+      const extractPath = await toolCache.extractTar(downloadPath)
+      core.info(`Extracted to ${extractPath}`)
 
-    const mimosaPath = path.join(tmpDir, 'mimosa')
-    const targetPath = '/usr/local/bin/mimosa'
-    fs.copyFileSync(mimosaPath, targetPath)
-    fs.chmodSync(targetPath, 0o755)
+      const binaryPathInExtract = path.join(extractPath, binaryFileName)
+      fs.chmodSync(binaryPathInExtract, 0o755)
 
-    fs.rmSync(tmpDir, { recursive: true, force: true })
+      const cachedDir = await toolCache.cacheFile(
+        binaryPathInExtract,
+        binaryFileName,
+        'mimosa',
+        version
+      )
+      core.addPath(cachedDir)
+      core.info(`Cached at ${cachedDir} - which is also added to PATH`)
+
+      binaryPath = path.join(cachedDir, binaryFileName)
+    }
 
     core.setOutput(
       'cache-path',
-      execSync(`mimosa cache --show`).toString().trim()
+      execSync(`"${binaryPath}" cache --show`).toString().trim()
     )
-    core.setOutput('binary-path', targetPath)
 
-    console.log(`Installed mimosa version ${version} at ${targetPath}`)
+    core.setOutput('binary-path', binaryPath)
+
+    console.log(`Installed mimosa version ${version} at ${binaryPath}`)
   } catch (error) {
     // Fail the workflow run if an error occurs
     if (error instanceof Error) core.setFailed(error.message)

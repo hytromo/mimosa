@@ -10,7 +10,7 @@ The recommended way is to use the repo variable cache. This enables you to have 
 
 ```yaml
 - id: setup-mimosa
-  uses: hytromo/mimosa/gh/setup-action@v1-setup
+  uses: hytromo/mimosa/gh/setup-action@v2-setup
   with:
     version: v0.1.0
 ```
@@ -43,7 +43,7 @@ If you - for any reason - don't want to use a repo variable, you can use `action
 
 ```yaml
 - id: setup-mimosa
-  uses: hytromo/mimosa/gh/setup-action@v1-setup
+  uses: hytromo/mimosa/gh/setup-action@v2-setup
   with:
     version: v0.1.0
 ```
