@@ -3,6 +3,6 @@
 #MISE description="Run the unit tests"
 #MISE depends=["tests:init"]
 
-set -euo pipefail
+set -euxo pipefail
 
-go test ./...
+go test ./... "$@"
