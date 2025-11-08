@@ -54,7 +54,7 @@ Just prepend your docker build commands like this: `mimosa remember -- docker bu
 ## Inside GitHub Actions
 
 ```yaml
-- uses: hytromo/mimosa/gh/setup-action@setup-action-v1
+- uses: hytromo/mimosa/gh/setup-action@v2-setup
   with:
     version: v0.1.0
 ```

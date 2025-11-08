@@ -41,7 +41,7 @@ if (isMap(jobs)) {
 			const id = stepNode.get('id', true);
 
 			if (id?.value === 'setup-mimosa') {
-				stepNode.set('uses', 'hytromo/mimosa/gh/setup-action@v1-setup');
+				stepNode.set('uses', 'hytromo/mimosa/gh/setup-action@v2-setup');
 				stepNode.set('with', doc.createNode({ version: 'v0.1.0' }));
 				stepNode.delete('run');
 

@@ -26,7 +26,7 @@ jobs:
 
       - name: Setup mimosa
         id: setup-mimosa
-        uses: hytromo/mimosa/gh/setup-action@v1-setup
+        uses: hytromo/mimosa/gh/setup-action@v2-setup
         with:
           version: v0.1.0
 
@@ -147,7 +147,7 @@ jobs:
 
       - name: Setup mimosa
         id: setup-mimosa
-        uses: hytromo/mimosa/gh/setup-action@v1-setup
+        uses: hytromo/mimosa/gh/setup-action@v2-setup
         with:
           version: v0.1.0
 
