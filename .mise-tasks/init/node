@@ -18,3 +18,8 @@ cd -
 
 cd scripts/sync-example-confirmer-to-real-example
 yarn install
+cd -
+
+cd gh/build-push-action
+yarn install
+cd -
