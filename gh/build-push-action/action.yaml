@@ -176,8 +176,6 @@ runs:
         github-token: ${{ inputs.mimosa-cache-github-token }}
         variable-name: ${{ inputs.mimosa-cache-variable-name }}
         max-length: ${{ inputs.mimosa-cache-max-length }}
-      env:
-        MIMOSA_CACHE: ${{ vars.MIMOSA_CACHE }}
 
     - name: Build and push Docker image
       id: build-push
@@ -216,8 +214,6 @@ runs:
         target: ${{ inputs.target }}
         ulimit: ${{ inputs.ulimit }}
         github-token: ${{ inputs.github-token }}
-      env:
-        MIMOSA_CACHE: ${{ vars.MIMOSA_CACHE }}
 
     - name: Map outputs
       shell: bash

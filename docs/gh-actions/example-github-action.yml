@@ -61,6 +61,8 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: "true"
           tags: hytromo/mimosa-testing:recommended-example-${{ github.sha }}
+        env:
+          MIMOSA_CACHE: ${{ vars.MIMOSA_CACHE }}
 
       - name: Build and push to ECR
         id: build-ecr
@@ -71,6 +73,8 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: "true"
           tags: ${{ steps.login-ecr.outputs.registry }}/mimosa-testing:recommended-example-${{ github.sha }}
+        env:
+          MIMOSA_CACHE: ${{ vars.MIMOSA_CACHE }}
 
       ### That's it! - the next steps are just proving that the cache is working - you DO NOT need to include them in your typical workflow
       - name: Prepare build context for cache verification
@@ -90,6 +94,8 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: "true"
           tags: hytromo/mimosa-testing:recommended-example-cache-hit-${{ github.sha }}
+        env:
+          MIMOSA_CACHE: ${{ vars.MIMOSA_CACHE }}
 
       - name: Build and push to ECR (cache verification)
         uses: hytromo/mimosa/gh/build-push-action@v6-build-push
@@ -99,6 +105,8 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: "true"
           tags: ${{ steps.login-ecr.outputs.registry }}/mimosa-testing:recommended-example-cache-hit-${{ github.sha }}
+        env:
+          MIMOSA_CACHE: ${{ vars.MIMOSA_CACHE }}
 
   not-recommended-example-github-action:
     name: "Not recommended: actions/cache"
@@ -162,6 +170,8 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: "true"
           tags: hytromo/mimosa-testing:example-${{ github.sha }}
+        env:
+          MIMOSA_CACHE: ${{ vars.MIMOSA_CACHE }}
 
       - name: Prepare build context for ECR
         working-directory: docs/gh-actions/actions-example
@@ -178,3 +188,5 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: "true"
           tags: ${{ steps.login-ecr.outputs.registry }}/mimosa-testing:example-${{ github.sha }}
+        env:
+          MIMOSA_CACHE: ${{ vars.MIMOSA_CACHE }}
