@@ -214,7 +214,7 @@ func ForgetCacheEntriesOlderThan(forgetTime time.Time, cacheDir string, dryRun b
 		return nil
 	})
 
-	slog.Info("Deleted cache entries older than", "count", deletedCount, "forgetTime", forgetTime)
+	slog.Info("Deleted cache entries older than", "forgetTime", forgetTime, "count", deletedCount)
 
 	return err
 }

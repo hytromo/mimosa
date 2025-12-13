@@ -57,7 +57,7 @@ jobs:
         uses: hytromo/mimosa/gh/build-push-action@v6-build-push
         with:
           mimosa-cache-github-token: ${{ secrets.WRITE_VARIABLES_GH_PAT }}
-          context: ./docs/gh-actions/actions-example
+          context: docs/gh-actions/actions-example
           platforms: linux/amd64,linux/arm64
           push: "true"
           tags: hytromo/mimosa-testing:recommended-example-${{ github.sha }}
@@ -69,7 +69,7 @@ jobs:
         uses: hytromo/mimosa/gh/build-push-action@v6-build-push
         with:
           mimosa-cache-github-token: ${{ secrets.WRITE_VARIABLES_GH_PAT }}
-          context: ./docs/gh-actions/actions-example
+          context: docs/gh-actions/actions-example
           platforms: linux/amd64,linux/arm64
           push: "true"
           tags: ${{ steps.login-ecr.outputs.registry }}/mimosa-testing:recommended-example-${{ github.sha }}
@@ -90,23 +90,23 @@ jobs:
         uses: hytromo/mimosa/gh/build-push-action@v6-build-push
         with:
           mimosa-cache-github-token: ${{ secrets.WRITE_VARIABLES_GH_PAT }}
-          context: ./docs/gh-actions/actions-example
+          context: docs/gh-actions/actions-example
           platforms: linux/amd64,linux/arm64
           push: "true"
           tags: hytromo/mimosa-testing:recommended-example-cache-hit-${{ github.sha }}
         env:
-          MIMOSA_CACHE: ${{ vars.MIMOSA_CACHE }}
+          MIMOSA_CACHE: ${{ steps.build-dockerhub.outputs.mimosa-cache-new-cache-value }}
 
       - name: Build and push to ECR (cache verification)
         uses: hytromo/mimosa/gh/build-push-action@v6-build-push
         with:
           mimosa-cache-github-token: ${{ secrets.WRITE_VARIABLES_GH_PAT }}
-          context: ./docs/gh-actions/actions-example
+          context: docs/gh-actions/actions-example
           platforms: linux/amd64,linux/arm64
           push: "true"
           tags: ${{ steps.login-ecr.outputs.registry }}/mimosa-testing:recommended-example-cache-hit-${{ github.sha }}
         env:
-          MIMOSA_CACHE: ${{ vars.MIMOSA_CACHE }}
+          MIMOSA_CACHE: ${{ steps.build-ecr.outputs.mimosa-cache-new-cache-value }}
 
   not-recommended-example-github-action:
     name: "Not recommended: actions/cache"
@@ -166,7 +166,7 @@ jobs:
         uses: hytromo/mimosa/gh/build-push-action@v6-build-push
         with:
           mimosa-cache-enabled: "false"
-          context: ./docs/gh-actions/actions-example
+          context: docs/gh-actions/actions-example
           platforms: linux/amd64,linux/arm64
           push: "true"
           tags: hytromo/mimosa-testing:example-${{ github.sha }}
@@ -184,7 +184,7 @@ jobs:
         uses: hytromo/mimosa/gh/build-push-action@v6-build-push
         with:
           mimosa-cache-enabled: "false"
-          context: ./docs/gh-actions/actions-example
+          context: docs/gh-actions/actions-example
           platforms: linux/amd64,linux/arm64
           push: "true"
           tags: ${{ steps.login-ecr.outputs.registry }}/mimosa-testing:example-${{ github.sha }}

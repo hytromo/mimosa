@@ -104,7 +104,7 @@ jobs:
           push: 'true'
           tags: hytromo/mimosa-testing:recommended-example-cache-hit-${{ github.sha }}
         env:
-          MIMOSA_CACHE: ${{ vars.MIMOSA_CACHE }}
+          MIMOSA_CACHE: ${{ steps.build-dockerhub.outputs.mimosa-cache-new-cache-value }}
 
       - name: Build and push to ECR (cache verification)
         uses: ./gh/build-push-action
@@ -117,7 +117,7 @@ jobs:
           push: 'true'
           tags: ${{ steps.login-ecr.outputs.registry }}/mimosa-testing:recommended-example-cache-hit-${{ github.sha }}
         env:
-          MIMOSA_CACHE: ${{ vars.MIMOSA_CACHE }}
+          MIMOSA_CACHE: ${{ steps.build-ecr.outputs.mimosa-cache-new-cache-value }}
 
   not-recommended-example-github-action:
     name: "Not recommended: actions/cache"
