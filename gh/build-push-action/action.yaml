@@ -144,18 +144,23 @@ inputs:
 outputs:
   mimosa-setup-binary-path:
     description: The full path to the mimosa binary
+    value: ${{ steps.setup-mimosa.outputs.binary-path }}
   mimosa-setup-cache-path:
     description: The full path to the mimosa cache directory
+    value: ${{ steps.setup-mimosa.outputs.cache-path }}
 
   mimosa-cache-new-cache-value:
     description: The new calculated cache value saved back as a GitHub Actions variable
-
+    value: ${{ steps.cache-mimosa.outputs.new-cache-value }}
   imageid:
     description: Image ID
+    value: ${{ steps.build-push.outputs.imageid }}
   digest:
     description: Image digest
+    value: ${{ steps.build-push.outputs.digest }}
   metadata:
     description: Build result metadata
+    value: ${{ steps.build-push.outputs.metadata }}
 
 runs:
   using: composite
@@ -214,20 +219,3 @@ runs:
         target: ${{ inputs.target }}
         ulimit: ${{ inputs.ulimit }}
         github-token: ${{ inputs.github-token }}
-
-    - name: Map outputs
-      shell: bash
-      run: |
-        if [ "${{ inputs.mimosa-setup-enabled }}" == "true" ]; then
-          echo "mimosa-setup-binary-path=${{ steps.setup-mimosa.outputs.binary-path }}" >> $GITHUB_OUTPUT
-          echo "mimosa-setup-cache-path=${{ steps.setup-mimosa.outputs.cache-path }}" >> $GITHUB_OUTPUT
-        fi
-        
-        if [ "${{ inputs.mimosa-cache-enabled }}" == "true" ]; then
-          echo "mimosa-cache-new-cache-value=${{ steps.cache-mimosa.outputs.new-cache-value }}" >> $GITHUB_OUTPUT
-        fi
-        
-        echo "imageid=${{ steps.build-push.outputs.imageid }}" >> $GITHUB_OUTPUT
-        echo "digest=${{ steps.build-push.outputs.digest }}" >> $GITHUB_OUTPUT
-        echo "metadata=${{ steps.build-push.outputs.metadata }}" >> $GITHUB_OUTPUT
-
