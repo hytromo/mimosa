@@ -163,7 +163,7 @@ runs:
     - name: Setup Mimosa
       if: inputs.mimosa-setup-enabled == 'true'
       id: setup-mimosa
-      uses: ../setup-action
+      uses: ./gh/setup-action
       with:
         version: ${{ inputs.mimosa-setup-version }}
         tools-file: ${{ inputs.mimosa-setup-tools-file }}
@@ -171,7 +171,7 @@ runs:
     - name: Cache Mimosa
       id: cache-mimosa
       if: inputs.mimosa-cache-enabled == 'true'
-      uses: ../cache-action
+      uses: ./gh/cache-action
       with:
         github-token: ${{ inputs.mimosa-cache-github-token }}
         variable-name: ${{ inputs.mimosa-cache-variable-name }}
@@ -179,7 +179,7 @@ runs:
 
     - name: Build and push Docker image
       id: build-push
-      uses: ../.almost-original-build-push-action
+      uses: ./gh/.almost-original-build-push-action
       with:
         add-hosts: ${{ inputs.add-hosts }}
         allow: ${{ inputs.allow }}
