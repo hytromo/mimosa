@@ -409,6 +409,42 @@ func TestNormalizeCommandForHashing(t *testing.T) {
 			input:    []string{"docker", "buildx", "build", "--iidfile", "/tmp/id.txt", "--metadata-file", "/tmp/meta.json", "-t", "myapp:latest", "."},
 			expected: []string{"docker", "buildx", "build", "--iidfile", "--metadata-file", "-t", ".", "<VALUE>", "<VALUE>", "<VALUE>"},
 		},
+		// Boolean flags to discard tests
+		{
+			name:     "quiet flag discarded",
+			input:    []string{"docker", "build", "--quiet", "-t", "myapp:latest", "."},
+			expected: []string{"docker", "build", "-t", ".", "<VALUE>"},
+		},
+		{
+			name:     "short quiet flag discarded",
+			input:    []string{"docker", "build", "-q", "-t", "myapp:latest", "."},
+			expected: []string{"docker", "build", "-t", ".", "<VALUE>"},
+		},
+		{
+			name:     "debug flag discarded",
+			input:    []string{"docker", "build", "--debug", "-t", "myapp:latest", "."},
+			expected: []string{"docker", "build", "-t", ".", "<VALUE>"},
+		},
+		{
+			name:     "short debug flag discarded",
+			input:    []string{"docker", "build", "-D", "-t", "myapp:latest", "."},
+			expected: []string{"docker", "build", "-t", ".", "<VALUE>"},
+		},
+		{
+			name:     "multiple boolean flags discarded",
+			input:    []string{"docker", "build", "--quiet", "--debug", "-t", "myapp:latest", "."},
+			expected: []string{"docker", "build", "-t", ".", "<VALUE>"},
+		},
+		{
+			name:     "boolean flags mixed with templated flags",
+			input:    []string{"docker", "build", "-q", "--iidfile", "/tmp/id.txt", "-D", "-t", "myapp:latest", "."},
+			expected: []string{"docker", "build", "--iidfile", "-t", ".", "<VALUE>", "<VALUE>"},
+		},
+		{
+			name:     "buildx with boolean and templated flags",
+			input:    []string{"docker", "buildx", "build", "--quiet", "--progress", "plain", "-t", "myapp:latest", "."},
+			expected: []string{"docker", "buildx", "build", "--progress", "-t", ".", "<VALUE>", "<VALUE>"},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -440,6 +476,26 @@ func TestNormalizeCommandForHashing_OrderIndependence(t *testing.T) {
 			name:   "Buildx with complex reordering",
 			input1: []string{"docker", "buildx", "build", "--metadata-file", "/path/1.json", "--platform", "linux/amd64,linux/arm64", "-t", "img:v1", "."},
 			input2: []string{"docker", "buildx", "build", "-t", "img:v2", "--platform", "linux/amd64,linux/arm64", "--metadata-file", "/path/2.json", "."},
+		},
+		{
+			name:   "With and without quiet flag",
+			input1: []string{"docker", "build", "--quiet", "-t", "myapp:latest", "--platform", "linux/amd64", "."},
+			input2: []string{"docker", "build", "-t", "myapp:latest", "--platform", "linux/amd64", "."},
+		},
+		{
+			name:   "With and without debug flag",
+			input1: []string{"docker", "build", "-D", "-t", "myapp:latest", "--platform", "linux/amd64", "."},
+			input2: []string{"docker", "build", "-t", "myapp:latest", "--platform", "linux/amd64", "."},
+		},
+		{
+			name:   "Different boolean flags produce same result",
+			input1: []string{"docker", "build", "--quiet", "-t", "myapp:latest", "--platform", "linux/amd64", "."},
+			input2: []string{"docker", "build", "--debug", "-t", "myapp:latest", "--platform", "linux/amd64", "."},
+		},
+		{
+			name:   "Boolean flags in different positions",
+			input1: []string{"docker", "build", "-q", "-t", "myapp:latest", "--platform", "linux/amd64", "."},
+			input2: []string{"docker", "build", "-t", "myapp:latest", "-q", "--platform", "linux/amd64", "."},
 		},
 	}
 
