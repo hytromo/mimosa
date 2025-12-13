@@ -34,6 +34,28 @@ const (
 	fileShortFlagEq = "-f="
 )
 
+// flagTemplate defines a flag whose value should be templated for hash calculation.
+// This ensures that run-specific values (like temp file paths or builder IDs) don't
+// affect the hash, allowing cache hits for identical builds.
+type flagTemplate struct {
+	longFlag  string   // e.g., "--tag"
+	shortFlag string   // e.g., "-t" (optional, empty if no short form)
+	subKeys   []string // e.g., ["builder-id"] for partial templating within the value (optional)
+}
+
+// flagsToTemplate defines which flags should have their values replaced with <VALUE>
+// (or have specific sub-keys within their values templated) for hash calculation.
+// This list is easily extensible - just add new entries for additional flags.
+var flagsToTemplate = []flagTemplate{
+	// Tags are different between builds but don't affect the image content
+	{longFlag: "--tag", shortFlag: "-t"},
+	// Output files - purely for writing results, don't affect the build
+	{longFlag: "--iidfile"},
+	{longFlag: "--metadata-file"},
+	// Attestation contains builder-id which has run-specific GitHub Actions URLs
+	{longFlag: "--attest", subKeys: []string{"builder-id"}},
+}
+
 func extractBuildFlags(args []string) (allTags []string, additionalBuildContexts map[string]string, dockerfilePath string, err error) {
 	allTags = []string{}
 	dockerfilePath = ""
@@ -135,20 +157,129 @@ func findContextPath(dockerBuildArgs []string) (string, error) {
 	return "", fmt.Errorf("context path not found")
 }
 
-func buildCommandWithoutTagArguments(dockerBuildCmd []string) []string {
-	var cmdWithoutTagArguments []string
+// templateSubKeys replaces specific sub-key values within a flag value.
+// For example, for "--attest type=provenance,builder-id=https://..." with subKeys=["builder-id"],
+// it returns "type=provenance,builder-id=<VALUE>"
+func templateSubKeys(value string, subKeys []string) string {
+	result := value
+	for _, subKey := range subKeys {
+		prefix := subKey + "="
+		searchStart := 0
+		// Find all occurrences of the subKey in the value
+		for searchStart < len(result) {
+			idx := strings.Index(result[searchStart:], prefix)
+			if idx == -1 {
+				break
+			}
+			idx += searchStart // adjust for the offset
+			// Find the end of this sub-key's value (next comma or end of string)
+			startOfValue := idx + len(prefix)
+			endOfValue := len(result)
+			for j := startOfValue; j < len(result); j++ {
+				if result[j] == ',' {
+					endOfValue = j
+					break
+				}
+			}
+			// Replace the value with <VALUE>
+			result = result[:startOfValue] + "<VALUE>" + result[endOfValue:]
+			// Move search position past the replacement to avoid infinite loop
+			searchStart = startOfValue + len("<VALUE>")
+		}
+	}
+	return result
+}
+
+// normalizeCommandForHashing processes a docker build command to create a normalized
+// version suitable for consistent hash calculation. It:
+// 1. Templates flag values defined in flagsToTemplate (replacing with <VALUE>)
+// 2. Sorts the resulting arguments to ensure order independence
+func normalizeCommandForHashing(dockerBuildCmd []string) []string {
+	var normalized []string
+
 	for i := 0; i < len(dockerBuildCmd); i++ {
-		if dockerBuildCmd[i] == "--tag" || dockerBuildCmd[i] == "-t" {
-			i++ // skip this and the next argument (--tag/-t <TAG>)
-			continue
-		} else if strings.HasPrefix(dockerBuildCmd[i], tagFlagEq) || strings.HasPrefix(dockerBuildCmd[i], tagShortFlagEq) {
-			continue // skip this argument (--tag/-t=<TAG>)
+		arg := dockerBuildCmd[i]
+		handled := false
+
+		for _, ft := range flagsToTemplate {
+			// Check for space-separated format: --flag value or -f value
+			if arg == ft.longFlag || (ft.shortFlag != "" && arg == ft.shortFlag) {
+				if len(ft.subKeys) > 0 && i+1 < len(dockerBuildCmd) {
+					// Partial templating: keep flag, template only sub-keys in value
+					normalized = append(normalized, arg)
+					i++
+					normalized = append(normalized, templateSubKeys(dockerBuildCmd[i], ft.subKeys))
+				} else {
+					// Full templating: replace entire value with <VALUE>
+					normalized = append(normalized, arg)
+					if i+1 < len(dockerBuildCmd) {
+						i++
+						normalized = append(normalized, "<VALUE>")
+					}
+				}
+				handled = true
+				break
+			}
+
+			// Check for equals format: --flag=value or -f=value
+			longPrefix := ft.longFlag + "="
+			shortPrefix := ""
+			if ft.shortFlag != "" {
+				shortPrefix = ft.shortFlag + "="
+			}
+
+			if strings.HasPrefix(arg, longPrefix) {
+				if len(ft.subKeys) > 0 {
+					// Partial templating: template only sub-keys
+					value := arg[len(longPrefix):]
+					normalized = append(normalized, longPrefix+templateSubKeys(value, ft.subKeys))
+				} else {
+					// Full templating
+					normalized = append(normalized, longPrefix+"<VALUE>")
+				}
+				handled = true
+				break
+			}
+
+			if shortPrefix != "" && strings.HasPrefix(arg, shortPrefix) {
+				if len(ft.subKeys) > 0 {
+					// Partial templating: template only sub-keys
+					value := arg[len(shortPrefix):]
+					normalized = append(normalized, shortPrefix+templateSubKeys(value, ft.subKeys))
+				} else {
+					// Full templating
+					normalized = append(normalized, shortPrefix+"<VALUE>")
+				}
+				handled = true
+				break
+			}
 		}
 
-		// non-tag argument - add to the command
-		cmdWithoutTagArguments = append(cmdWithoutTagArguments, dockerBuildCmd[i])
+		if !handled {
+			normalized = append(normalized, arg)
+		}
 	}
-	return cmdWithoutTagArguments
+
+	// Sort arguments (excluding the command prefix like "docker build" or "docker buildx build")
+	// to ensure order independence
+	prefixLen := 2 // "docker build"
+	if len(normalized) > 2 && normalized[1] == "buildx" {
+		prefixLen = 3 // "docker buildx build"
+	}
+
+	if len(normalized) > prefixLen {
+		argsToSort := normalized[prefixLen:]
+		slices.Sort(argsToSort)
+		normalized = append(normalized[:prefixLen], argsToSort...)
+	}
+
+	return normalized
+}
+
+// buildCommandWithoutTagArguments is kept for backward compatibility but now calls
+// the more general normalizeCommandForHashing function.
+func buildCommandWithoutTagArguments(dockerBuildCmd []string) []string {
+	return normalizeCommandForHashing(dockerBuildCmd)
 }
 
 func ParseBuildCommand(dockerBuildCmd []string) (parsedCommand configuration.ParsedCommand, err error) {

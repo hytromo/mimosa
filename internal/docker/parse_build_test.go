@@ -2,6 +2,7 @@ package docker
 
 import (
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/hytromo/mimosa/internal/configuration"
@@ -332,31 +333,31 @@ func TestFindContextPath(t *testing.T) {
 	}
 }
 
-func TestBuildCmdWithoutTagArguments(t *testing.T) {
+func TestNormalizeCommandForHashing(t *testing.T) {
 	testCases := []struct {
 		name     string
 		input    []string
 		expected []string
 	}{
 		{
-			name:     "Simple tag replacement",
+			name:     "Simple tag templating",
 			input:    []string{"docker", "build", "-t", "myapp:latest", "."},
-			expected: []string{"docker", "build", "."},
+			expected: []string{"docker", "build", "-t", ".", "<VALUE>"}, // sorted: "-t" < "." < "<VALUE>"
 		},
 		{
-			name:     "Multiple tags - replace first",
+			name:     "Multiple tags templating",
 			input:    []string{"docker", "build", "-t", "myapp:latest", "-t", "myapp:v1.0.0", "."},
-			expected: []string{"docker", "build", "."},
+			expected: []string{"docker", "build", "-t", "-t", ".", "<VALUE>", "<VALUE>"},
 		},
 		{
 			name:     "Tag with equals syntax",
 			input:    []string{"docker", "build", "--tag=myapp:latest", "."},
-			expected: []string{"docker", "build", "."},
+			expected: []string{"docker", "build", "--tag=<VALUE>", "."},
 		},
 		{
 			name:     "Short tag with equals syntax",
 			input:    []string{"docker", "build", "-t=myapp:latest", "."},
-			expected: []string{"docker", "build", "."},
+			expected: []string{"docker", "build", "-t=<VALUE>", "."},
 		},
 		{
 			name:     "No tag in command",
@@ -364,18 +365,197 @@ func TestBuildCmdWithoutTagArguments(t *testing.T) {
 			expected: []string{"docker", "build", "."},
 		},
 		{
-			name:     "Complex command with tag",
-			input:    []string{"docker", "build", "-f", "Dockerfile.prod", "--no-cache", "-t", "myapp:latest", "."},
-			expected: []string{"docker", "build", "-f", "Dockerfile.prod", "--no-cache", "."},
+			name:     "iidfile templating",
+			input:    []string{"docker", "build", "--iidfile", "/tmp/random123.txt", "-t", "myapp:latest", "."},
+			expected: []string{"docker", "build", "--iidfile", "-t", ".", "<VALUE>", "<VALUE>"},
+		},
+		{
+			name:     "iidfile with equals syntax",
+			input:    []string{"docker", "build", "--iidfile=/tmp/random.txt", "-t", "myapp:latest", "."},
+			expected: []string{"docker", "build", "--iidfile=<VALUE>", "-t", ".", "<VALUE>"},
+		},
+		{
+			name:     "metadata-file templating",
+			input:    []string{"docker", "build", "--metadata-file", "/tmp/metadata.json", "-t", "myapp:latest", "."},
+			expected: []string{"docker", "build", "--metadata-file", "-t", ".", "<VALUE>", "<VALUE>"},
+		},
+		{
+			name:     "metadata-file with equals syntax",
+			input:    []string{"docker", "build", "--metadata-file=/tmp/metadata.json", "-t", "myapp:latest", "."},
+			expected: []string{"docker", "build", "--metadata-file=<VALUE>", "-t", ".", "<VALUE>"},
+		},
+		{
+			name:     "attest with builder-id templating",
+			input:    []string{"docker", "build", "--attest", "type=provenance,mode=max,builder-id=https://github.com/example/actions/runs/123", "-t", "myapp:latest", "."},
+			expected: []string{"docker", "build", "--attest", "-t", ".", "<VALUE>", "type=provenance,mode=max,builder-id=<VALUE>"},
+		},
+		{
+			name:     "attest with equals syntax and builder-id",
+			input:    []string{"docker", "build", "--attest=type=provenance,builder-id=https://example.com/run/456", "-t", "myapp:latest", "."},
+			expected: []string{"docker", "build", "--attest=type=provenance,builder-id=<VALUE>", "-t", ".", "<VALUE>"},
+		},
+		{
+			name:     "attest without builder-id unchanged",
+			input:    []string{"docker", "build", "--attest", "type=sbom,generator=image", "-t", "myapp:latest", "."},
+			expected: []string{"docker", "build", "--attest", "-t", ".", "<VALUE>", "type=sbom,generator=image"},
+		},
+		{
+			name:     "buildx command",
+			input:    []string{"docker", "buildx", "build", "-t", "myapp:latest", "."},
+			expected: []string{"docker", "buildx", "build", "-t", ".", "<VALUE>"},
+		},
+		{
+			name:     "buildx with multiple templated flags",
+			input:    []string{"docker", "buildx", "build", "--iidfile", "/tmp/id.txt", "--metadata-file", "/tmp/meta.json", "-t", "myapp:latest", "."},
+			expected: []string{"docker", "buildx", "build", "--iidfile", "--metadata-file", "-t", ".", "<VALUE>", "<VALUE>", "<VALUE>"},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			result := buildCommandWithoutTagArguments(tc.input)
+			result := normalizeCommandForHashing(tc.input)
 			assert.Equal(t, tc.expected, result)
 		})
 	}
+}
+
+func TestNormalizeCommandForHashing_OrderIndependence(t *testing.T) {
+	// Commands with same flags in different order should produce identical normalized output
+	testCases := []struct {
+		name   string
+		input1 []string
+		input2 []string
+	}{
+		{
+			name:   "Simple flag reordering",
+			input1: []string{"docker", "build", "-t", "myapp:latest", "--platform", "linux/amd64", "."},
+			input2: []string{"docker", "build", "--platform", "linux/amd64", "-t", "myapp:latest", "."},
+		},
+		{
+			name:   "Multiple flags reordering",
+			input1: []string{"docker", "build", "-t", "myapp:latest", "--iidfile", "/tmp/a.txt", "--push", "."},
+			input2: []string{"docker", "build", "--push", "--iidfile", "/tmp/b.txt", "-t", "other:tag", "."},
+		},
+		{
+			name:   "Buildx with complex reordering",
+			input1: []string{"docker", "buildx", "build", "--metadata-file", "/path/1.json", "--platform", "linux/amd64,linux/arm64", "-t", "img:v1", "."},
+			input2: []string{"docker", "buildx", "build", "-t", "img:v2", "--platform", "linux/amd64,linux/arm64", "--metadata-file", "/path/2.json", "."},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result1 := normalizeCommandForHashing(tc.input1)
+			result2 := normalizeCommandForHashing(tc.input2)
+			assert.Equal(t, result1, result2, "Commands with same flags in different order should normalize to the same result")
+		})
+	}
+}
+
+func TestNormalizeCommandForHashing_GitHubActionsExample(t *testing.T) {
+	// These are the actual commands from the GitHub Actions issue
+	// They should produce identical normalized output
+	cmd1 := []string{
+		"docker", "buildx", "build",
+		"--iidfile", "/home/runner/work/_temp/docker-actions-toolkit-FfxZzf/build-iidfile-beb46e5a7d.txt",
+		"--platform", "linux/amd64,linux/arm64",
+		"--attest", "type=provenance,mode=max,builder-id=https://github.com/hytromo/mimosa/actions/runs/20193832931/attempts/1",
+		"--tag", "hytromo/mimosa-testing:recommended-example-cache-hit-c7ad46653a914718bf8e31f484f69614552e92e8",
+		"--metadata-file", "/home/runner/work/_temp/docker-actions-toolkit-FfxZzf/build-metadata-98d5a7c1b3.json",
+		"--push",
+		"docs/gh-actions/actions-example",
+	}
+
+	cmd2 := []string{
+		"docker", "buildx", "build",
+		"--iidfile", "/home/runner/work/_temp/docker-actions-toolkit-BtGuR6/build-iidfile-81bd4a8cf4.txt",
+		"--platform", "linux/amd64,linux/arm64",
+		"--attest", "type=provenance,mode=max,builder-id=https://github.com/hytromo/mimosa/actions/runs/20193832931/attempts/1",
+		"--tag", "hytromo/mimosa-testing:recommended-example-c7ad46653a914718bf8e31f484f69614552e92e8",
+		"--metadata-file", "/home/runner/work/_temp/docker-actions-toolkit-BtGuR6/build-metadata-7bb018a1cf.json",
+		"--push",
+		"docs/gh-actions/actions-example",
+	}
+
+	result1 := normalizeCommandForHashing(cmd1)
+	result2 := normalizeCommandForHashing(cmd2)
+
+	assert.Equal(t, result1, result2, "GitHub Actions example commands should normalize to the same result")
+
+	// Verify the normalized output contains expected flags
+	normalizedStr := strings.Join(result1, " ")
+	assert.Contains(t, normalizedStr, "--iidfile")
+	assert.Contains(t, normalizedStr, "<VALUE>")
+	assert.Contains(t, normalizedStr, "--attest")
+	assert.Contains(t, normalizedStr, "type=provenance,mode=max,builder-id=<VALUE>")
+}
+
+func TestTemplateSubKeys(t *testing.T) {
+	testCases := []struct {
+		name     string
+		value    string
+		subKeys  []string
+		expected string
+	}{
+		{
+			name:     "Template builder-id at end",
+			value:    "type=provenance,mode=max,builder-id=https://github.com/example/runs/123",
+			subKeys:  []string{"builder-id"},
+			expected: "type=provenance,mode=max,builder-id=<VALUE>",
+		},
+		{
+			name:     "Template builder-id in middle",
+			value:    "type=provenance,builder-id=https://example.com,mode=max",
+			subKeys:  []string{"builder-id"},
+			expected: "type=provenance,builder-id=<VALUE>,mode=max",
+		},
+		{
+			name:     "Template builder-id at start",
+			value:    "builder-id=https://example.com,type=provenance",
+			subKeys:  []string{"builder-id"},
+			expected: "builder-id=<VALUE>,type=provenance",
+		},
+		{
+			name:     "No matching subkey",
+			value:    "type=provenance,mode=max",
+			subKeys:  []string{"builder-id"},
+			expected: "type=provenance,mode=max",
+		},
+		{
+			name:     "Multiple subkeys",
+			value:    "type=provenance,builder-id=url1,secret=abc123",
+			subKeys:  []string{"builder-id", "secret"},
+			expected: "type=provenance,builder-id=<VALUE>,secret=<VALUE>",
+		},
+		{
+			name:     "Empty value",
+			value:    "",
+			subKeys:  []string{"builder-id"},
+			expected: "",
+		},
+		{
+			name:     "Empty subkeys",
+			value:    "type=provenance,builder-id=url",
+			subKeys:  []string{},
+			expected: "type=provenance,builder-id=url",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := templateSubKeys(tc.value, tc.subKeys)
+			assert.Equal(t, tc.expected, result)
+		})
+	}
+}
+
+// TestBuildCmdWithoutTagArguments tests backward compatibility
+func TestBuildCmdWithoutTagArguments(t *testing.T) {
+	// This function should delegate to normalizeCommandForHashing
+	input := []string{"docker", "build", "-t", "myapp:latest", "."}
+	result := buildCommandWithoutTagArguments(input)
+	expected := normalizeCommandForHashing(input)
+	assert.Equal(t, expected, result)
 }
 
 func TestParseBuildCommand_DockerignoreHandling(t *testing.T) {
