@@ -90,6 +90,10 @@ func extractBuildFlags(args []string) (allTags []string, additionalBuildContexts
 
 // assumes the context path does not start with "-"
 func findContextPath(dockerBuildArgs []string) (string, error) {
+	booleanFlags := []string{
+		"--check", "-D", "--debug", "--load", "--no-cache", "--pull", "--push", "-q", "--quiet",
+	}
+
 	var previousArgument string
 
 	// skip docker build/docker buildx build args
@@ -101,6 +105,11 @@ func findContextPath(dockerBuildArgs []string) (string, error) {
 
 	for i := firstIndex; i < len(dockerBuildArgs); i++ {
 		arg := dockerBuildArgs[i]
+
+		// if the argument is a boolean flag, skip it
+		if slices.Contains(booleanFlags, arg) {
+			continue
+		}
 
 		// If the current argument starts with '-', it's a flag / normal argument (could be --file, -t, --no-cache, etc.)
 		if strings.HasPrefix(arg, "-") {

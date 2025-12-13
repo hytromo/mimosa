@@ -299,6 +299,11 @@ func TestFindContextPath(t *testing.T) {
 			expectedPath: ".",
 		},
 		{
+			name:         "Context path with build context after boolean flag",
+			args:         []string{"docker", "build", "--build-context", "backend=./backend", "-t", "myapp:latest", "--push", "./docs"},
+			expectedPath: "./docs",
+		},
+		{
 			name:          "No context path",
 			args:          []string{"docker", "build", "-t", "myapp:latest"},
 			expectError:   true,

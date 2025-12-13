@@ -173,15 +173,6 @@ runs:
         version: ${{ inputs.mimosa-setup-version }}
         tools-file: ${{ inputs.mimosa-setup-tools-file }}
 
-    - name: Cache Mimosa
-      id: cache-mimosa
-      if: inputs.mimosa-cache-enabled == 'true'
-      uses: ./gh/cache-action
-      with:
-        github-token: ${{ inputs.mimosa-cache-github-token }}
-        variable-name: ${{ inputs.mimosa-cache-variable-name }}
-        max-length: ${{ inputs.mimosa-cache-max-length }}
-
     - name: Build and push Docker image
       id: build-push
       uses: ./gh/.almost-original-build-push-action
@@ -219,3 +210,12 @@ runs:
         target: ${{ inputs.target }}
         ulimit: ${{ inputs.ulimit }}
         github-token: ${{ inputs.github-token }}
+
+    - name: Cache Mimosa
+      id: cache-mimosa
+      if: inputs.mimosa-cache-enabled == 'true'
+      uses: ./gh/cache-action
+      with:
+        github-token: ${{ inputs.mimosa-cache-github-token }}
+        variable-name: ${{ inputs.mimosa-cache-variable-name }}
+        max-length: ${{ inputs.mimosa-cache-max-length }}
