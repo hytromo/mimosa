@@ -54,6 +54,20 @@ var flagsToTemplate = []flagTemplate{
 	{longFlag: "--metadata-file"},
 	// Attestation contains builder-id which has run-specific GitHub Actions URLs
 	{longFlag: "--attest", subKeys: []string{"builder-id"}},
+	// Output destination flags - where to put the image, not what's in it
+	{longFlag: "--cache-to"},
+	// Builder selection - infrastructure choice, not build content
+	{longFlag: "--builder"},
+	// Display format - purely cosmetic
+	{longFlag: "--progress"},
+}
+
+// flagsToDiscard defines boolean flags that should be completely removed before
+// hash calculation. These flags don't take values and don't affect the image content.
+var flagsToDiscard = []flagTemplate{
+	// Display/logging flags - purely cosmetic, no values
+	{longFlag: "--quiet", shortFlag: "-q"},
+	{longFlag: "--debug", shortFlag: "-D"},
 }
 
 func extractBuildFlags(args []string) (allTags []string, additionalBuildContexts map[string]string, dockerfilePath string, err error) {
@@ -192,14 +206,26 @@ func templateSubKeys(value string, subKeys []string) string {
 
 // normalizeCommandForHashing processes a docker build command to create a normalized
 // version suitable for consistent hash calculation. It:
-// 1. Templates flag values defined in flagsToTemplate (replacing with <VALUE>)
-// 2. Sorts the resulting arguments to ensure order independence
+// 1. Discards boolean flags defined in flagsToDiscard (they don't affect image content)
+// 2. Templates flag values defined in flagsToTemplate (replacing with <VALUE>)
+// 3. Sorts the resulting arguments to ensure order independence
 func normalizeCommandForHashing(dockerBuildCmd []string) []string {
 	var normalized []string
 
 	for i := 0; i < len(dockerBuildCmd); i++ {
 		arg := dockerBuildCmd[i]
 		handled := false
+
+		// Check if this is a boolean flag to discard entirely
+		for _, ft := range flagsToDiscard {
+			if arg == ft.longFlag || (ft.shortFlag != "" && arg == ft.shortFlag) {
+				handled = true
+				break
+			}
+		}
+		if handled {
+			continue
+		}
 
 		for _, ft := range flagsToTemplate {
 			// Check for space-separated format: --flag value or -f value
