@@ -3,7 +3,6 @@ name: Mimosa GitHub Action Example
 on:
   pull_request:
 
-
 permissions:
   contents: write
 
