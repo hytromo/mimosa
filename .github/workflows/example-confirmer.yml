@@ -222,9 +222,9 @@ jobs:
       - name: Prepare build context for cache verification
         working-directory: docs/gh-actions/actions-example
         run: |
-          # this file is ignored, so after the first build we should be hitting our cache
-          mimosa forget --everything --yes
+          # we will read the existing cache directly from the cache folder in the following steps
 
+          # this file is ignored, so after the first build we should be hitting our cache
           echo $RANDOM > to-ignore.txt
 
       - name: Build and push to Docker Hub (cache verification)
@@ -237,8 +237,6 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: 'true'
           tags: hytromo/mimosa-testing:example-cache-hit-${{ github.sha }}
-        env:
-          MIMOSA_CACHE: ${{ steps.build-dockerhub.outputs.mimosa-cache-new-cache-value }}
 
       - name: Build and push to ECR (cache verification)
         id: build-ecr-cache-hit
@@ -250,8 +248,6 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: 'true'
           tags: ${{ steps.login-ecr.outputs.registry }}/mimosa-testing:example-cache-hit-${{ github.sha }}
-        env:
-          MIMOSA_CACHE: ${{ steps.build-ecr.outputs.mimosa-cache-new-cache-value }}
 
       - name: Verify cache hit outputs
         run: |
