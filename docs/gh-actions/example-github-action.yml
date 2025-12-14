@@ -111,10 +111,15 @@ jobs:
 
       - name: Verify cache hit outputs
         run: |
-          [ "${{ steps.build-dockerhub.outputs.mimosa-cache-hit }}" = "false" ] || { echo "ERROR: Initial Docker Hub build should have cache-hit=false"; exit 1; }
-          [ "${{ steps.build-ecr.outputs.mimosa-cache-hit }}" = "false" ] || { echo "ERROR: Initial ECR build should have cache-hit=false"; exit 1; }
-          [ "${{ steps.build-dockerhub-cache-hit.outputs.mimosa-cache-hit }}" = "true" ] || { echo "ERROR: Docker Hub cache verification should have cache-hit=true"; exit 1; }
-          [ "${{ steps.build-ecr-cache-hit.outputs.mimosa-cache-hit }}" = "true" ] || { echo "ERROR: ECR cache verification should have cache-hit=true"; exit 1; }
+          errors=()
+          [ "${{ steps.build-dockerhub.outputs.mimosa-cache-hit }}" = "false" ] || errors+=("ERROR: Initial Docker Hub build should have cache-hit=false")
+          [ "${{ steps.build-ecr.outputs.mimosa-cache-hit }}" = "false" ] || errors+=("ERROR: Initial ECR build should have cache-hit=false")
+          [ "${{ steps.build-dockerhub-cache-hit.outputs.mimosa-cache-hit }}" = "true" ] || errors+=("ERROR: Docker Hub cache verification should have cache-hit=true")
+          [ "${{ steps.build-ecr-cache-hit.outputs.mimosa-cache-hit }}" = "true" ] || errors+=("ERROR: ECR cache verification should have cache-hit=true")
+          if [ ${#errors[@]} -gt 0 ]; then
+            printf '%s\n' "${errors[@]}"
+            exit 1
+          fi
           echo "All cache hit outputs verified successfully!"
 
   not-recommended-example-github-action:
@@ -228,8 +233,13 @@ jobs:
 
       - name: Verify cache hit outputs
         run: |
-          [ "${{ steps.build-dockerhub.outputs.mimosa-cache-hit }}" = "false" ] || { echo "ERROR: Initial Docker Hub build should have cache-hit=false"; exit 1; }
-          [ "${{ steps.build-ecr.outputs.mimosa-cache-hit }}" = "false" ] || { echo "ERROR: Initial ECR build should have cache-hit=false"; exit 1; }
-          [ "${{ steps.build-dockerhub-cache-hit.outputs.mimosa-cache-hit }}" = "true" ] || { echo "ERROR: Docker Hub cache verification should have cache-hit=true"; exit 1; }
-          [ "${{ steps.build-ecr-cache-hit.outputs.mimosa-cache-hit }}" = "true" ] || { echo "ERROR: ECR cache verification should have cache-hit=true"; exit 1; }
+          errors=()
+          [ "${{ steps.build-dockerhub.outputs.mimosa-cache-hit }}" = "false" ] || errors+=("ERROR: Initial Docker Hub build should have cache-hit=false")
+          [ "${{ steps.build-ecr.outputs.mimosa-cache-hit }}" = "false" ] || errors+=("ERROR: Initial ECR build should have cache-hit=false")
+          [ "${{ steps.build-dockerhub-cache-hit.outputs.mimosa-cache-hit }}" = "true" ] || errors+=("ERROR: Docker Hub cache verification should have cache-hit=true")
+          [ "${{ steps.build-ecr-cache-hit.outputs.mimosa-cache-hit }}" = "true" ] || errors+=("ERROR: ECR cache verification should have cache-hit=true")
+          if [ ${#errors[@]} -gt 0 ]; then
+            printf '%s\n' "${errors[@]}"
+            exit 1
+          fi
           echo "All cache hit outputs verified successfully!"
