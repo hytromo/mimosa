@@ -87,6 +87,7 @@ jobs:
           echo "${{ github.sha }}" > useful.txt
 
       - name: Build and push to Docker Hub (cache verification)
+        id: build-dockerhub-cache-hit
         uses: hytromo/mimosa/gh/build-push-action@v6-build-push
         with:
           mimosa-cache-github-token: ${{ secrets.WRITE_VARIABLES_GH_PAT }}
@@ -98,6 +99,7 @@ jobs:
           MIMOSA_CACHE: ${{ steps.build-dockerhub.outputs.mimosa-cache-new-cache-value }}
 
       - name: Build and push to ECR (cache verification)
+        id: build-ecr-cache-hit
         uses: hytromo/mimosa/gh/build-push-action@v6-build-push
         with:
           mimosa-cache-github-token: ${{ secrets.WRITE_VARIABLES_GH_PAT }}
@@ -107,6 +109,14 @@ jobs:
           tags: ${{ steps.login-ecr.outputs.registry }}/mimosa-testing:recommended-example-cache-hit-${{ github.sha }}
         env:
           MIMOSA_CACHE: ${{ steps.build-ecr.outputs.mimosa-cache-new-cache-value }}
+
+      - name: Verify cache hit outputs
+        run: |
+          [ "${{ steps.build-dockerhub.outputs.mimosa-cache-hit }}" = "false" ] || { echo "ERROR: Initial Docker Hub build should have cache-hit=false"; exit 1; }
+          [ "${{ steps.build-ecr.outputs.mimosa-cache-hit }}" = "false" ] || { echo "ERROR: Initial ECR build should have cache-hit=false"; exit 1; }
+          [ "${{ steps.build-dockerhub-cache-hit.outputs.mimosa-cache-hit }}" = "true" ] || { echo "ERROR: Docker Hub cache verification should have cache-hit=true"; exit 1; }
+          [ "${{ steps.build-ecr-cache-hit.outputs.mimosa-cache-hit }}" = "true" ] || { echo "ERROR: ECR cache verification should have cache-hit=true"; exit 1; }
+          echo "All cache hit outputs verified successfully!"
 
   not-recommended-example-github-action:
     name: "Not recommended: actions/cache"
@@ -163,6 +173,7 @@ jobs:
           echo dockerhub > useful.txt
 
       - name: Build and push to Docker Hub
+        id: build-dockerhub
         uses: hytromo/mimosa/gh/build-push-action@v6-build-push
         with:
           mimosa-cache-enabled: "false"
@@ -181,6 +192,7 @@ jobs:
           echo ecr > useful.txt
 
       - name: Build and push to ECR
+        id: build-ecr
         uses: hytromo/mimosa/gh/build-push-action@v6-build-push
         with:
           mimosa-cache-enabled: "false"
@@ -190,3 +202,50 @@ jobs:
           tags: ${{ steps.login-ecr.outputs.registry }}/mimosa-testing:example-${{ github.sha }}
         env:
           MIMOSA_CACHE: ${{ vars.MIMOSA_CACHE }}
+
+      ### Cache verification steps - proving that the cache is working
+      - name: Prepare build context for cache verification
+        working-directory: docs/gh-actions/actions-example
+        run: |
+          # this file is ignored, so after the first build we should be hitting our cache
+          echo $RANDOM > to-ignore.txt
+          echo dockerhub > useful.txt
+
+      - name: Build and push to Docker Hub (cache verification)
+        id: build-dockerhub-cache-hit
+        uses: hytromo/mimosa/gh/build-push-action@v6-build-push
+        with:
+          mimosa-cache-enabled: "false"
+          context: docs/gh-actions/actions-example
+          platforms: linux/amd64,linux/arm64
+          push: "true"
+          tags: hytromo/mimosa-testing:example-cache-hit-${{ github.sha }}
+        env:
+          MIMOSA_CACHE: ${{ vars.MIMOSA_CACHE }}
+
+      - name: Prepare build context for ECR cache verification
+        working-directory: docs/gh-actions/actions-example
+        run: |
+          # this file is ignored, so after the first build we should be hitting our cache
+          echo $RANDOM > to-ignore.txt
+          echo ecr > useful.txt
+
+      - name: Build and push to ECR (cache verification)
+        id: build-ecr-cache-hit
+        uses: hytromo/mimosa/gh/build-push-action@v6-build-push
+        with:
+          mimosa-cache-enabled: "false"
+          context: docs/gh-actions/actions-example
+          platforms: linux/amd64,linux/arm64
+          push: "true"
+          tags: ${{ steps.login-ecr.outputs.registry }}/mimosa-testing:example-cache-hit-${{ github.sha }}
+        env:
+          MIMOSA_CACHE: ${{ vars.MIMOSA_CACHE }}
+
+      - name: Verify cache hit outputs
+        run: |
+          [ "${{ steps.build-dockerhub.outputs.mimosa-cache-hit }}" = "false" ] || { echo "ERROR: Initial Docker Hub build should have cache-hit=false"; exit 1; }
+          [ "${{ steps.build-ecr.outputs.mimosa-cache-hit }}" = "false" ] || { echo "ERROR: Initial ECR build should have cache-hit=false"; exit 1; }
+          [ "${{ steps.build-dockerhub-cache-hit.outputs.mimosa-cache-hit }}" = "true" ] || { echo "ERROR: Docker Hub cache verification should have cache-hit=true"; exit 1; }
+          [ "${{ steps.build-ecr-cache-hit.outputs.mimosa-cache-hit }}" = "true" ] || { echo "ERROR: ECR cache verification should have cache-hit=true"; exit 1; }
+          echo "All cache hit outputs verified successfully!"

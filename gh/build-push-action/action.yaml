@@ -161,6 +161,9 @@ outputs:
   metadata:
     description: Build result metadata
     value: ${{ steps.build-push.outputs.metadata }}
+  mimosa-cache-hit:
+    description: Whether mimosa cache was hit
+    value: ${{ steps.build-push.outputs.mimosa-cache-hit }}
 
 runs:
   using: composite

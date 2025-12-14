@@ -111,6 +111,10 @@ actionsToolkit.run(
         [key: string]: string;
       }
     }).then(res => {
+      // Parse mimosa-cache-hit from stdout, default to false if not found
+      const cacheHitMatch = res.stdout.match(/mimosa-cache-hit:\s*(true|false)/);
+      core.setOutput('mimosa-cache-hit', cacheHitMatch ? cacheHitMatch[1] : 'false');
+
       if (res.exitCode != 0) {
         if (inputs.call && inputs.call === 'check' && res.stdout.length > 0) {
           // checks warnings are printed to stdout: https://github.com/docker/buildx/pull/2647

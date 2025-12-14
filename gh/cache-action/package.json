@@ -64,5 +64,6 @@
   },
   "optionalDependencies": {
     "@rollup/rollup-linux-x64-gnu": "*"
-  }
+  },
+  "packageManager": "yarn@1.22.22"
 }

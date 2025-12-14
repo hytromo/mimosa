@@ -6,7 +6,9 @@ set -euo pipefail
 
 echo "Downloading node deps..."
 
-npm install -g yarn@1.22.22
+npm install -g corepack
+
+corepack enable # allows to respect the packageManager field in the package.json automatically
 
 cd gh/cache-action 
 yarn install
@@ -20,6 +22,6 @@ cd scripts/sync-example-confirmer-to-real-example
 yarn install
 cd -
 
-cd gh/build-push-action
+cd gh/.almost-original-build-push-action
 yarn install
 cd -
