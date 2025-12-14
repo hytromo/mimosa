@@ -83,7 +83,6 @@ jobs:
           mimosa forget --everything --yes
 
           echo $RANDOM > to-ignore.txt
-          echo "${{ github.sha }}-${RANDOM}-$(date)" > useful.txt
 
       - name: Build and push to Docker Hub (cache verification)
         id: build-dockerhub-cache-hit
@@ -205,6 +204,8 @@ jobs:
         working-directory: docs/gh-actions/actions-example
         run: |
           # this file is ignored, so after the first build we should be hitting our cache
+          mimosa forget --everything --yes
+
           echo $RANDOM > to-ignore.txt
 
       - name: Build and push to Docker Hub (cache verification)
@@ -217,7 +218,7 @@ jobs:
           push: "true"
           tags: hytromo/mimosa-testing:example-cache-hit-${{ github.sha }}
         env:
-          MIMOSA_CACHE: ${{ vars.MIMOSA_CACHE }}
+          MIMOSA_CACHE: ${{ steps.build-dockerhub.outputs.mimosa-cache-new-cache-value }}
 
       - name: Build and push to ECR (cache verification)
         id: build-ecr-cache-hit
@@ -229,7 +230,7 @@ jobs:
           push: "true"
           tags: ${{ steps.login-ecr.outputs.registry }}/mimosa-testing:example-cache-hit-${{ github.sha }}
         env:
-          MIMOSA_CACHE: ${{ vars.MIMOSA_CACHE }}
+          MIMOSA_CACHE: ${{ steps.build-ecr.outputs.mimosa-cache-new-cache-value }}
 
       - name: Verify cache hit outputs
         run: |
