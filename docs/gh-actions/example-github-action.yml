@@ -49,7 +49,7 @@ jobs:
         working-directory: docs/gh-actions/actions-example
         run: |
           echo $RANDOM > to-ignore.txt
-          echo "${{ github.sha }}" > useful.txt
+          echo "${{ github.sha }}-${RANDOM}-$(date)" > useful.txt
 
       - name: Build and push to Docker Hub
         id: build-dockerhub
@@ -83,7 +83,7 @@ jobs:
           mimosa forget --everything --yes
 
           echo $RANDOM > to-ignore.txt
-          echo "${{ github.sha }}" > useful.txt
+          echo "${{ github.sha }}-${RANDOM}-$(date)" > useful.txt
 
       - name: Build and push to Docker Hub (cache verification)
         id: build-dockerhub-cache-hit
@@ -169,7 +169,7 @@ jobs:
         run: |
           # this file is ignored, so after the first build we should be hitting our cache
           echo $RANDOM > to-ignore.txt
-          echo dockerhub > useful.txt
+          echo "${{ github.sha }}-${RANDOM}-$(date)" > useful.txt
 
       - name: Build and push to Docker Hub
         id: build-dockerhub
@@ -182,13 +182,6 @@ jobs:
           tags: hytromo/mimosa-testing:example-${{ github.sha }}
         env:
           MIMOSA_CACHE: ${{ vars.MIMOSA_CACHE }}
-
-      - name: Prepare build context for ECR
-        working-directory: docs/gh-actions/actions-example
-        run: |
-          # this file is ignored, so after the first build we should be hitting our cache
-          echo $RANDOM > to-ignore.txt
-          echo ecr > useful.txt
 
       - name: Build and push to ECR
         id: build-ecr
@@ -208,7 +201,6 @@ jobs:
         run: |
           # this file is ignored, so after the first build we should be hitting our cache
           echo $RANDOM > to-ignore.txt
-          echo dockerhub > useful.txt
 
       - name: Build and push to Docker Hub (cache verification)
         id: build-dockerhub-cache-hit
@@ -221,13 +213,6 @@ jobs:
           tags: hytromo/mimosa-testing:example-cache-hit-${{ github.sha }}
         env:
           MIMOSA_CACHE: ${{ vars.MIMOSA_CACHE }}
-
-      - name: Prepare build context for ECR cache verification
-        working-directory: docs/gh-actions/actions-example
-        run: |
-          # this file is ignored, so after the first build we should be hitting our cache
-          echo $RANDOM > to-ignore.txt
-          echo ecr > useful.txt
 
       - name: Build and push to ECR (cache verification)
         id: build-ecr-cache-hit
