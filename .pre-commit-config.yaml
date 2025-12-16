@@ -1,17 +1,23 @@
 repos:
   - repo: local
     hooks:
-      - id: npm-bundle-setup-action
-        name: Run npm bundle in gh/setup-action
-        entry: bash -c 'cd gh/setup-action && mise exec -- npm run bundle'
+      - id: yarn-bundle-setup-action
+        name: Run yarn bundle in gh/setup-action
+        entry: bash -c 'cd gh/setup-action && mise exec -- yarn run bundle'
         language: system
         files: ^gh/setup-action(/src)?/
 
-      - id: npm-bundle-cache-action
-        name: Run npm bundle in gh/cache-action
-        entry: bash -c 'cd gh/cache-action && mise exec -- npm run bundle'
+      - id: yarn-bundle-cache-action
+        name: Run yarn bundle in gh/cache-action
+        entry: bash -c 'cd gh/cache-action && mise exec -- yarn run bundle'
         language: system
         files: ^gh/cache-action(/src)?/
+
+      - id: yarn-build-almost-original-build-push-action
+        name: Run yarn build in gh/.almost-original-build-push-action
+        entry: bash -c 'cd gh/.almost-original-build-push-action && mise exec -- yarn run build'
+        language: system
+        files: ^gh/.almost-original-build-push-action(/src)?/
 
       - id: sync-example-confirmer
         name: Sync the real confirmer to the example

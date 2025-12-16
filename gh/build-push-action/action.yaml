@@ -1,0 +1,224 @@
+name: Mimosa Build and Push
+description: Build and push Docker images with Mimosa caching support
+author: Alexandros Solanos
+
+branding:
+  icon: chevrons-down
+  color: green
+
+inputs:
+  mimosa-setup-enabled:
+    description: Enable/disable the mimosa setup-action step.
+    required: false
+    default: true
+  mimosa-setup-version:
+    description: The mimosa binary version
+    required: false
+    default: 'latest'
+  mimosa-setup-tools-file:
+    description: The .tool-versions asdf/mise file to extract the mimosa version from
+    required: false
+    default: '.tool-versions'
+
+  mimosa-cache-enabled:
+    description: Enable/disable the mimosa cache-action step. Set to false to manage cache yourself using actions/cache (non-recommended way)
+    required: false
+    default: 'true'
+  mimosa-cache-github-token:
+    description: GitHub token to use for authentication - needs to have write:variables scope. Required if mimosa-cache-enabled is true.
+    required: false
+  mimosa-cache-variable-name:
+    description: The repository variable name to save the cache
+    required: false
+    default: 'MIMOSA_CACHE'
+  mimosa-cache-max-length:
+    description: The maximum length of the cache
+    required: false
+    default: '48000'
+
+  add-hosts:
+    description: "List of a customs host-to-IP mapping (e.g., docker:10.180.0.1)"
+    required: false
+  allow:
+    description: "List of extra privileged entitlement (e.g., network.host,security.insecure)"
+    required: false
+  annotations:
+    description: "List of annotation to set to the image"
+    required: false
+  attests:
+    description: "List of attestation parameters (e.g., type=sbom,generator=image)"
+    required: false
+  build-args:
+    description: "List of build-time variables"
+    required: false
+  build-contexts:
+    description: "List of additional build contexts (e.g., name=path)"
+    required: false
+  builder:
+    description: "Builder instance"
+    required: false
+  cache-from:
+    description: "List of external cache sources for buildx (e.g., user/app:cache, type=local,src=path/to/dir)"
+    required: false
+  cache-to:
+    description: "List of cache export destinations for buildx (e.g., user/app:cache, type=local,dest=path/to/dir)"
+    required: false
+  call:
+    description: "Set method for evaluating build (e.g., check)"
+    required: false
+  cgroup-parent:
+    description: "Optional parent cgroup for the container used in the build"
+    required: false
+  context:
+    description: "Build's context is the set of files located in the specified PATH or URL"
+    required: false
+  file:
+    description: "Path to the Dockerfile"
+    required: false
+  labels:
+    description: "List of metadata for an image"
+    required: false
+  load:
+    description: "Load is a shorthand for --output=type=docker"
+    required: false
+    default: 'false'
+  network:
+    description: "Set the networking mode for the RUN instructions during build"
+    required: false
+  no-cache:
+    description: "Do not use cache when building the image"
+    required: false
+    default: 'false'
+  no-cache-filters:
+    description: "Do not cache specified stages"
+    required: false
+  outputs:
+    description: "List of output destinations (format: type=local,dest=path)"
+    required: false
+  platforms:
+    description: "List of target platforms for build"
+    required: false
+  provenance:
+    description: "Generate provenance attestation for the build (shorthand for --attest=type=provenance)"
+    required: false
+  pull:
+    description: "Always attempt to pull all referenced images"
+    required: false
+    default: 'false'
+  push:
+    description: "Push is a shorthand for --output=type=registry"
+    required: false
+    default: 'false'
+  sbom:
+    description: "Generate SBOM attestation for the build (shorthand for --attest=type=sbom)"
+    required: false
+  secrets:
+    description: "List of secrets to expose to the build (e.g., key=string, GIT_AUTH_TOKEN=mytoken)"
+    required: false
+  secret-envs:
+    description: "List of secret env vars to expose to the build (e.g., key=envname, MY_SECRET=MY_ENV_VAR)"
+    required: false
+  secret-files:
+    description: "List of secret files to expose to the build (e.g., key=filename, MY_SECRET=./secret.txt)"
+    required: false
+  shm-size:
+    description: "Size of /dev/shm (e.g., 2g)"
+    required: false
+  ssh:
+    description: "List of SSH agent socket or keys to expose to the build"
+    required: false
+  tags:
+    description: "List of tags"
+    required: false
+  target:
+    description: "Sets the target stage to build"
+    required: false
+  ulimit:
+    description: "Ulimit options (e.g., nofile=1024:1024)"
+    required: false
+  github-token:
+    description: "GitHub Token used to authenticate against a repository for Git context"
+    default: ${{ github.token }}
+    required: false
+
+outputs:
+  mimosa-setup-binary-path:
+    description: The full path to the mimosa binary
+    value: ${{ steps.setup-mimosa.outputs.binary-path }}
+  mimosa-setup-cache-path:
+    description: The full path to the mimosa cache directory
+    value: ${{ steps.setup-mimosa.outputs.cache-path }}
+
+  mimosa-cache-new-cache-value:
+    description: The new calculated cache value saved back as a GitHub Actions variable
+    value: ${{ steps.cache-mimosa.outputs.new-cache-value }}
+  imageid:
+    description: Image ID
+    value: ${{ steps.build-push.outputs.imageid }}
+  digest:
+    description: Image digest
+    value: ${{ steps.build-push.outputs.digest }}
+  metadata:
+    description: Build result metadata
+    value: ${{ steps.build-push.outputs.metadata }}
+  mimosa-cache-hit:
+    description: Whether mimosa cache was hit
+    value: ${{ steps.build-push.outputs.mimosa-cache-hit }}
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Mimosa
+      if: inputs.mimosa-setup-enabled == 'true'
+      id: setup-mimosa
+      uses: ./gh/setup-action
+      with:
+        version: ${{ inputs.mimosa-setup-version }}
+        tools-file: ${{ inputs.mimosa-setup-tools-file }}
+
+    - name: Build and push Docker image
+      id: build-push
+      uses: ./gh/.almost-original-build-push-action
+      with:
+        add-hosts: ${{ inputs.add-hosts }}
+        allow: ${{ inputs.allow }}
+        annotations: ${{ inputs.annotations }}
+        attests: ${{ inputs.attests }}
+        build-args: ${{ inputs.build-args }}
+        build-contexts: ${{ inputs.build-contexts }}
+        builder: ${{ inputs.builder }}
+        cache-from: ${{ inputs.cache-from }}
+        cache-to: ${{ inputs.cache-to }}
+        call: ${{ inputs.call }}
+        cgroup-parent: ${{ inputs.cgroup-parent }}
+        context: ${{ inputs.context }}
+        file: ${{ inputs.file }}
+        labels: ${{ inputs.labels }}
+        load: ${{ inputs.load }}
+        network: ${{ inputs.network }}
+        no-cache: ${{ inputs.no-cache }}
+        no-cache-filters: ${{ inputs.no-cache-filters }}
+        outputs: ${{ inputs.outputs }}
+        platforms: ${{ inputs.platforms }}
+        provenance: ${{ inputs.provenance }}
+        pull: ${{ inputs.pull }}
+        push: ${{ inputs.push }}
+        sbom: ${{ inputs.sbom }}
+        secrets: ${{ inputs.secrets }}
+        secret-envs: ${{ inputs.secret-envs }}
+        secret-files: ${{ inputs.secret-files }}
+        shm-size: ${{ inputs.shm-size }}
+        ssh: ${{ inputs.ssh }}
+        tags: ${{ inputs.tags }}
+        target: ${{ inputs.target }}
+        ulimit: ${{ inputs.ulimit }}
+        github-token: ${{ inputs.github-token }}
+
+    - name: Cache Mimosa
+      id: cache-mimosa
+      if: inputs.mimosa-cache-enabled == 'true'
+      uses: ./gh/cache-action
+      with:
+        github-token: ${{ inputs.mimosa-cache-github-token }}
+        variable-name: ${{ inputs.mimosa-cache-variable-name }}
+        max-length: ${{ inputs.mimosa-cache-max-length }}
