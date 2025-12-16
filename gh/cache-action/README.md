@@ -18,10 +18,9 @@ philosophy of being a nice-to-have, without disrupting the normal workflow.
 
 ## Outputs:
 
-| Name                  | Description                              |
-| --------------------- | ---------------------------------------- |
-| `success`             | Whether the action was successful or not |
-| `cache-entries-count` | The number of entries saved in the cache |
+| Name              | Description                                                            |
+| ----------------- | ---------------------------------------------------------------------- |
+| `new-cache-value` | The new calculated cache value saved back as a GitHub Actions variable |
 
 ## Repository Variable?
 

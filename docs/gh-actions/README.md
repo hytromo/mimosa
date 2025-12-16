@@ -1,6 +1,6 @@
 # GitHub Actions
 
-You can find full examples of both ways you can utilize Mimosa in Github Actions in the [example-github-action](./example-github-action.yml) workflow. See below for the important bits.
+You can find full workflows in the [example-github-action](./example-github-action.yml) workflow. See below for the important bits.
 
 ## Recommended way: build-push-action
 
@@ -9,13 +9,15 @@ The easiest way to use Mimosa is with the all-in-one `build-push-action`. It han
 ```yaml
 - uses: hytromo/mimosa/gh/build-push-action@v6-build-push
   with:
-    # Required: PAT with variables:write permission for repo-global cache
-    # Create one here: https://github.com/settings/personal-access-tokens
-    mimosa-cache-github-token: ${{ secrets.WRITE_VARIABLES_GH_PAT }}
     # All docker/build-push-action inputs are supported
     platforms: linux/amd64,linux/arm64
     push: true
     tags: my-org/my-image:${{ github.sha }}
+    # Required: PAT with write:variables scope
+    # Create one here: https://github.com/settings/personal-access-tokens
+    mimosa-cache-github-token: ${{ secrets.WRITE_VARIABLES_GH_PAT }}
+  env:
+    MIMOSA_CACHE: ${{ vars.MIMOSA_CACHE }}
 ```
 
 This action wraps `docker/build-push-action` with Mimosa integration, so all the [standard inputs](https://github.com/docker/build-push-action#inputs) are supported. The tag of this action is following the official `docker/build-push-action` tag.
@@ -75,7 +77,7 @@ This uses a repo variable to store the cache, enabling a true repo-global cache 
 ```yaml
 - uses: hytromo/mimosa/gh/cache-action@v2-cache
   with:
-    # Important: a PAT with variables:write permission is required
+    # Important: a PAT with write:variables scope is required
     # Create one here: https://github.com/settings/personal-access-tokens and add it to your repo secrets
     github-token: ${{ secrets.WRITE_VARIABLES_GH_PAT }}
 ```

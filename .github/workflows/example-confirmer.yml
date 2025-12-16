@@ -59,12 +59,12 @@ jobs:
         id: build-dockerhub
         uses: ./gh/build-push-action
         with:
-          mimosa-setup-enabled: 'false'
-          mimosa-cache-enabled: 'true'
+          mimosa-setup-enabled: false
+          mimosa-cache-enabled: true
           mimosa-cache-github-token: ${{ secrets.WRITE_VARIABLES_GH_PAT }}
           context: docs/gh-actions/actions-example
           platforms: linux/amd64,linux/arm64
-          push: 'true'
+          push: true
           tags: hytromo/mimosa-testing:recommended-example-${{ github.sha }}
         env:
           MIMOSA_CACHE: ${{ vars.MIMOSA_CACHE }}
@@ -73,12 +73,12 @@ jobs:
         id: build-ecr
         uses: ./gh/build-push-action
         with:
-          mimosa-setup-enabled: 'false'
-          mimosa-cache-enabled: 'true'
+          mimosa-setup-enabled: false
+          mimosa-cache-enabled: true
           mimosa-cache-github-token: ${{ secrets.WRITE_VARIABLES_GH_PAT }}
           context: docs/gh-actions/actions-example
           platforms: linux/amd64,linux/arm64
-          push: 'true'
+          push: true
           tags: ${{ steps.login-ecr.outputs.registry }}/mimosa-testing:recommended-example-${{ github.sha }}
         env:
           MIMOSA_CACHE: ${{ vars.MIMOSA_CACHE }}
@@ -96,12 +96,12 @@ jobs:
         id: build-dockerhub-cache-hit
         uses: ./gh/build-push-action
         with:
-          mimosa-setup-enabled: 'false'
-          mimosa-cache-enabled: 'true'
+          mimosa-setup-enabled: false
+          mimosa-cache-enabled: true
           mimosa-cache-github-token: ${{ secrets.WRITE_VARIABLES_GH_PAT }}
           context: docs/gh-actions/actions-example
           platforms: linux/amd64,linux/arm64
-          push: 'true'
+          push: true
           tags: hytromo/mimosa-testing:recommended-example-cache-hit-${{ github.sha }}
         env:
           MIMOSA_CACHE: ${{ steps.build-dockerhub.outputs.mimosa-cache-new-cache-value }}
@@ -110,12 +110,12 @@ jobs:
         id: build-ecr-cache-hit
         uses: ./gh/build-push-action
         with:
-          mimosa-setup-enabled: 'false'
-          mimosa-cache-enabled: 'true'
+          mimosa-setup-enabled: false
+          mimosa-cache-enabled: true
           mimosa-cache-github-token: ${{ secrets.WRITE_VARIABLES_GH_PAT }}
           context: docs/gh-actions/actions-example
           platforms: linux/amd64,linux/arm64
-          push: 'true'
+          push: true
           tags: ${{ steps.login-ecr.outputs.registry }}/mimosa-testing:recommended-example-cache-hit-${{ github.sha }}
         env:
           MIMOSA_CACHE: ${{ steps.build-ecr.outputs.mimosa-cache-new-cache-value }}
@@ -196,11 +196,11 @@ jobs:
         id: build-dockerhub
         uses: ./gh/build-push-action
         with:
-          mimosa-setup-enabled: 'false'
-          mimosa-cache-enabled: 'false'
+          mimosa-setup-enabled: false
+          mimosa-cache-enabled: false
           context: docs/gh-actions/actions-example
           platforms: linux/amd64,linux/arm64
-          push: 'true'
+          push: true
           tags: hytromo/mimosa-testing:example-${{ github.sha }}
         env:
           MIMOSA_CACHE: ${{ vars.MIMOSA_CACHE }}
@@ -209,11 +209,11 @@ jobs:
         id: build-ecr
         uses: ./gh/build-push-action
         with:
-          mimosa-setup-enabled: 'false'
-          mimosa-cache-enabled: 'false'
+          mimosa-setup-enabled: false
+          mimosa-cache-enabled: false
           context: docs/gh-actions/actions-example
           platforms: linux/amd64,linux/arm64
-          push: 'true'
+          push: true
           tags: ${{ steps.login-ecr.outputs.registry }}/mimosa-testing:example-${{ github.sha }}
         env:
           MIMOSA_CACHE: ${{ vars.MIMOSA_CACHE }}
@@ -231,22 +231,22 @@ jobs:
         id: build-dockerhub-cache-hit
         uses: ./gh/build-push-action
         with:
-          mimosa-setup-enabled: 'false'
-          mimosa-cache-enabled: 'false'
+          mimosa-setup-enabled: false
+          mimosa-cache-enabled: false
           context: docs/gh-actions/actions-example
           platforms: linux/amd64,linux/arm64
-          push: 'true'
+          push: true
           tags: hytromo/mimosa-testing:example-cache-hit-${{ github.sha }}
 
       - name: Build and push to ECR (cache verification)
         id: build-ecr-cache-hit
         uses: ./gh/build-push-action
         with:
-          mimosa-setup-enabled: 'false'
-          mimosa-cache-enabled: 'false'
+          mimosa-setup-enabled: false
+          mimosa-cache-enabled: false
           context: docs/gh-actions/actions-example
           platforms: linux/amd64,linux/arm64
-          push: 'true'
+          push: true
           tags: ${{ steps.login-ecr.outputs.registry }}/mimosa-testing:example-cache-hit-${{ github.sha }}
 
       - name: Verify cache hit outputs

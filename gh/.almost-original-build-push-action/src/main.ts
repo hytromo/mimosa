@@ -1,3 +1,12 @@
+/**
+ * This file has been modified from the original docker/build-push-action.
+ * Original work Copyright 2013-2018 Docker, Inc.
+ * Licensed under Apache License 2.0
+ *
+ * Modifications Copyright 2025 Alexandros Solanos (https://github.com/hytromo)
+ * Changes: Integrated mimosa remember to wrap the buildx command for caching
+ */
+
 import * as core from '@actions/core';
 import * as actionsToolkit from '@docker/actions-toolkit';
 import * as fs from 'fs';
