@@ -614,6 +614,27 @@ func TestBuildCmdWithoutTagArguments(t *testing.T) {
 	assert.Equal(t, expected, result)
 }
 
+// TestNormalizeCommandForHashing_ShortFlagEqualsWithSubKeys tests the branch where
+// a short flag with equals syntax has subKeys defined for partial templating.
+func TestNormalizeCommandForHashing_ShortFlagEqualsWithSubKeys(t *testing.T) {
+	// Save original and restore after test
+	original := flagsToTemplate
+	defer func() { flagsToTemplate = original }()
+
+	// Add a test flag with both shortFlag and subKeys
+	flagsToTemplate = append(flagsToTemplate, flagTemplate{
+		longFlag:  "--test-attest",
+		shortFlag: "-a",
+		subKeys:   []string{"builder-id"},
+	})
+
+	input := []string{"docker", "build", "-a=type=provenance,builder-id=https://example.com", "-t", "myapp:latest", "."}
+	result := normalizeCommandForHashing(input)
+
+	// The short flag with equals should have its subKey templated
+	assert.Contains(t, result, "-a=type=provenance,builder-id=<VALUE>")
+}
+
 func TestParseBuildCommand_DockerignoreHandling(t *testing.T) {
 	tempDir := t.TempDir()
 
