@@ -15,7 +15,7 @@
 </div>
 
 > [!WARNING]
-> While `mimosa` has an extensive testing suite, it is in beta state. If you find a bug, please [open an issue](https://github.com/hytromo/mimosa/issues/new). Caution is advised for production usage.
+> While `mimosa` has an extensive testing suite, it hasn't yet been heavily tested in production. If you find a bug, please [open an issue](https://github.com/hytromo/mimosa/issues/new). Caution is advised for production usage.
 
 # What does it do
 
@@ -53,10 +53,17 @@ Just prepend your docker build commands like this: `mimosa remember -- docker bu
 
 ## Inside GitHub Actions
 
+Just replace your `docker/build-push-action` with `hytromo/mimosa/gh/build-push-action` in your GitHub Actions workflow and give read and write access to the `MIMOSA_CACHE` variable.
+
 ```yaml
-- uses: hytromo/mimosa/gh/setup-action@v2-setup
-  with:
-    version: v0.1.0
+  - uses: hytromo/mimosa/gh/build-push-action@v6-build-push
+    with:
+      platforms: linux/amd64,linux/arm64
+      push: "true"
+      tags: my-org/my-image:${{ github.sha }}
+      mimosa-cache-github-token: ${{ secrets.WRITE_VARIABLES_GH_PAT }}
+    env:
+      MIMOSA_CACHE: ${{ vars.MIMOSA_CACHE }}
 ```
 
 See the [GitHub Action docs](./docs/gh-actions/README.md) for details on how to use `mimosa` in your GitHub Actions.
