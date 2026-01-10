@@ -29846,7 +29846,7 @@ async function getLatestVersion() {
         headers: { 'User-Agent': 'mimosa-downloader' } // required by GitHub API
     });
     if (!res.ok) {
-        throw new Error(`Failed to fetch latest release: ${res.status} ${res.statusText}`);
+        throw new Error(`Failed to fetch latest release from ${url}: ${res.status} ${res.statusText}`);
     }
     const json = (await res.json());
     return json.tag_name.replaceAll('v', '').trim();

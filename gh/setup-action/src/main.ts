@@ -29,7 +29,7 @@ async function getLatestVersion(): Promise<string> {
 
   if (!res.ok) {
     throw new Error(
-      `Failed to fetch latest release: ${res.status} ${res.statusText}`
+      `Failed to fetch latest release from ${url}: ${res.status} ${res.statusText}`
     )
   }
 
