@@ -171,14 +171,14 @@ runs:
     - name: Setup Mimosa
       if: inputs.mimosa-setup-enabled == 'true'
       id: setup-mimosa
-      uses: hytromo/mimosa/gh/setup-action@v6-build-push
+      uses: hytromo/mimosa/gh/setup-action@bugfix/fix-composite-action
       with:
         version: ${{ inputs.mimosa-setup-version }}
         tools-file: ${{ inputs.mimosa-setup-tools-file }}
 
     - name: Build and push Docker image
       id: build-push
-      uses: hytromo/mimosa/gh/.almost-original-build-push-action@v6-build-push
+      uses: hytromo/mimosa/gh/.almost-original-build-push-action@bugfix/fix-composite-action
       with:
         add-hosts: ${{ inputs.add-hosts }}
         allow: ${{ inputs.allow }}
@@ -217,7 +217,7 @@ runs:
     - name: Cache Mimosa
       id: cache-mimosa
       if: inputs.mimosa-cache-enabled == 'true'
-      uses: hytromo/mimosa/gh/cache-action@v6-build-push
+      uses: hytromo/mimosa/gh/cache-action@bugfix/fix-composite-action
       with:
         github-token: ${{ inputs.mimosa-cache-github-token }}
         variable-name: ${{ inputs.mimosa-cache-variable-name }}
