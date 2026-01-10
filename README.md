@@ -61,6 +61,7 @@ Just replace your `docker/build-push-action` with `hytromo/mimosa/gh/build-push-
       platforms: linux/amd64,linux/arm64
       push: "true"
       tags: my-org/my-image:${{ github.sha }}
+      context: .
       mimosa-cache-github-token: ${{ secrets.WRITE_VARIABLES_GH_PAT }}
     env:
       MIMOSA_CACHE: ${{ vars.MIMOSA_CACHE }}
@@ -137,6 +138,10 @@ Mimosa supports multi-platform builds. It looks into the existing docker image's
 ## What about custom build contexts?
 
 Mimosa analyzes the docker command and understands what your build context is, whether it's `.` or something else.
+
+## What about remote URLs as build context?
+
+Mimosa does not support remote URLs (e.g., Git repositories or tarballs) as build context. If you use a remote URL, Mimosa will fall back to running the docker command normally without caching the build.
 
 ## How does it work for multiple targets in a bakefile?
 

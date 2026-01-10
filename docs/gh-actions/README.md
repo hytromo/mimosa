@@ -13,6 +13,7 @@ The easiest way to use Mimosa is with the all-in-one `build-push-action`. It han
     platforms: linux/amd64,linux/arm64
     push: true
     tags: my-org/my-image:${{ github.sha }}
+    context: .
     # Required: PAT with write:variables scope
     # Create one here: https://github.com/settings/personal-access-tokens
     mimosa-cache-github-token: ${{ secrets.WRITE_VARIABLES_GH_PAT }}
