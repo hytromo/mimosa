@@ -21,8 +21,7 @@ const archMap: Record<string, string> = {
 }
 
 async function getLatestVersion(): Promise<string> {
-  const { owner, repo } = github.context.repo
-  const url = `https://api.github.com/repos/${owner}/${repo}/releases/latest`
+  const url = `https://api.github.com/repos/hytromo/mimosa/releases/latest`
 
   const res = await fetch(url, {
     headers: { 'User-Agent': 'mimosa-downloader' } // required by GitHub API
@@ -30,7 +29,7 @@ async function getLatestVersion(): Promise<string> {
 
   if (!res.ok) {
     throw new Error(
-      `Failed to fetch latest release: ${res.status} ${res.statusText}`
+      `Failed to fetch latest release from ${url}: ${res.status} ${res.statusText}`
     )
   }
 
