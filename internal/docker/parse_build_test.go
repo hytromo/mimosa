@@ -334,6 +334,52 @@ func TestFindContextPath(t *testing.T) {
 }
 
 func TestNormalizeCommandForHashing(t *testing.T) {
+	// Shared expected output for GitHub Actions commands with different temp paths
+	githubActionsExpected := []string{
+		"docker", "buildx", "build",
+		"--attest", "type=provenance,mode=min,inline-only=true,builder-id=<VALUE>",
+		"--file",
+		"--iidfile", "<VALUE>",
+		"--metadata-file", "<VALUE>",
+		"--platform",
+		"--push",
+		"--secret", "id=ARTIFACTORY_PASSWORD,src=<VALUE>",
+		"--secret", "id=ARTIFACTORY_USER,src=<VALUE>",
+		"--tag", "<VALUE>",
+		"--target",
+		".",
+		"Dockerfile.gpu",
+		"application",
+		"linux/amd64",
+	}
+
+	// Shared expected output for GitHub Actions commands with labels - label values are templated
+	githubActionsWithLabelsExpected := []string{
+		"docker", "buildx", "build",
+		"--attest", "type=provenance,mode=min,inline-only=true,builder-id=<VALUE>",
+		"--file",
+		"--iidfile", "<VALUE>",
+		"--label", "org.opencontainers.image.created=<VALUE>",
+		"--label", "org.opencontainers.image.description=<VALUE>",
+		"--label", "org.opencontainers.image.licenses=<VALUE>",
+		"--label", "org.opencontainers.image.revision=<VALUE>",
+		"--label", "org.opencontainers.image.source=<VALUE>",
+		"--label", "org.opencontainers.image.title=<VALUE>",
+		"--label", "org.opencontainers.image.url=<VALUE>",
+		"--label", "org.opencontainers.image.version=<VALUE>",
+		"--metadata-file", "<VALUE>",
+		"--platform",
+		"--push",
+		"--secret", "id=ARTIFACTORY_PASSWORD,src=<VALUE>",
+		"--secret", "id=ARTIFACTORY_USER,src=<VALUE>",
+		"--tag", "<VALUE>",
+		"--target",
+		".",
+		"Dockerfile.gpu",
+		"application",
+		"linux/amd64",
+	}
+
 	testCases := []struct {
 		name     string
 		input    []string
@@ -342,12 +388,12 @@ func TestNormalizeCommandForHashing(t *testing.T) {
 		{
 			name:     "Simple tag templating",
 			input:    []string{"docker", "build", "-t", "myapp:latest", "."},
-			expected: []string{"docker", "build", "-t", ".", "<VALUE>"}, // sorted: "-t" < "." < "<VALUE>"
+			expected: []string{"docker", "build", "-t", "<VALUE>", "."},
 		},
 		{
 			name:     "Multiple tags templating",
 			input:    []string{"docker", "build", "-t", "myapp:latest", "-t", "myapp:v1.0.0", "."},
-			expected: []string{"docker", "build", "-t", "-t", ".", "<VALUE>", "<VALUE>"},
+			expected: []string{"docker", "build", "-t", "<VALUE>", "-t", "<VALUE>", "."},
 		},
 		{
 			name:     "Tag with equals syntax",
@@ -367,83 +413,211 @@ func TestNormalizeCommandForHashing(t *testing.T) {
 		{
 			name:     "iidfile templating",
 			input:    []string{"docker", "build", "--iidfile", "/tmp/random123.txt", "-t", "myapp:latest", "."},
-			expected: []string{"docker", "build", "--iidfile", "-t", ".", "<VALUE>", "<VALUE>"},
+			expected: []string{"docker", "build", "--iidfile", "<VALUE>", "-t", "<VALUE>", "."},
 		},
 		{
 			name:     "iidfile with equals syntax",
 			input:    []string{"docker", "build", "--iidfile=/tmp/random.txt", "-t", "myapp:latest", "."},
-			expected: []string{"docker", "build", "--iidfile=<VALUE>", "-t", ".", "<VALUE>"},
+			expected: []string{"docker", "build", "--iidfile=<VALUE>", "-t", "<VALUE>", "."},
 		},
 		{
 			name:     "metadata-file templating",
 			input:    []string{"docker", "build", "--metadata-file", "/tmp/metadata.json", "-t", "myapp:latest", "."},
-			expected: []string{"docker", "build", "--metadata-file", "-t", ".", "<VALUE>", "<VALUE>"},
+			expected: []string{"docker", "build", "--metadata-file", "<VALUE>", "-t", "<VALUE>", "."},
 		},
 		{
 			name:     "metadata-file with equals syntax",
 			input:    []string{"docker", "build", "--metadata-file=/tmp/metadata.json", "-t", "myapp:latest", "."},
-			expected: []string{"docker", "build", "--metadata-file=<VALUE>", "-t", ".", "<VALUE>"},
+			expected: []string{"docker", "build", "--metadata-file=<VALUE>", "-t", "<VALUE>", "."},
 		},
 		{
 			name:     "attest with builder-id templating",
 			input:    []string{"docker", "build", "--attest", "type=provenance,mode=max,builder-id=https://github.com/example/actions/runs/123", "-t", "myapp:latest", "."},
-			expected: []string{"docker", "build", "--attest", "-t", ".", "<VALUE>", "type=provenance,mode=max,builder-id=<VALUE>"},
+			expected: []string{"docker", "build", "--attest", "type=provenance,mode=max,builder-id=<VALUE>", "-t", "<VALUE>", "."},
 		},
 		{
 			name:     "attest with equals syntax and builder-id",
 			input:    []string{"docker", "build", "--attest=type=provenance,builder-id=https://example.com/run/456", "-t", "myapp:latest", "."},
-			expected: []string{"docker", "build", "--attest=type=provenance,builder-id=<VALUE>", "-t", ".", "<VALUE>"},
+			expected: []string{"docker", "build", "--attest=type=provenance,builder-id=<VALUE>", "-t", "<VALUE>", "."},
 		},
 		{
 			name:     "attest without builder-id unchanged",
 			input:    []string{"docker", "build", "--attest", "type=sbom,generator=image", "-t", "myapp:latest", "."},
-			expected: []string{"docker", "build", "--attest", "-t", ".", "<VALUE>", "type=sbom,generator=image"},
+			expected: []string{"docker", "build", "--attest", "type=sbom,generator=image", "-t", "<VALUE>", "."},
 		},
 		{
 			name:     "buildx command",
 			input:    []string{"docker", "buildx", "build", "-t", "myapp:latest", "."},
-			expected: []string{"docker", "buildx", "build", "-t", ".", "<VALUE>"},
+			expected: []string{"docker", "buildx", "build", "-t", "<VALUE>", "."},
 		},
 		{
 			name:     "buildx with multiple templated flags",
 			input:    []string{"docker", "buildx", "build", "--iidfile", "/tmp/id.txt", "--metadata-file", "/tmp/meta.json", "-t", "myapp:latest", "."},
-			expected: []string{"docker", "buildx", "build", "--iidfile", "--metadata-file", "-t", ".", "<VALUE>", "<VALUE>", "<VALUE>"},
+			expected: []string{"docker", "buildx", "build", "--iidfile", "<VALUE>", "--metadata-file", "<VALUE>", "-t", "<VALUE>", "."},
 		},
 		// Boolean flags to discard tests
 		{
 			name:     "quiet flag discarded",
 			input:    []string{"docker", "build", "--quiet", "-t", "myapp:latest", "."},
-			expected: []string{"docker", "build", "-t", ".", "<VALUE>"},
+			expected: []string{"docker", "build", "-t", "<VALUE>", "."},
 		},
 		{
 			name:     "short quiet flag discarded",
 			input:    []string{"docker", "build", "-q", "-t", "myapp:latest", "."},
-			expected: []string{"docker", "build", "-t", ".", "<VALUE>"},
+			expected: []string{"docker", "build", "-t", "<VALUE>", "."},
 		},
 		{
 			name:     "debug flag discarded",
 			input:    []string{"docker", "build", "--debug", "-t", "myapp:latest", "."},
-			expected: []string{"docker", "build", "-t", ".", "<VALUE>"},
+			expected: []string{"docker", "build", "-t", "<VALUE>", "."},
 		},
 		{
 			name:     "short debug flag discarded",
 			input:    []string{"docker", "build", "-D", "-t", "myapp:latest", "."},
-			expected: []string{"docker", "build", "-t", ".", "<VALUE>"},
+			expected: []string{"docker", "build", "-t", "<VALUE>", "."},
 		},
 		{
 			name:     "multiple boolean flags discarded",
 			input:    []string{"docker", "build", "--quiet", "--debug", "-t", "myapp:latest", "."},
-			expected: []string{"docker", "build", "-t", ".", "<VALUE>"},
+			expected: []string{"docker", "build", "-t", "<VALUE>", "."},
 		},
 		{
 			name:     "boolean flags mixed with templated flags",
 			input:    []string{"docker", "build", "-q", "--iidfile", "/tmp/id.txt", "-D", "-t", "myapp:latest", "."},
-			expected: []string{"docker", "build", "--iidfile", "-t", ".", "<VALUE>", "<VALUE>"},
+			expected: []string{"docker", "build", "--iidfile", "<VALUE>", "-t", "<VALUE>", "."},
 		},
 		{
 			name:     "buildx with boolean and templated flags",
 			input:    []string{"docker", "buildx", "build", "--quiet", "--progress", "plain", "-t", "myapp:latest", "."},
-			expected: []string{"docker", "buildx", "build", "--progress", "-t", ".", "<VALUE>", "<VALUE>"},
+			expected: []string{"docker", "buildx", "build", "--progress", "<VALUE>", "-t", "<VALUE>", "."},
+		},
+		// Label tests
+		{
+			name:     "label with space-separated format",
+			input:    []string{"docker", "build", "--label", "version=1.2.3", "-t", "myapp:latest", "."},
+			expected: []string{"docker", "build", "--label", "version=<VALUE>", "-t", "<VALUE>", "."},
+		},
+		{
+			name:     "label with equals format",
+			input:    []string{"docker", "build", "--label=version=1.2.3", "-t", "myapp:latest", "."},
+			expected: []string{"docker", "build", "--label=version=<VALUE>", "-t", "<VALUE>", "."},
+		},
+		{
+			name:     "multiple labels with same keys different values",
+			input:    []string{"docker", "build", "--label", "version=1.2.3", "--label", "version=2.0.0", "-t", "myapp:latest", "."},
+			expected: []string{"docker", "build", "--label", "version=<VALUE>", "--label", "version=<VALUE>", "-t", "<VALUE>", "."},
+		},
+		{
+			name:     "multiple labels with different keys",
+			input:    []string{"docker", "build", "--label", "version=1.2.3", "--label", "build=123", "-t", "myapp:latest", "."},
+			expected: []string{"docker", "build", "--label", "build=<VALUE>", "--label", "version=<VALUE>", "-t", "<VALUE>", "."},
+		},
+		// Secret tests
+		{
+			name:     "secret with src path",
+			input:    []string{"docker", "build", "--secret", "id=mysecret,src=/path/to/file", "-t", "myapp:latest", "."},
+			expected: []string{"docker", "build", "--secret", "id=mysecret,src=<VALUE>", "-t", "<VALUE>", "."},
+		},
+		{
+			name:     "secret with env var",
+			input:    []string{"docker", "build", "--secret", "id=mysecret,env=MY_SECRET", "-t", "myapp:latest", "."},
+			expected: []string{"docker", "build", "--secret", "id=mysecret,env=<VALUE>", "-t", "<VALUE>", "."},
+		},
+		{
+			name:     "secret with equals format",
+			input:    []string{"docker", "build", "--secret=id=mysecret,src=/path/to/file", "-t", "myapp:latest", "."},
+			expected: []string{"docker", "build", "--secret=id=mysecret,src=<VALUE>", "-t", "<VALUE>", "."},
+		},
+		{
+			name:     "secret with both src and env",
+			input:    []string{"docker", "build", "--secret", "id=mysecret,src=/path,env=VAR", "-t", "myapp:latest", "."},
+			expected: []string{"docker", "build", "--secret", "id=mysecret,src=<VALUE>,env=<VALUE>", "-t", "<VALUE>", "."},
+		},
+		// Real-world GitHub Actions example - two different runs should normalize to the same output
+		{
+			name: "GitHub Actions buildx command with different temp paths and tags",
+			input: []string{
+				"docker", "buildx", "build",
+				"--file", "Dockerfile.gpu",
+				"--iidfile", "/home/runner/_work/_temp/docker-actions-toolkit-6E7XsB/build-iidfile-e7944d5539.txt",
+				"--platform", "linux/amd64",
+				"--attest", "type=provenance,mode=min,inline-only=true,builder-id=https://github.com/my-org/my-service/actions/runs/20918998792/attempts/1",
+				"--secret", "id=ARTIFACTORY_USER,src=/home/runner/_work/_temp/docker-actions-toolkit-6E7XsB/tmp-1201-5HJKc4nPygdt",
+				"--secret", "id=ARTIFACTORY_PASSWORD,src=/home/runner/_work/_temp/docker-actions-toolkit-6E7XsB/tmp-1201-sxPnEwpt8v1i",
+				"--tag", "abc.dkr.ecr.us-east-1.amazonaws.com/my-service:tag1",
+				"--target", "application",
+				"--metadata-file", "/home/runner/_work/_temp/docker-actions-toolkit-6E7XsB/build-metadata-abcdef.json",
+				"--push", ".",
+			},
+			expected: githubActionsExpected,
+		},
+		{
+			name: "GitHub Actions buildx command with different temp paths and tags (second run)",
+			input: []string{
+				"docker", "buildx", "build",
+				"--file", "Dockerfile.gpu",
+				"--iidfile", "/home/runner/_work/_temp/docker-actions-toolkit-DZMjnc/build-iidfile-299ebe6141.txt",
+				"--platform", "linux/amd64",
+				"--attest", "type=provenance,mode=min,inline-only=true,builder-id=https://github.com/my-org/my-service/actions/runs/20919355217/attempts/1",
+				"--secret", "id=ARTIFACTORY_USER,src=/home/runner/_work/_temp/docker-actions-toolkit-DZMjnc/tmp-1203-L5fG1HhXCT97",
+				"--secret", "id=ARTIFACTORY_PASSWORD,src=/home/runner/_work/_temp/docker-actions-toolkit-DZMjnc/tmp-1203-bAi2R7ModuG6",
+				"--tag", "abc.dkr.ecr.us-east-1.amazonaws.com/my-service:tag2",
+				"--target", "application",
+				"--metadata-file", "/home/runner/_work/_temp/docker-actions-toolkit-DZMjnc/build-metadata-abcd12.json",
+				"--push", ".",
+			},
+			expected: githubActionsExpected,
+		},
+		// Real-world GitHub Actions example with labels - different label values should normalize to the same output
+		{
+			name: "GitHub Actions buildx command with labels (first run)",
+			input: []string{
+				"docker", "buildx", "build",
+				"--file", "Dockerfile.gpu",
+				"--iidfile", "/home/runner/_work/_temp/docker-actions-toolkit-Ro2ZIP/build-iidfile-4506fa0971.txt",
+				"--label", "org.opencontainers.image.created=2026-01-12T12:05:03.700Z",
+				"--label", "org.opencontainers.image.description=Repository for my-service service",
+				"--label", "org.opencontainers.image.licenses=",
+				"--label", "org.opencontainers.image.revision=f8c5acd1d51b19089edef3c61690a8c5780fea99",
+				"--label", "org.opencontainers.image.source=https://github.com/my-org/my-service",
+				"--label", "org.opencontainers.image.title=my-service",
+				"--label", "org.opencontainers.image.url=https://github.com/my-org/my-service",
+				"--label", "org.opencontainers.image.version=pr-191",
+				"--platform", "linux/amd64",
+				"--attest", "type=provenance,mode=min,inline-only=true,builder-id=https://github.com/my-org/my-service/actions/runs/20918681354/attempts/1",
+				"--secret", "id=ARTIFACTORY_USER,src=/home/runner/_work/_temp/docker-actions-toolkit-Ro2ZIP/tmp-1219-pzokgcN55JNl",
+				"--secret", "id=ARTIFACTORY_PASSWORD,src=/home/runner/_work/_temp/docker-actions-toolkit-Ro2ZIP/tmp-1219-CfqPonb1pG8F",
+				"--tag", "abc.dkr.ecr.us-east-1.amazonaws.com/my-service:tag1",
+				"--target", "application",
+				"--metadata-file", "/home/runner/_work/_temp/docker-actions-toolkit-Ro2ZIP/build-metadata-7c16b0d3f6.json",
+				"--push", ".",
+			},
+			expected: githubActionsWithLabelsExpected,
+		},
+		{
+			name: "GitHub Actions buildx command with labels (different label values)",
+			input: []string{
+				"docker", "buildx", "build",
+				"--file", "Dockerfile.gpu",
+				"--iidfile", "/home/runner/_work/_temp/docker-actions-toolkit-OtherID/build-iidfile-different.txt",
+				"--label", "org.opencontainers.image.created=2026-01-13T15:30:45.123Z",
+				"--label", "org.opencontainers.image.description=Different description",
+				"--label", "org.opencontainers.image.licenses=MIT",
+				"--label", "org.opencontainers.image.revision=abc123def456",
+				"--label", "org.opencontainers.image.source=https://github.com/my-org/my-service",
+				"--label", "org.opencontainers.image.title=my-service",
+				"--label", "org.opencontainers.image.url=https://github.com/my-org/my-service",
+				"--label", "org.opencontainers.image.version=pr-192",
+				"--platform", "linux/amd64",
+				"--attest", "type=provenance,mode=min,inline-only=true,builder-id=https://github.com/my-org/my-service/actions/runs/99999999999/attempts/1",
+				"--secret", "id=ARTIFACTORY_USER,src=/home/runner/_work/_temp/docker-actions-toolkit-OtherID/tmp-different1",
+				"--secret", "id=ARTIFACTORY_PASSWORD,src=/home/runner/_work/_temp/docker-actions-toolkit-OtherID/tmp-different2",
+				"--tag", "abc.dkr.ecr.us-east-1.amazonaws.com/my-service:tag2",
+				"--target", "application",
+				"--metadata-file", "/home/runner/_work/_temp/docker-actions-toolkit-OtherID/build-metadata-different.json",
+				"--push", ".",
+			},
+			expected: githubActionsWithLabelsExpected,
 		},
 	}
 
@@ -683,4 +857,167 @@ func TestParseBuildCommand_CustomDockerignoreHandling(t *testing.T) {
 
 	assert.Equal(t, command, result.Command)
 	assert.NotEmpty(t, result.Hash)
+}
+
+func TestNormalizeCommandForHashing_LabelBehavior(t *testing.T) {
+	testCases := []struct {
+		name     string
+		input1   []string
+		input2   []string
+		expected bool // true if they should normalize to the same result
+	}{
+		{
+			name:     "Same label key, different values should produce same normalized output",
+			input1:   []string{"docker", "build", "--label", "version=1.2.3", "-t", "myapp:latest", "."},
+			input2:   []string{"docker", "build", "--label", "version=2.0.0", "-t", "myapp:latest", "."},
+			expected: true,
+		},
+		{
+			name:     "Different label keys should produce different normalized output",
+			input1:   []string{"docker", "build", "--label", "version=1.2.3", "-t", "myapp:latest", "."},
+			input2:   []string{"docker", "build", "--label", "build=123", "-t", "myapp:latest", "."},
+			expected: false,
+		},
+		{
+			name:     "Same label key in equals format, different values should produce same normalized output",
+			input1:   []string{"docker", "build", "--label=version=1.2.3", "-t", "myapp:latest", "."},
+			input2:   []string{"docker", "build", "--label=version=2.0.0", "-t", "myapp:latest", "."},
+			expected: true,
+		},
+		{
+			name:     "Multiple labels with same keys, different values should produce same normalized output",
+			input1:   []string{"docker", "build", "--label", "version=1.2.3", "--label", "build=123", "-t", "myapp:latest", "."},
+			input2:   []string{"docker", "build", "--label", "version=2.0.0", "--label", "build=456", "-t", "myapp:latest", "."},
+			expected: true,
+		},
+		{
+			name:     "Label without equals sign should be preserved as-is",
+			input1:   []string{"docker", "build", "--label", "novalue", "-t", "myapp:latest", "."},
+			input2:   []string{"docker", "build", "--label", "novalue", "-t", "myapp:latest", "."},
+			expected: true,
+		},
+		{
+			name:     "Label with empty value",
+			input1:   []string{"docker", "build", "--label", "key=", "-t", "myapp:latest", "."},
+			input2:   []string{"docker", "build", "--label", "key=value", "-t", "myapp:latest", "."},
+			expected: true, // key is the same, value doesn't matter
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result1 := normalizeCommandForHashing(tc.input1)
+			result2 := normalizeCommandForHashing(tc.input2)
+			if tc.expected {
+				assert.Equal(t, result1, result2, "Commands should normalize to the same result")
+			} else {
+				assert.NotEqual(t, result1, result2, "Commands should normalize to different results")
+			}
+		})
+	}
+}
+
+func TestNormalizeCommandForHashing_SecretBehavior(t *testing.T) {
+	testCases := []struct {
+		name     string
+		input1   []string
+		input2   []string
+		expected bool // true if they should normalize to the same result
+	}{
+		{
+			name:     "Same secret ID, different src paths should produce same normalized output",
+			input1:   []string{"docker", "build", "--secret", "id=mysecret,src=/path/to/file1", "-t", "myapp:latest", "."},
+			input2:   []string{"docker", "build", "--secret", "id=mysecret,src=/path/to/file2", "-t", "myapp:latest", "."},
+			expected: true,
+		},
+		{
+			name:     "Same secret ID, different env vars should produce same normalized output",
+			input1:   []string{"docker", "build", "--secret", "id=mysecret,env=VAR1", "-t", "myapp:latest", "."},
+			input2:   []string{"docker", "build", "--secret", "id=mysecret,env=VAR2", "-t", "myapp:latest", "."},
+			expected: true,
+		},
+		{
+			name:     "Different secret IDs should produce different normalized output",
+			input1:   []string{"docker", "build", "--secret", "id=secret1,src=/path", "-t", "myapp:latest", "."},
+			input2:   []string{"docker", "build", "--secret", "id=secret2,src=/path", "-t", "myapp:latest", "."},
+			expected: false,
+		},
+		{
+			name:     "Same secret ID in equals format, different src should produce same normalized output",
+			input1:   []string{"docker", "build", "--secret=id=mysecret,src=/path1", "-t", "myapp:latest", "."},
+			input2:   []string{"docker", "build", "--secret=id=mysecret,src=/path2", "-t", "myapp:latest", "."},
+			expected: true,
+		},
+		{
+			name:     "Multiple secrets with same IDs, different src/env should produce same normalized output",
+			input1:   []string{"docker", "build", "--secret", "id=secret1,src=/path1", "--secret", "id=secret2,env=VAR1", "-t", "myapp:latest", "."},
+			input2:   []string{"docker", "build", "--secret", "id=secret1,src=/path2", "--secret", "id=secret2,env=VAR2", "-t", "myapp:latest", "."},
+			expected: true,
+		},
+		{
+			name:     "Secret with both src and env, same ID different sources should produce same normalized output",
+			input1:   []string{"docker", "build", "--secret", "id=mysecret,src=/path1,env=VAR1", "-t", "myapp:latest", "."},
+			input2:   []string{"docker", "build", "--secret", "id=mysecret,src=/path2,env=VAR2", "-t", "myapp:latest", "."},
+			expected: true,
+		},
+		{
+			name:     "Secret with only id (no src or env) should be preserved",
+			input1:   []string{"docker", "build", "--secret", "id=mysecret", "-t", "myapp:latest", "."},
+			input2:   []string{"docker", "build", "--secret", "id=mysecret", "-t", "myapp:latest", "."},
+			expected: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result1 := normalizeCommandForHashing(tc.input1)
+			result2 := normalizeCommandForHashing(tc.input2)
+			if tc.expected {
+				assert.Equal(t, result1, result2, "Commands should normalize to the same result")
+			} else {
+				assert.NotEqual(t, result1, result2, "Commands should normalize to different results")
+			}
+		})
+	}
+}
+
+func TestTemplateLabelValue(t *testing.T) {
+	testCases := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "Simple key=value",
+			input:    "version=1.2.3",
+			expected: "version=<VALUE>",
+		},
+		{
+			name:     "Key with empty value",
+			input:    "key=",
+			expected: "key=<VALUE>",
+		},
+		{
+			name:     "Key with value containing equals",
+			input:    "key=value=with=equals",
+			expected: "key=<VALUE>",
+		},
+		{
+			name:     "No equals sign",
+			input:    "novalue",
+			expected: "novalue",
+		},
+		{
+			name:     "Empty string",
+			input:    "",
+			expected: "",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := templateLabelValue(tc.input)
+			assert.Equal(t, tc.expected, result)
+		})
+	}
 }

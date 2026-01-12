@@ -60,7 +60,7 @@ This uses a repo variable to store the cache, enabling a true repo-global cache 
 - id: setup-mimosa
   uses: hytromo/mimosa/gh/setup-action@v2-setup
   with:
-    version: v0.1.1
+    version: v0.1.2
 ```
 
 #### 2. Run your docker command with the `mimosa remember --` prefix
@@ -93,7 +93,7 @@ If you don't want to use a repo variable, you can use `actions/cache` instead, w
 - id: setup-mimosa
   uses: hytromo/mimosa/gh/setup-action@v2-setup
   with:
-    version: v0.1.1
+    version: v0.1.2
 ```
 
 #### 2. Fetch the cache

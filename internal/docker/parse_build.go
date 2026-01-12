@@ -60,6 +60,10 @@ var flagsToTemplate = []flagTemplate{
 	{longFlag: "--builder"},
 	// Display format - purely cosmetic
 	{longFlag: "--progress"},
+	// labels
+	{longFlag: "--label"},
+	// secrets
+	{longFlag: "--secret", subKeys: []string{"src", "env"}},
 }
 
 // flagsToDiscard defines boolean flags that should be completely removed before
@@ -204,6 +208,20 @@ func templateSubKeys(value string, subKeys []string) string {
 	return result
 }
 
+// templateLabelValue extracts the key from a label value and templates only the value part.
+// For example, for "--label version=1.2.3", it returns "version=<VALUE>"
+// This ensures that label keys affect the cache, but label values do not.
+func templateLabelValue(value string) string {
+	// Find the first '=' which separates key from value
+	idx := strings.Index(value, "=")
+	if idx == -1 {
+		// No '=' found, return as-is (edge case)
+		return value
+	}
+	// Keep the key and '=', template the value
+	return value[:idx+1] + "<VALUE>"
+}
+
 // normalizeCommandForHashing processes a docker build command to create a normalized
 // version suitable for consistent hash calculation. It:
 // 1. Discards boolean flags defined in flagsToDiscard (they don't affect image content)
@@ -228,6 +246,27 @@ func normalizeCommandForHashing(dockerBuildCmd []string) []string {
 		}
 
 		for _, ft := range flagsToTemplate {
+			// Special handling for --label: keep key, template value
+			if ft.longFlag == "--label" {
+				// Check for space-separated format: --label key=value
+				if arg == "--label" {
+					normalized = append(normalized, arg)
+					if i+1 < len(dockerBuildCmd) {
+						i++
+						normalized = append(normalized, templateLabelValue(dockerBuildCmd[i]))
+					}
+					handled = true
+					break
+				}
+				// Check for equals format: --label=key=value
+				if strings.HasPrefix(arg, "--label=") {
+					value := arg[len("--label="):]
+					normalized = append(normalized, "--label="+templateLabelValue(value))
+					handled = true
+					break
+				}
+			}
+
 			// Check for space-separated format: --flag value or -f value
 			if arg == ft.longFlag || (ft.shortFlag != "" && arg == ft.shortFlag) {
 				if len(ft.subKeys) > 0 && i+1 < len(dockerBuildCmd) {
@@ -287,7 +326,7 @@ func normalizeCommandForHashing(dockerBuildCmd []string) []string {
 	}
 
 	// Sort arguments (excluding the command prefix like "docker build" or "docker buildx build")
-	// to ensure order independence
+	// to ensure order independence, while keeping flag-value pairs together
 	prefixLen := 2 // "docker build"
 	if len(normalized) > 2 && normalized[1] == "buildx" {
 		prefixLen = 3 // "docker buildx build"
@@ -295,11 +334,78 @@ func normalizeCommandForHashing(dockerBuildCmd []string) []string {
 
 	if len(normalized) > prefixLen {
 		argsToSort := normalized[prefixLen:]
-		slices.Sort(argsToSort)
+		// Group flag-value pairs together before sorting
+		groups := groupFlagValuePairs(argsToSort)
+		// Sort groups by their first element, then by second element if first elements are equal
+		slices.SortFunc(groups, func(a, b []string) int {
+			if len(a) == 0 && len(b) == 0 {
+				return 0
+			}
+			if len(a) == 0 {
+				return -1
+			}
+			if len(b) == 0 {
+				return 1
+			}
+			// Compare first elements
+			if a[0] < b[0] {
+				return -1
+			}
+			if a[0] > b[0] {
+				return 1
+			}
+			// First elements are equal, compare second elements if they exist
+			if len(a) > 1 && len(b) > 1 {
+				if a[1] < b[1] {
+					return -1
+				}
+				if a[1] > b[1] {
+					return 1
+				}
+			}
+			return 0
+		})
+		// Flatten groups back into a single slice
+		argsToSort = []string{}
+		for _, group := range groups {
+			argsToSort = append(argsToSort, group...)
+		}
 		normalized = append(normalized[:prefixLen], argsToSort...)
 	}
 
 	return normalized
+}
+
+// groupFlagValuePairs groups flags with their values together.
+// Flags that take values (from flagsToTemplate) are grouped with their following value.
+func groupFlagValuePairs(args []string) [][]string {
+	var groups [][]string
+	flagsWithValues := make(map[string]bool)
+
+	// Build a set of flags that take values
+	for _, ft := range flagsToTemplate {
+		flagsWithValues[ft.longFlag] = true
+		if ft.shortFlag != "" {
+			flagsWithValues[ft.shortFlag] = true
+		}
+	}
+
+	i := 0
+	for i < len(args) {
+		arg := args[i]
+		// Check if this is a flag that takes a value
+		if flagsWithValues[arg] && i+1 < len(args) {
+			// Group flag with its value
+			groups = append(groups, []string{arg, args[i+1]})
+			i += 2
+		} else {
+			// Standalone argument
+			groups = append(groups, []string{arg})
+			i++
+		}
+	}
+
+	return groups
 }
 
 // buildCommandWithoutTagArguments is kept for backward compatibility but now calls

@@ -27,7 +27,7 @@ jobs:
         id: setup-mimosa
         uses: hytromo/mimosa/gh/setup-action@v2-setup
         with:
-          version: v0.1.1
+          version: v0.1.2
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -149,7 +149,7 @@ jobs:
         id: setup-mimosa
         uses: hytromo/mimosa/gh/setup-action@v2-setup
         with:
-          version: v0.1.1
+          version: v0.1.2
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
