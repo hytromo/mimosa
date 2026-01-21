@@ -23,6 +23,11 @@ type Actions interface {
 
 	// docker
 	Retag(cacheEntry cacher.Cache, parsedCommand configuration.ParsedCommand, dryRun bool) error
+	RetagFromCacheTags(cacheTagsByTarget map[string]string, newTagsByTarget map[string][]string, dryRun bool) error
+
+	// registry cache
+	CheckRegistryCacheExists(hash string, tagsByTarget map[string][]string) (bool, map[string]string, error)
+	SaveRegistryCacheTags(hash string, tagsByTarget map[string][]string, dryRun bool) error
 }
 
 // Actioner is a concrete implementation of the Actions interface

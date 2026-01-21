@@ -4,10 +4,16 @@ type CommandContainer interface {
 	GetCommandToRun() []string
 }
 
+const (
+	CacheLocationRegistry = "docker-registry"
+	CacheLocationLocal    = "local"
+)
+
 type RememberSubcommandOptions struct {
-	Enabled      bool
-	CommandToRun []string
-	DryRun       bool
+	Enabled       bool
+	CommandToRun  []string
+	DryRun        bool
+	CacheLocation string
 }
 
 func (r RememberSubcommandOptions) GetCommandToRun() []string {

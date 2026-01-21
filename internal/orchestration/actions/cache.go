@@ -93,3 +93,19 @@ func (a *Actioner) ExportCacheToFile(cacheDir string, filePath string) error {
 
 	return nil
 }
+
+func (a *Actioner) CheckRegistryCacheExists(hash string, tagsByTarget map[string][]string) (bool, map[string]string, error) {
+	registryCache := &cacher.RegistryCache{
+		Hash:         hash,
+		TagsByTarget: tagsByTarget,
+	}
+	return registryCache.Exists()
+}
+
+func (a *Actioner) SaveRegistryCacheTags(hash string, tagsByTarget map[string][]string, dryRun bool) error {
+	registryCache := &cacher.RegistryCache{
+		Hash:         hash,
+		TagsByTarget: tagsByTarget,
+	}
+	return registryCache.SaveCacheTags(dryRun)
+}

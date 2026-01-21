@@ -71,6 +71,25 @@ func (m *MockActions) Retag(cacheEntry cacher.Cache, parsedCommand configuration
 	return args.Error(0)
 }
 
+func (m *MockActions) RetagFromCacheTags(cacheTagsByTarget map[string]string, newTagsByTarget map[string][]string, dryRun bool) error {
+	args := m.Called(cacheTagsByTarget, newTagsByTarget, dryRun)
+	return args.Error(0)
+}
+
+func (m *MockActions) CheckRegistryCacheExists(hash string, tagsByTarget map[string][]string) (bool, map[string]string, error) {
+	args := m.Called(hash, tagsByTarget)
+	var cacheTags map[string]string
+	if args.Get(1) != nil {
+		cacheTags = args.Get(1).(map[string]string)
+	}
+	return args.Bool(0), cacheTags, args.Error(2)
+}
+
+func (m *MockActions) SaveRegistryCacheTags(hash string, tagsByTarget map[string][]string, dryRun bool) error {
+	args := m.Called(hash, tagsByTarget, dryRun)
+	return args.Error(0)
+}
+
 // createTestCache creates a cache instance for testing
 func createTestCache(hexHash string, shouldExist bool) cacher.Cache {
 	inMemoryEntries := orderedmap.NewOrderedMap[string, cacher.CacheFile]()
@@ -105,9 +124,10 @@ func TestRun_NoSubcommandsEnabled(t *testing.T) {
 func TestRun_RememberEnabled_CacheExists_RetagSucceeds_SaveCacheSucceeds_Duplicate(t *testing.T) {
 	// This test now verifies that when cache exists in memory, retag is called
 	rememberOptions := configuration.RememberSubcommandOptions{
-		Enabled:      true,
-		CommandToRun: []string{"docker", "build", "."},
-		DryRun:       false,
+		Enabled:       true,
+		CommandToRun:  []string{"docker", "build", "."},
+		DryRun:        false,
+		CacheLocation: configuration.CacheLocationLocal, // Use local cache for this test
 	}
 
 	mockActions := &MockActions{}
@@ -131,9 +151,10 @@ func TestRun_RememberEnabled_CacheExists_RetagSucceeds_SaveCacheSucceeds_Duplica
 }
 func TestRun_RememberEnabled_NoCacheExists_CommandFails(t *testing.T) {
 	rememberOptions := configuration.RememberSubcommandOptions{
-		Enabled:      true,
-		CommandToRun: []string{"docker", "build", "."},
-		DryRun:       false,
+		Enabled:       true,
+		CommandToRun:  []string{"docker", "build", "."},
+		DryRun:        false,
+		CacheLocation: configuration.CacheLocationLocal, // Use local cache for this test
 	}
 
 	mockActions := &MockActions{}
@@ -159,9 +180,10 @@ func TestRun_RememberEnabled_NoCacheExists_CommandFails(t *testing.T) {
 
 func TestRun_RememberEnabled_ParseCommandError_FallbackFails(t *testing.T) {
 	rememberOptions := configuration.RememberSubcommandOptions{
-		Enabled:      true,
-		CommandToRun: []string{"invalid", "command"},
-		DryRun:       false,
+		Enabled:       true,
+		CommandToRun:  []string{"invalid", "command"},
+		DryRun:        false,
+		CacheLocation: configuration.CacheLocationLocal, // Use local cache for this test
 	}
 
 	mockActions := &MockActions{}
@@ -181,9 +203,10 @@ func TestRun_RememberEnabled_ParseCommandError_FallbackFails(t *testing.T) {
 
 func TestRun_RememberEnabled_NoCacheExists_CommandSucceeds(t *testing.T) {
 	rememberOptions := configuration.RememberSubcommandOptions{
-		Enabled:      true,
-		CommandToRun: []string{"docker", "build", "."},
-		DryRun:       false,
+		Enabled:       true,
+		CommandToRun:  []string{"docker", "build", "."},
+		DryRun:        false,
+		CacheLocation: configuration.CacheLocationLocal, // Use local cache for this test
 	}
 
 	mockActions := &MockActions{}
@@ -208,9 +231,10 @@ func TestRun_RememberEnabled_NoCacheExists_CommandSucceeds(t *testing.T) {
 
 func TestRun_RememberEnabled_CacheExists_RetagSucceeds_SaveCacheFails(t *testing.T) {
 	rememberOptions := configuration.RememberSubcommandOptions{
-		Enabled:      true,
-		CommandToRun: []string{"docker", "build", "."},
-		DryRun:       false,
+		Enabled:       true,
+		CommandToRun:  []string{"docker", "build", "."},
+		DryRun:        false,
+		CacheLocation: configuration.CacheLocationLocal, // Use local cache for this test
 	}
 
 	mockActions := &MockActions{}
@@ -230,16 +254,17 @@ func TestRun_RememberEnabled_CacheExists_RetagSucceeds_SaveCacheFails(t *testing
 
 	err := HandleRememberOrForgetSubcommands(rememberOptions, configuration.ForgetSubcommandOptions{}, mockActions)
 
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "save error")
+	// SaveCache errors are now logged as warnings but don't fail the command
+	assert.NoError(t, err)
 	mockActions.AssertExpectations(t)
 }
 
 func TestRun_RememberEnabled_CacheExists_RetagFails(t *testing.T) {
 	rememberOptions := configuration.RememberSubcommandOptions{
-		Enabled:      true,
-		CommandToRun: []string{"docker", "build", "."},
-		DryRun:       false,
+		Enabled:       true,
+		CommandToRun:  []string{"docker", "build", "."},
+		DryRun:        false,
+		CacheLocation: configuration.CacheLocationLocal, // Use local cache for this test
 	}
 
 	mockActions := &MockActions{}
@@ -267,9 +292,10 @@ func TestRun_RememberEnabled_CacheExists_RetagFails(t *testing.T) {
 
 func TestRun_RememberEnabled_NoCacheExists_CommandSucceeds_SaveCacheFails(t *testing.T) {
 	rememberOptions := configuration.RememberSubcommandOptions{
-		Enabled:      true,
-		CommandToRun: []string{"docker", "build", "."},
-		DryRun:       false,
+		Enabled:       true,
+		CommandToRun:  []string{"docker", "build", "."},
+		DryRun:        false,
+		CacheLocation: configuration.CacheLocationLocal, // Use local cache for this test
 	}
 
 	mockActions := &MockActions{}
@@ -288,16 +314,17 @@ func TestRun_RememberEnabled_NoCacheExists_CommandSucceeds_SaveCacheFails(t *tes
 
 	err := HandleRememberOrForgetSubcommands(rememberOptions, configuration.ForgetSubcommandOptions{}, mockActions)
 
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "save cache error")
+	// SaveCache errors are now logged as warnings but don't fail the command
+	assert.NoError(t, err)
 	mockActions.AssertExpectations(t)
 }
 
 func TestRun_RememberEnabled_ParseCommandError_FallbackSucceeds(t *testing.T) {
 	rememberOptions := configuration.RememberSubcommandOptions{
-		Enabled:      true,
-		CommandToRun: []string{"invalid", "command"},
-		DryRun:       false,
+		Enabled:       true,
+		CommandToRun:  []string{"invalid", "command"},
+		DryRun:        false,
+		CacheLocation: configuration.CacheLocationLocal, // Use local cache for this test
 	}
 
 	mockActions := &MockActions{}
@@ -317,9 +344,10 @@ func TestRun_RememberEnabled_ParseCommandError_FallbackSucceeds(t *testing.T) {
 
 func TestRun_RememberEnabled_WithDifferentTags(t *testing.T) {
 	rememberOptions := configuration.RememberSubcommandOptions{
-		Enabled:      true,
-		CommandToRun: []string{"docker", "build", "-t", "myapp:v1", "."},
-		DryRun:       false,
+		Enabled:       true,
+		CommandToRun:  []string{"docker", "build", "-t", "myapp:v1", "."},
+		DryRun:        false,
+		CacheLocation: configuration.CacheLocationLocal, // Use local cache for this test
 	}
 
 	mockActions := &MockActions{}
@@ -344,9 +372,10 @@ func TestRun_RememberEnabled_WithDifferentTags(t *testing.T) {
 
 func TestRun_RememberEnabled_WithMultipleTargets(t *testing.T) {
 	rememberOptions := configuration.RememberSubcommandOptions{
-		Enabled:      true,
-		CommandToRun: []string{"docker", "buildx", "build", "--target", "frontend", "--target", "backend", "."},
-		DryRun:       false,
+		Enabled:       true,
+		CommandToRun:  []string{"docker", "buildx", "build", "--target", "frontend", "--target", "backend", "."},
+		DryRun:        false,
+		CacheLocation: configuration.CacheLocationLocal, // Use local cache for this test
 	}
 
 	mockActions := &MockActions{}
@@ -450,9 +479,10 @@ func TestRun_ForgetEnabled_EmptyCommand(t *testing.T) {
 
 func TestRun_RememberEnabled_EmptyCommand(t *testing.T) {
 	rememberOptions := configuration.RememberSubcommandOptions{
-		Enabled:      true,
-		CommandToRun: []string{},
-		DryRun:       false,
+		Enabled:       true,
+		CommandToRun:  []string{},
+		DryRun:        false,
+		CacheLocation: configuration.CacheLocationLocal, // Use local cache for this test
 	}
 
 	mockActions := &MockActions{}
@@ -472,9 +502,10 @@ func TestRun_RememberEnabled_EmptyCommand(t *testing.T) {
 
 func TestRun_RememberEnabled_WithNilCache(t *testing.T) {
 	rememberOptions := configuration.RememberSubcommandOptions{
-		Enabled:      true,
-		CommandToRun: []string{"docker", "build", "."},
-		DryRun:       false,
+		Enabled:       true,
+		CommandToRun:  []string{"docker", "build", "."},
+		DryRun:        false,
+		CacheLocation: configuration.CacheLocationLocal, // Use local cache for this test
 	}
 
 	mockActions := &MockActions{}
@@ -505,9 +536,10 @@ func TestRun_RememberEnabled_WithLongCommand(t *testing.T) {
 	longCommand := []string{"docker", "build", "--build-arg", "VERY_LONG_ARGUMENT=" + string(make([]byte, 1000)), "."}
 
 	rememberOptions := configuration.RememberSubcommandOptions{
-		Enabled:      true,
-		CommandToRun: longCommand,
-		DryRun:       false,
+		Enabled:       true,
+		CommandToRun:  longCommand,
+		DryRun:        false,
+		CacheLocation: configuration.CacheLocationLocal, // Use local cache for this test
 	}
 
 	mockActions := &MockActions{}
@@ -612,9 +644,10 @@ func TestRun_CacheEnabled_NoSpecificAction(t *testing.T) {
 
 func TestRun_RememberAndForgetBothEnabled_PrioritizesForget(t *testing.T) {
 	rememberOptions := configuration.RememberSubcommandOptions{
-		Enabled:      true,
-		CommandToRun: []string{"docker", "build", "."},
-		DryRun:       false,
+		Enabled:       true,
+		CommandToRun:  []string{"docker", "build", "."},
+		DryRun:        false,
+		CacheLocation: configuration.CacheLocationLocal, // Use local cache for this test
 	}
 	forgetOptions := configuration.ForgetSubcommandOptions{
 		Enabled:      true,
@@ -644,9 +677,10 @@ func TestRun_RememberAndForgetBothEnabled_PrioritizesForget(t *testing.T) {
 
 func TestRun_DryRunMode(t *testing.T) {
 	rememberOptions := configuration.RememberSubcommandOptions{
-		Enabled:      true,
-		CommandToRun: []string{"docker", "build", "."},
-		DryRun:       true,
+		Enabled:       true,
+		CommandToRun:  []string{"docker", "build", "."},
+		DryRun:        true,
+		CacheLocation: configuration.CacheLocationLocal, // Use local cache for this test
 	}
 
 	mockActions := &MockActions{}
@@ -690,6 +724,94 @@ func TestRun_ForgetDryRunMode(t *testing.T) {
 	mockActions.On("RemoveCacheEntry", cache, true).Return(nil)
 
 	err := HandleRememberOrForgetSubcommands(configuration.RememberSubcommandOptions{}, forgetOptions, mockActions)
+
+	assert.NoError(t, err)
+	mockActions.AssertExpectations(t)
+}
+
+func TestRun_RememberEnabled_RegistryCache_CacheExists(t *testing.T) {
+	rememberOptions := configuration.RememberSubcommandOptions{
+		Enabled:       true,
+		CommandToRun:  []string{"docker", "build", "-t", "myreg1/myimage:v1", "."},
+		DryRun:        false,
+		CacheLocation: configuration.CacheLocationRegistry,
+	}
+
+	mockActions := &MockActions{}
+
+	parsedCommand := configuration.ParsedCommand{
+		Hash:         TestHash,
+		Command:      []string{"docker", "build", "-t", "myreg1/myimage:v1", "."},
+		TagsByTarget: map[string][]string{"default": {"myreg1/myimage:v1"}},
+	}
+
+	cacheTagsByTarget := map[string]string{
+		"default": "myreg1/myimage:mimosa-content-hash-" + TestHash,
+	}
+
+	mockActions.On("ParseCommand", []string{"docker", "build", "-t", "myreg1/myimage:v1", "."}).Return(parsedCommand, nil)
+	mockActions.On("CheckRegistryCacheExists", TestHash, parsedCommand.TagsByTarget).Return(true, cacheTagsByTarget, nil)
+	mockActions.On("RetagFromCacheTags", cacheTagsByTarget, parsedCommand.TagsByTarget, false).Return(nil)
+
+	err := HandleRememberOrForgetSubcommands(rememberOptions, configuration.ForgetSubcommandOptions{}, mockActions)
+
+	assert.NoError(t, err)
+	mockActions.AssertExpectations(t)
+}
+
+func TestRun_RememberEnabled_RegistryCache_CacheMiss(t *testing.T) {
+	rememberOptions := configuration.RememberSubcommandOptions{
+		Enabled:       true,
+		CommandToRun:  []string{"docker", "build", "-t", "myreg1/myimage:v1", "."},
+		DryRun:        false,
+		CacheLocation: configuration.CacheLocationRegistry,
+	}
+
+	mockActions := &MockActions{}
+
+	parsedCommand := configuration.ParsedCommand{
+		Hash:         TestHash,
+		Command:      []string{"docker", "build", "-t", "myreg1/myimage:v1", "."},
+		TagsByTarget: map[string][]string{"default": {"myreg1/myimage:v1"}},
+	}
+
+	mockActions.On("ParseCommand", []string{"docker", "build", "-t", "myreg1/myimage:v1", "."}).Return(parsedCommand, nil)
+	mockActions.On("CheckRegistryCacheExists", TestHash, parsedCommand.TagsByTarget).Return(false, nil, nil)
+	mockActions.On("RunCommand", false, parsedCommand.Command).Return(0)
+	mockActions.On("SaveRegistryCacheTags", TestHash, parsedCommand.TagsByTarget, false).Return(nil)
+
+	err := HandleRememberOrForgetSubcommands(rememberOptions, configuration.ForgetSubcommandOptions{}, mockActions)
+
+	assert.NoError(t, err)
+	mockActions.AssertExpectations(t)
+}
+
+func TestRun_RememberEnabled_RegistryCache_DefaultLocation(t *testing.T) {
+	// Test that default cache location is registry
+	rememberOptions := configuration.RememberSubcommandOptions{
+		Enabled:      true,
+		CommandToRun: []string{"docker", "build", "-t", "myreg1/myimage:v1", "."},
+		DryRun:       false,
+		// CacheLocation not set - should default to registry
+	}
+
+	mockActions := &MockActions{}
+
+	parsedCommand := configuration.ParsedCommand{
+		Hash:         TestHash,
+		Command:      []string{"docker", "build", "-t", "myreg1/myimage:v1", "."},
+		TagsByTarget: map[string][]string{"default": {"myreg1/myimage:v1"}},
+	}
+
+	cacheTagsByTarget := map[string]string{
+		"default": "myreg1/myimage:mimosa-content-hash-" + TestHash,
+	}
+
+	mockActions.On("ParseCommand", []string{"docker", "build", "-t", "myreg1/myimage:v1", "."}).Return(parsedCommand, nil)
+	mockActions.On("CheckRegistryCacheExists", TestHash, parsedCommand.TagsByTarget).Return(true, cacheTagsByTarget, nil)
+	mockActions.On("RetagFromCacheTags", cacheTagsByTarget, parsedCommand.TagsByTarget, false).Return(nil)
+
+	err := HandleRememberOrForgetSubcommands(rememberOptions, configuration.ForgetSubcommandOptions{}, mockActions)
 
 	assert.NoError(t, err)
 	mockActions.AssertExpectations(t)

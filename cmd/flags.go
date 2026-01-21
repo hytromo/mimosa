@@ -9,4 +9,5 @@ var (
 	exportCacheToFileFlag = "export-to"
 	versionFlag           = "version"
 	debugFlag             = "debug"
+	cacheLocationFlag     = "cache"
 )

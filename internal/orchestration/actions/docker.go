@@ -16,3 +16,8 @@ func (a *Actioner) Retag(cacheEntry cacher.Cache, parsedCommand configuration.Pa
 
 	return docker.Retag(latestTagByTargetCached, parsedCommand.TagsByTarget, dryRun)
 }
+
+// RetagFromCacheTags retags from cache tags (registry-based) to the requested tags
+func (a *Actioner) RetagFromCacheTags(cacheTagsByTarget map[string]string, newTagsByTarget map[string][]string, dryRun bool) error {
+	return docker.Retag(cacheTagsByTarget, newTagsByTarget, dryRun)
+}
