@@ -40,14 +40,12 @@ var rememberCmd = &cobra.Command{
       mimosa remember -- docker buildx bake -f docker-bake.hcl`,
 	Run: func(cmd *cobra.Command, positionalArgs []string) {
 		dryRun, _ := cmd.Flags().GetBool(dryRunFlag)
-		cacheLocation, _ := cmd.Flags().GetString(cacheLocationFlag)
 
 		err := orchestrator.HandleRememberOrForgetSubcommands(
 			configuration.RememberSubcommandOptions{
-				Enabled:       true,
-				DryRun:        dryRun,
-				CommandToRun:  positionalArgs,
-				CacheLocation: cacheLocation,
+				Enabled:      true,
+				DryRun:       dryRun,
+				CommandToRun: positionalArgs,
 			}, configuration.ForgetSubcommandOptions{},
 			actions.New())
 
@@ -61,5 +59,4 @@ func init() {
 	rootCmd.AddCommand(rememberCmd)
 
 	rememberCmd.Flags().BoolP(dryRunFlag, "", false, "Dry run - do not really build or push anything - just show if it would be a cache hit or not")
-	rememberCmd.Flags().StringP(cacheLocationFlag, "", configuration.CacheLocationRegistry, "Cache location: 'docker-registry' (default) or 'local'")
 }

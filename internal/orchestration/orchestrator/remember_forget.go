@@ -13,19 +13,13 @@ import (
 )
 
 func HandleRememberOrForgetSubcommands(rememberOptions configuration.RememberSubcommandOptions, forgetOptions configuration.ForgetSubcommandOptions, act actions.Actions) error {
-	var commandContainer configuration.CommandContainer
-	dryRun := false
-	if rememberOptions.Enabled {
-		dryRun = rememberOptions.DryRun
-		commandContainer = rememberOptions
-	} else if forgetOptions.Enabled {
-		dryRun = forgetOptions.DryRun
-		commandContainer = forgetOptions
-	} else {
-		return errors.New("no subcommand enabled")
+	if !rememberOptions.Enabled {
+		return errors.New("remember subcommand must be enabled")
 	}
 
-	parsedCommand, err := act.ParseCommand(commandContainer.GetCommandToRun())
+	dryRun := rememberOptions.DryRun
+
+	parsedCommand, err := act.ParseCommand(rememberOptions.GetCommandToRun())
 
 	if err != nil {
 		fallbackToExecutingCommandIfRemembering(err, dryRun, rememberOptions.Enabled, act, parsedCommand.Command)
@@ -34,83 +28,38 @@ func HandleRememberOrForgetSubcommands(rememberOptions configuration.RememberSub
 
 	slog.Debug("Final calculated command hash", "hash", parsedCommand.Hash)
 
-	if forgetOptions.Enabled {
-		// For forget, use local cache (registry cache doesn't support forget)
-		cacheEntry := act.GetCacheEntry(parsedCommand.Hash)
-		return act.RemoveCacheEntry(cacheEntry, dryRun)
+	// Registry-based cache
+	exists, cacheTagsByTarget, err := act.CheckRegistryCacheExists(parsedCommand.Hash, parsedCommand.TagsByTarget)
+	if err != nil {
+		slog.Warn("Error checking registry cache, falling back to command execution", "error", err)
+		fallbackToExecutingCommandIfRemembering(err, dryRun, rememberOptions.Enabled, act, parsedCommand.Command)
+		return err
 	}
 
-	// remember branch
-	// Determine cache location - default to registry if not specified
-	cacheLocation := rememberOptions.CacheLocation
-	if cacheLocation == "" {
-		cacheLocation = configuration.CacheLocationRegistry
-	}
+	cacheHit := exists
 
-	var cacheHit bool
-
-	if cacheLocation == configuration.CacheLocationRegistry {
-		// Registry-based cache
-		exists, cacheTagsByTarget, err := act.CheckRegistryCacheExists(parsedCommand.Hash, parsedCommand.TagsByTarget)
+	if cacheHit {
+		// Retag from cache tags to requested tags
+		err = act.RetagFromCacheTags(cacheTagsByTarget, parsedCommand.TagsByTarget, dryRun)
 		if err != nil {
-			slog.Warn("Error checking registry cache, falling back to command execution", "error", err)
 			fallbackToExecutingCommandIfRemembering(err, dryRun, rememberOptions.Enabled, act, parsedCommand.Command)
 			return err
 		}
-
-		cacheHit = exists
-
-		if cacheHit {
-			// Retag from cache tags to requested tags
-			err = act.RetagFromCacheTags(cacheTagsByTarget, parsedCommand.TagsByTarget, dryRun)
-			if err != nil {
-				fallbackToExecutingCommandIfRemembering(err, dryRun, rememberOptions.Enabled, act, parsedCommand.Command)
-				return err
-			}
-		} else {
-			// Run command
-			exitCode := act.RunCommand(dryRun, parsedCommand.Command)
-
-			if exitCode != 0 {
-				// not saving cache if command fails
-				act.ExitProcessWithCode(exitCode)
-				return errors.New("error running command - exit code: " + strconv.Itoa(exitCode))
-			}
-
-			// After successful build, create cache tags
-			err = act.SaveRegistryCacheTags(parsedCommand.Hash, parsedCommand.TagsByTarget, dryRun)
-			if err != nil {
-				slog.Warn("Failed to save registry cache tags", "error", err)
-				// Don't fail the command if cache tag creation fails
-			}
-		}
 	} else {
-		// Local cache (existing behavior)
-		cacheEntry := act.GetCacheEntry(parsedCommand.Hash)
-		cacheHit = cacheEntry.Exists()
+		// Run command
+		exitCode := act.RunCommand(dryRun, parsedCommand.Command)
 
-		if cacheHit {
-			// retag
-			err = act.Retag(cacheEntry, parsedCommand, dryRun)
-			if err != nil {
-				fallbackToExecutingCommandIfRemembering(err, dryRun, rememberOptions.Enabled, act, parsedCommand.Command)
-				return err
-			}
-		} else {
-			// run command
-			exitCode := act.RunCommand(dryRun, parsedCommand.Command)
-
-			if exitCode != 0 {
-				// not saving cache if command fails
-				act.ExitProcessWithCode(exitCode)
-				return errors.New("error running command - exit code: " + strconv.Itoa(exitCode))
-			}
+		if exitCode != 0 {
+			// not saving cache if command fails
+			act.ExitProcessWithCode(exitCode)
+			return errors.New("error running command - exit code: " + strconv.Itoa(exitCode))
 		}
 
-		// Save/update local cache
-		err = act.SaveCache(cacheEntry, parsedCommand.TagsByTarget, dryRun)
+		// After successful build, create cache tags
+		err = act.SaveRegistryCacheTags(parsedCommand.Hash, parsedCommand.TagsByTarget, dryRun)
 		if err != nil {
-			slog.Warn("Failed to save local cache", "error", err)
+			slog.Warn("Failed to save registry cache tags", "error", err)
+			// Don't fail the command if cache tag creation fails
 		}
 	}
 

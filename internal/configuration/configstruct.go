@@ -4,23 +4,17 @@ type CommandContainer interface {
 	GetCommandToRun() []string
 }
 
-const (
-	CacheLocationRegistry = "docker-registry"
-	CacheLocationLocal    = "local"
-)
-
 type RememberSubcommandOptions struct {
-	Enabled       bool
-	CommandToRun  []string
-	DryRun        bool
-	CacheLocation string
+	Enabled      bool
+	CommandToRun []string
+	DryRun       bool
 }
 
 func (r RememberSubcommandOptions) GetCommandToRun() []string {
 	return r.CommandToRun
 }
 
-// ForgetSubcommandOptions defines the options of the forget subcommand
+// ForgetSubcommandOptions defines the options of the forget subcommand (deprecated - kept for compatibility)
 type ForgetSubcommandOptions struct {
 	Enabled      bool
 	CommandToRun []string
@@ -32,20 +26,6 @@ type ForgetSubcommandOptions struct {
 
 func (f ForgetSubcommandOptions) GetCommandToRun() []string {
 	return f.CommandToRun
-}
-
-// CacheSubcommandOptions defines the options of the cache subcommand
-type CacheSubcommandOptions struct {
-	Enabled      bool
-	Show         bool
-	ExportToFile string
-}
-
-// AppOptions defines the options of the application
-type AppOptions struct {
-	Remember RememberSubcommandOptions
-	Forget   ForgetSubcommandOptions
-	Cache    CacheSubcommandOptions
 }
 
 // ParsedCommand is the parsed command from the user input
