@@ -31,66 +31,68 @@ func (rc *RegistryCache) GetCacheTagForRegistry(fullTag string) (string, error) 
 	return cacheTag, nil
 }
 
-// Exists checks if cache tags exist in all registries for all tags in TagsByTarget
-// Returns: (exists bool, cacheTagsByTarget map[string]string)
-// cacheTagsByTarget maps target name -> cache tag to use for that target
-// For each target, we check if at least one of its tags has a corresponding cache tag
-func (rc *RegistryCache) Exists() (bool, map[string]string, error) {
+// Exists checks if cache tags exist for ALL tags in TagsByTarget
+// Returns: (exists bool, cacheTagPairs map[string][]CacheTagPair)
+// cacheTagPairs maps target name -> list of (cacheTag, newTag) pairs
+// Each new tag must have a corresponding cache tag in the SAME repository
+func (rc *RegistryCache) Exists() (bool, map[string][]CacheTagPair, error) {
 	if len(rc.TagsByTarget) == 0 {
 		return false, nil, fmt.Errorf("no tags to check")
 	}
 
-	cacheTagsByTarget := make(map[string]string)
+	cacheTagPairs := make(map[string][]CacheTagPair)
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 	var checkErrors []error
 	allExist := true
 
-	// For each target, check if at least one of its tags has a cache tag
+	// For each target, check ALL tags - each must have its cache tag in the same repo
 	for target, tags := range rc.TagsByTarget {
 		if len(tags) == 0 {
 			allExist = false
 			continue
 		}
 
-		// Check all tags for this target - we need at least one cache tag to exist
-		targetHasCache := false
-		var targetCacheTag string
+		targetPairs := make([]CacheTagPair, 0, len(tags))
+		targetAllExist := true
 
 		for _, tag := range tags {
 			cacheTag, err := rc.GetCacheTagForRegistry(tag)
 			if err != nil {
 				slog.Debug("Failed to construct cache tag", "tag", tag, "error", err)
+				targetAllExist = false
 				continue
 			}
 
 			wg.Add(1)
-			go func(checkTag string) {
+			go func(origTag, cTag string) {
 				defer wg.Done()
-				exists, err := docker.TagExists(checkTag)
+				exists, err := docker.TagExists(cTag)
 				if err != nil {
 					mu.Lock()
-					checkErrors = append(checkErrors, fmt.Errorf("failed to check cache tag %s: %w", checkTag, err))
+					checkErrors = append(checkErrors, fmt.Errorf("failed to check cache tag %s: %w", cTag, err))
 					mu.Unlock()
 					return
 				}
 
 				mu.Lock()
-				if exists && !targetHasCache {
-					targetHasCache = true
-					targetCacheTag = checkTag
+				if exists {
+					targetPairs = append(targetPairs, CacheTagPair{CacheTag: cTag, NewTag: origTag})
+				} else {
+					targetAllExist = false
+					slog.Debug("Cache tag not found", "cacheTag", cTag, "forNewTag", origTag)
 				}
 				mu.Unlock()
-			}(cacheTag)
+			}(tag, cacheTag)
 		}
 
 		wg.Wait()
 
-		if !targetHasCache {
+		if !targetAllExist || len(targetPairs) != len(tags) {
 			allExist = false
-			slog.Debug("Cache tag not found for target", "target", target)
+			slog.Debug("Not all cache tags found for target", "target", target, "found", len(targetPairs), "expected", len(tags))
 		} else {
-			cacheTagsByTarget[target] = targetCacheTag
+			cacheTagPairs[target] = targetPairs
 		}
 	}
 
@@ -103,7 +105,13 @@ func (rc *RegistryCache) Exists() (bool, map[string]string, error) {
 		return false, nil, nil
 	}
 
-	return true, cacheTagsByTarget, nil
+	return true, cacheTagPairs, nil
+}
+
+// CacheTagPair represents a pair of cache tag and new tag (always in the same repository)
+type CacheTagPair struct {
+	CacheTag string
+	NewTag   string
 }
 
 // SaveCacheTags creates cache tags for all images in TagsByTarget
@@ -143,8 +151,8 @@ func (rc *RegistryCache) SaveCacheTags(dryRun bool) error {
 			wg.Add(1)
 			go func(sourceTag, destTag string) {
 				defer wg.Done()
-				// Use SimpleRetag to create the cache tag from the source tag
-				err := docker.SimpleRetag(sourceTag, destTag)
+				// Use RetagSingleTag to properly handle manifest lists (multi-platform images)
+				err := docker.RetagSingleTag(sourceTag, destTag, false)
 				if err != nil {
 					errChan <- fmt.Errorf("failed to create cache tag %s from %s: %w", destTag, sourceTag, err)
 					return

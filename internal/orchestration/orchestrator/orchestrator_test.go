@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/hytromo/mimosa/internal/cacher"
 	"github.com/hytromo/mimosa/internal/configuration"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -32,16 +33,16 @@ func (m *MockActions) ExitProcessWithCode(code int) {
 	m.Called(code)
 }
 
-func (m *MockActions) RetagFromCacheTags(cacheTagsByTarget map[string]string, newTagsByTarget map[string][]string, dryRun bool) error {
-	args := m.Called(cacheTagsByTarget, newTagsByTarget, dryRun)
+func (m *MockActions) RetagFromCacheTags(cacheTagPairsByTarget map[string][]cacher.CacheTagPair, dryRun bool) error {
+	args := m.Called(cacheTagPairsByTarget, dryRun)
 	return args.Error(0)
 }
 
-func (m *MockActions) CheckRegistryCacheExists(hash string, tagsByTarget map[string][]string) (bool, map[string]string, error) {
+func (m *MockActions) CheckRegistryCacheExists(hash string, tagsByTarget map[string][]string) (bool, map[string][]cacher.CacheTagPair, error) {
 	args := m.Called(hash, tagsByTarget)
-	var cacheTags map[string]string
+	var cacheTags map[string][]cacher.CacheTagPair
 	if args.Get(1) != nil {
-		cacheTags = args.Get(1).(map[string]string)
+		cacheTags = args.Get(1).(map[string][]cacher.CacheTagPair)
 	}
 	return args.Bool(0), cacheTags, args.Error(2)
 }
@@ -75,13 +76,15 @@ func TestRun_RememberEnabled_RegistryCache_CacheExists(t *testing.T) {
 		TagsByTarget: map[string][]string{"default": {"myreg1/myimage:v1"}},
 	}
 
-	cacheTagsByTarget := map[string]string{
-		"default": "myreg1/myimage:mimosa-content-hash-" + TestHash,
+	cacheTagPairs := map[string][]cacher.CacheTagPair{
+		"default": {
+			{CacheTag: "myreg1/myimage:mimosa-content-hash-" + TestHash, NewTag: "myreg1/myimage:v1"},
+		},
 	}
 
 	mockActions.On("ParseCommand", []string{"docker", "build", "-t", "myreg1/myimage:v1", "."}).Return(parsedCommand, nil)
-	mockActions.On("CheckRegistryCacheExists", TestHash, parsedCommand.TagsByTarget).Return(true, cacheTagsByTarget, nil)
-	mockActions.On("RetagFromCacheTags", cacheTagsByTarget, parsedCommand.TagsByTarget, false).Return(nil)
+	mockActions.On("CheckRegistryCacheExists", TestHash, parsedCommand.TagsByTarget).Return(true, cacheTagPairs, nil)
+	mockActions.On("RetagFromCacheTags", cacheTagPairs, false).Return(nil)
 
 	err := HandleRememberOrForgetSubcommands(rememberOptions, configuration.ForgetSubcommandOptions{}, mockActions)
 
@@ -157,13 +160,15 @@ func TestRun_RememberEnabled_RegistryCache_RetagFails_Fallback(t *testing.T) {
 		TagsByTarget: map[string][]string{"default": {"myreg1/myimage:v1"}},
 	}
 
-	cacheTagsByTarget := map[string]string{
-		"default": "myreg1/myimage:mimosa-content-hash-" + TestHash,
+	cacheTagPairs := map[string][]cacher.CacheTagPair{
+		"default": {
+			{CacheTag: "myreg1/myimage:mimosa-content-hash-" + TestHash, NewTag: "myreg1/myimage:v1"},
+		},
 	}
 
 	mockActions.On("ParseCommand", []string{"docker", "build", "-t", "myreg1/myimage:v1", "."}).Return(parsedCommand, nil)
-	mockActions.On("CheckRegistryCacheExists", TestHash, parsedCommand.TagsByTarget).Return(true, cacheTagsByTarget, nil)
-	mockActions.On("RetagFromCacheTags", cacheTagsByTarget, parsedCommand.TagsByTarget, false).Return(errors.New("retag error"))
+	mockActions.On("CheckRegistryCacheExists", TestHash, parsedCommand.TagsByTarget).Return(true, cacheTagPairs, nil)
+	mockActions.On("RetagFromCacheTags", cacheTagPairs, false).Return(errors.New("retag error"))
 	mockActions.On("RunCommand", false, parsedCommand.Command).Return(1)
 	mockActions.On("ExitProcessWithCode", 1).Return()
 
@@ -246,14 +251,18 @@ func TestRun_RememberEnabled_RegistryCache_MultipleTargets(t *testing.T) {
 		},
 	}
 
-	cacheTagsByTarget := map[string]string{
-		"frontend": "frontend:mimosa-content-hash-" + TestHash,
-		"backend":  "backend:mimosa-content-hash-" + TestHash,
+	cacheTagPairs := map[string][]cacher.CacheTagPair{
+		"frontend": {
+			{CacheTag: "frontend:mimosa-content-hash-" + TestHash, NewTag: "frontend:latest"},
+		},
+		"backend": {
+			{CacheTag: "backend:mimosa-content-hash-" + TestHash, NewTag: "backend:latest"},
+		},
 	}
 
 	mockActions.On("ParseCommand", []string{"docker", "buildx", "bake", "-f", "docker-bake.hcl"}).Return(parsedCommand, nil)
-	mockActions.On("CheckRegistryCacheExists", TestHash, parsedCommand.TagsByTarget).Return(true, cacheTagsByTarget, nil)
-	mockActions.On("RetagFromCacheTags", cacheTagsByTarget, parsedCommand.TagsByTarget, false).Return(nil)
+	mockActions.On("CheckRegistryCacheExists", TestHash, parsedCommand.TagsByTarget).Return(true, cacheTagPairs, nil)
+	mockActions.On("RetagFromCacheTags", cacheTagPairs, false).Return(nil)
 
 	err := HandleRememberOrForgetSubcommands(rememberOptions, configuration.ForgetSubcommandOptions{}, mockActions)
 

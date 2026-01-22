@@ -39,8 +39,8 @@ func HandleRememberOrForgetSubcommands(rememberOptions configuration.RememberSub
 	cacheHit := exists
 
 	if cacheHit {
-		// Retag from cache tags to requested tags
-		err = act.RetagFromCacheTags(cacheTagsByTarget, parsedCommand.TagsByTarget, dryRun)
+		// Retag from cache tags to requested tags (each pair is cache tag -> new tag in the SAME repository)
+		err = act.RetagFromCacheTags(cacheTagsByTarget, dryRun)
 		if err != nil {
 			fallbackToExecutingCommandIfRemembering(err, dryRun, rememberOptions.Enabled, act, parsedCommand.Command)
 			return err

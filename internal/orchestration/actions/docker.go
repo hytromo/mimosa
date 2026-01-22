@@ -5,12 +5,21 @@ import (
 	"github.com/hytromo/mimosa/internal/docker"
 )
 
-// RetagFromCacheTags retags from cache tags (registry-based) to the requested tags
-func (a *Actioner) RetagFromCacheTags(cacheTagsByTarget map[string]string, newTagsByTarget map[string][]string, dryRun bool) error {
-	return docker.Retag(cacheTagsByTarget, newTagsByTarget, dryRun)
+// RetagFromCacheTags retags from cache tags to new tags.
+// Each cache tag pair contains a cache tag and its corresponding new tag in the SAME repository.
+func (a *Actioner) RetagFromCacheTags(cacheTagPairsByTarget map[string][]cacher.CacheTagPair, dryRun bool) error {
+	// Convert cacher.CacheTagPair to docker.CacheTagPair
+	dockerPairs := make(map[string][]docker.CacheTagPair)
+	for target, pairs := range cacheTagPairsByTarget {
+		dockerPairs[target] = make([]docker.CacheTagPair, len(pairs))
+		for i, p := range pairs {
+			dockerPairs[target][i] = docker.CacheTagPair{CacheTag: p.CacheTag, NewTag: p.NewTag}
+		}
+	}
+	return docker.Retag(dockerPairs, dryRun)
 }
 
-func (a *Actioner) CheckRegistryCacheExists(hash string, tagsByTarget map[string][]string) (bool, map[string]string, error) {
+func (a *Actioner) CheckRegistryCacheExists(hash string, tagsByTarget map[string][]string) (bool, map[string][]cacher.CacheTagPair, error) {
 	registryCache := &cacher.RegistryCache{
 		Hash:         hash,
 		TagsByTarget: tagsByTarget,

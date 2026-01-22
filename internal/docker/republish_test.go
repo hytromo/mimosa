@@ -24,7 +24,7 @@ func TestPublishManifestsUnderTag_SingleImage(t *testing.T) {
 	imageName := fmt.Sprintf("%s/testapp-%d", "localhost:5000", testID)
 	newTag := "v1.1.0"
 
-	// Publish manifests under new tag
+	// Publish manifests under new tag (same repository)
 	err := PublishManifestsUnderTag(imageName, newTag, originalDigests)
 	assert.NoError(t, err)
 
@@ -51,7 +51,7 @@ func TestPublishManifestsUnderTag_MultiPlatformImage(t *testing.T) {
 	imageName := fmt.Sprintf("%s/multiplatform-app-%d", "localhost:5000", testID)
 	newTag := "v1.1.0"
 
-	// Publish manifests under new tag
+	// Publish manifests under new tag (same repository)
 	err := PublishManifestsUnderTag(imageName, newTag, originalDigests)
 	assert.NoError(t, err)
 
@@ -90,7 +90,7 @@ func TestPublishManifestsUnderTag_MixedManifests(t *testing.T) {
 	// Get digests from the multi-platform image
 	multiDigests := testutils.GetImageDigests(t, multiImage)
 
-	// Publish manifests under new tag
+	// Publish manifests under new tag (same repository)
 	newTag := "v1.1.0"
 	err := PublishManifestsUnderTag(imageName, newTag, multiDigests)
 	assert.NoError(t, err)
@@ -106,18 +106,13 @@ func TestPublishManifestsUnderTag_MixedManifests(t *testing.T) {
 }
 
 func TestPublishManifestsUnderTag_InvalidImageName(t *testing.T) {
-	testID := rand.IntN(10000000000)
-	originalImage := testutils.CreateTestImage(t, fmt.Sprintf("testapp-%d", testID), "v1.0.0")
-
-	// Get the digests of the original image
-	originalDigests := testutils.GetImageDigests(t, originalImage)
-
 	// Test with invalid image name
 	invalidImageName := "invalid:image:name"
 	newTag := "v1.1.0"
+	someDigests := []string{"sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"}
 
-	// Publish manifests under new tag should fail
-	err := PublishManifestsUnderTag(invalidImageName, newTag, originalDigests)
+	// Publish manifests under new tag should fail (invalid image name)
+	err := PublishManifestsUnderTag(invalidImageName, newTag, someDigests)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "creating tag ref")
 }

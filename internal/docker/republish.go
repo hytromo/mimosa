@@ -10,8 +10,9 @@ import (
 )
 
 func PublishManifestsUnderTag(imageName string, tag string, manifests []string) error {
-	// imageName is expected to be like "hytromo/mimosa-example"
-	// tag is the new tag to push to (e.g. "v1")
+	// imageName is the repository (e.g., "registry.example.com/myapp")
+	// tag is the new tag to push to (e.g. "v1.0.0")
+	// manifests are digests that exist in the same repository
 
 	if len(manifests) == 0 {
 		return fmt.Errorf("no manifests provided")
@@ -25,6 +26,7 @@ func PublishManifestsUnderTag(imageName string, tag string, manifests []string) 
 	var indexManifests []mutate.IndexAddendum
 
 	for _, digest := range manifests {
+		// Fetch manifests from the same repository
 		ref, err := name.NewDigest(fmt.Sprintf("%s@%s", imageName, digest))
 		if err != nil {
 			return fmt.Errorf("creating digest ref: %w", err)

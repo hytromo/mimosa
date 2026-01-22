@@ -130,9 +130,17 @@ async def get_manifest_ids_for_tag(
 
 
 def decompose_tag(tag: str) -> Tuple[str, str, str]:
-    hostname_index = tag.rindex("/")
-    hostname = f"http://{tag[:hostname_index]}"
-    image_name_full = tag[hostname_index + 1 :]
-    image_name, tag_name = image_name_full.split(":")
+    # Format: registry:port/path/to/image:tag
+    # Find the last colon which separates the tag
+    last_colon_index = tag.rindex(":")
+    tag_name = tag[last_colon_index + 1 :]
+    
+    # Everything before the last colon is registry:port/path/to/image
+    registry_and_image = tag[:last_colon_index]
+    
+    # Find the first slash which separates registry from image path
+    first_slash_index = registry_and_image.index("/")
+    hostname = f"http://{registry_and_image[:first_slash_index]}"
+    image_name = registry_and_image[first_slash_index + 1 :]
 
     return hostname, image_name, tag_name
