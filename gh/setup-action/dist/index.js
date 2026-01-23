@@ -25,7 +25,6 @@ import require$$6 from 'string_decoder';
 import require$$0$7 from 'diagnostics_channel';
 import require$$2$2 from 'child_process';
 import require$$6$1 from 'timers';
-import { execSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
@@ -29907,7 +29906,6 @@ async function run() {
             coreExports.info(`Cached at ${cachedDir} - which is also added to PATH`);
             binaryPath = path.join(cachedDir, binaryFileName);
         }
-        coreExports.setOutput('cache-path', execSync(`"${binaryPath}" cache --show`).toString().trim());
         coreExports.setOutput('binary-path', binaryPath);
         console.log(`Installed mimosa version ${version} at ${binaryPath}`);
     }
