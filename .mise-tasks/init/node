@@ -10,10 +10,6 @@ npm install -g corepack
 
 corepack enable # allows to respect the packageManager field in the package.json automatically
 
-cd gh/cache-action 
-yarn install
-cd -
-
 cd gh/setup-action
 yarn install
 cd -

@@ -49,10 +49,6 @@ if (isMap(jobs)) {
 				continue;
 			}
 
-			if (uses?.value?.includes('./gh/cache-action')) {
-				stepNode.set('uses', 'hytromo/mimosa/gh/cache-action@v2-cache');
-			}
-
 			if (uses?.value?.includes('./gh/build-push-action')) {
 				stepNode.set('uses', 'hytromo/mimosa/gh/build-push-action@v6-build-push');
 
