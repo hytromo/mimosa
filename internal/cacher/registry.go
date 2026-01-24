@@ -31,6 +31,13 @@ func (rc *RegistryCache) GetCacheTagForRegistry(fullTag string) (string, error) 
 	return cacheTag, nil
 }
 
+type existsResult struct {
+	origTag  string
+	cacheTag string
+	exists   bool
+	err      error
+}
+
 // Exists checks if cache tags exist for ALL tags in TagsByTarget
 // Returns: (exists bool, cacheTagPairs map[string][]CacheTagPair)
 // cacheTagPairs maps target name -> list of (cacheTag, newTag) pairs
@@ -41,8 +48,6 @@ func (rc *RegistryCache) Exists() (bool, map[string][]CacheTagPair, error) {
 	}
 
 	cacheTagPairs := make(map[string][]CacheTagPair)
-	var wg sync.WaitGroup
-	var mu sync.Mutex
 	var checkErrors []error
 	allExist := true
 
@@ -53,40 +58,46 @@ func (rc *RegistryCache) Exists() (bool, map[string][]CacheTagPair, error) {
 			continue
 		}
 
-		targetPairs := make([]CacheTagPair, 0, len(tags))
-		targetAllExist := true
-
+		var toCheck []struct{ origTag, cacheTag string }
 		for _, tag := range tags {
 			cacheTag, err := rc.GetCacheTagForRegistry(tag)
 			if err != nil {
 				slog.Debug("Failed to construct cache tag", "tag", tag, "error", err)
+				allExist = false
+				continue
+			}
+			toCheck = append(toCheck, struct{ origTag, cacheTag string }{tag, cacheTag})
+		}
+
+		if len(toCheck) == 0 {
+			continue
+		}
+
+		ch := make(chan existsResult, len(toCheck))
+		for _, tc := range toCheck {
+			tc := tc
+			go func() {
+				exists, err := docker.TagExists(tc.cacheTag)
+				ch <- existsResult{origTag: tc.origTag, cacheTag: tc.cacheTag, exists: exists, err: err}
+			}()
+		}
+
+		targetPairs := make([]CacheTagPair, 0, len(toCheck))
+		targetAllExist := true
+		for i := 0; i < len(toCheck); i++ {
+			r := <-ch
+			if r.err != nil {
+				checkErrors = append(checkErrors, fmt.Errorf("failed to check cache tag %s: %w", r.cacheTag, r.err))
 				targetAllExist = false
 				continue
 			}
-
-			wg.Add(1)
-			go func(origTag, cTag string) {
-				defer wg.Done()
-				exists, err := docker.TagExists(cTag)
-				if err != nil {
-					mu.Lock()
-					checkErrors = append(checkErrors, fmt.Errorf("failed to check cache tag %s: %w", cTag, err))
-					mu.Unlock()
-					return
-				}
-
-				mu.Lock()
-				if exists {
-					targetPairs = append(targetPairs, CacheTagPair{CacheTag: cTag, NewTag: origTag})
-				} else {
-					targetAllExist = false
-					slog.Debug("Cache tag not found", "cacheTag", cTag, "forNewTag", origTag)
-				}
-				mu.Unlock()
-			}(tag, cacheTag)
+			if r.exists {
+				targetPairs = append(targetPairs, CacheTagPair{CacheTag: r.cacheTag, NewTag: r.origTag})
+			} else {
+				targetAllExist = false
+				slog.Debug("Cache tag not found", "cacheTag", r.cacheTag, "forNewTag", r.origTag)
+			}
 		}
-
-		wg.Wait()
 
 		if !targetAllExist || len(targetPairs) != len(tags) {
 			allExist = false
@@ -97,7 +108,6 @@ func (rc *RegistryCache) Exists() (bool, map[string][]CacheTagPair, error) {
 	}
 
 	if len(checkErrors) > 0 {
-		// Return first error if any occurred
 		return false, nil, checkErrors[0]
 	}
 

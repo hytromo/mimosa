@@ -502,10 +502,10 @@ def run_test_worker(
     setup_config_dict: dict,
     output_dir_str: str,
 ):
+    log_path = f"{output_dir_str}-test.log"
     try:
         setup = SetupConfig(**setup_config_dict)
         output_dir = Path(output_dir_str)
-        log_path = f"{output_dir_str}-test.log"
         with open(log_path, "w", buffering=1) as logf:
             # redirect both stdout and stderr to the per-test log file
             sys.stdout = logf
@@ -515,7 +515,7 @@ def run_test_worker(
     except Exception:
         tb = traceback.format_exc()
         try:
-            with open(Path(f"{output_dir_str}-test.log", "a")) as logf:
+            with open(log_path, "a") as logf:
                 logf.write("\n\n=== EXCEPTION ===\n")
                 logf.write(tb)
         except Exception:
