@@ -24,7 +24,7 @@ var rememberCmd = &cobra.Command{
 
       # ... introduce changes in .dockerignored files (or other irrelevant files) ...
 
-      # mimosa now remembers! This retags v1 to v2 without rebuilding the image
+      # mimosa now remembers! This makes v2 point to the same image as v1 without rebuilding the it
       mimosa remember -- docker buildx build --platform linux/amd64,linux/arm64 --push -t org/image:v2 .
 
   * buildx bake

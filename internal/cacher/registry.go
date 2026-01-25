@@ -32,87 +32,66 @@ func (rc *RegistryCache) GetCacheTagForRegistry(fullTag string) (string, error) 
 }
 
 type existsResult struct {
-	origTag  string
 	cacheTag string
 	exists   bool
 	err      error
 }
 
 // Exists checks if cache tags exist for ALL tags in TagsByTarget
-// Returns: (exists bool, cacheTagPairs map[string][]CacheTagPair)
+// Returns: (exists bool, cacheTagPairs map[string][]CacheTagPair, error)
 // cacheTagPairs maps target name -> list of (cacheTag, newTag) pairs
 // Each new tag must have a corresponding cache tag in the SAME repository
-func (rc *RegistryCache) Exists() (bool, map[string][]CacheTagPair, error) {
-	if len(rc.TagsByTarget) == 0 {
+func (registryCache *RegistryCache) Exists() (bool, map[string][]CacheTagPair, error) {
+	if len(registryCache.TagsByTarget) == 0 {
 		return false, nil, fmt.Errorf("no tags to check")
 	}
 
 	cacheTagPairs := make(map[string][]CacheTagPair)
-	var checkErrors []error
-	allExist := true
 
 	// For each target, check ALL tags - each must have its cache tag in the same repo
-	for target, tags := range rc.TagsByTarget {
-		if len(tags) == 0 {
-			allExist = false
-			continue
+	for targetName, tagsForTarget := range registryCache.TagsByTarget {
+		if len(tagsForTarget) == 0 {
+			return false, nil, nil
 		}
 
-		var toCheck []struct{ origTag, cacheTag string }
-		for _, tag := range tags {
-			cacheTag, err := rc.GetCacheTagForRegistry(tag)
+		// Group original tags by cache tag to avoid duplicate registry checks
+		cacheTagToOrigTags := make(map[string][]string)
+		for _, originalTagRef := range tagsForTarget {
+			computedCacheTag, err := registryCache.GetCacheTagForRegistry(originalTagRef)
 			if err != nil {
-				slog.Debug("Failed to construct cache tag", "tag", tag, "error", err)
-				allExist = false
-				continue
+				slog.Debug("Failed to construct cache tag", "tag", originalTagRef, "error", err)
+				return false, nil, nil
 			}
-			toCheck = append(toCheck, struct{ origTag, cacheTag string }{tag, cacheTag})
+			cacheTagToOrigTags[computedCacheTag] = append(cacheTagToOrigTags[computedCacheTag], originalTagRef)
 		}
 
-		if len(toCheck) == 0 {
-			continue
-		}
-
-		ch := make(chan existsResult, len(toCheck))
-		for _, tc := range toCheck {
-			tc := tc
+		// Only check unique cache tags (buffered channel ensures goroutines won't block on early return)
+		existsResultChan := make(chan existsResult, len(cacheTagToOrigTags))
+		for uniqueCacheTag := range cacheTagToOrigTags {
 			go func() {
-				exists, err := docker.TagExists(tc.cacheTag)
-				ch <- existsResult{origTag: tc.origTag, cacheTag: tc.cacheTag, exists: exists, err: err}
+				slog.Debug("Checking existence of", "cacheTag", uniqueCacheTag)
+				exists, err := docker.TagExists(uniqueCacheTag)
+				existsResultChan <- existsResult{cacheTag: uniqueCacheTag, exists: exists, err: err}
 			}()
 		}
 
-		targetPairs := make([]CacheTagPair, 0, len(toCheck))
-		targetAllExist := true
-		for i := 0; i < len(toCheck); i++ {
-			r := <-ch
-			if r.err != nil {
-				checkErrors = append(checkErrors, fmt.Errorf("failed to check cache tag %s: %w", r.cacheTag, r.err))
-				targetAllExist = false
-				continue
+		targetPairs := make([]CacheTagPair, 0, len(tagsForTarget))
+		for range cacheTagToOrigTags {
+			checkResult := <-existsResultChan
+			if checkResult.err != nil {
+				return false, nil, fmt.Errorf("failed to check cache tag %s: %w", checkResult.cacheTag, checkResult.err)
 			}
-			if r.exists {
-				targetPairs = append(targetPairs, CacheTagPair{CacheTag: r.cacheTag, NewTag: r.origTag})
-			} else {
-				targetAllExist = false
-				slog.Debug("Cache tag not found", "cacheTag", r.cacheTag, "forNewTag", r.origTag)
+			if !checkResult.exists {
+				slog.Debug("Cache tag not found", "cacheTag", checkResult.cacheTag)
+				return false, nil, nil
+			}
+			// Add pairs for all original tags that share this cache tag
+			for _, originalTag := range cacheTagToOrigTags[checkResult.cacheTag] {
+				targetPairs = append(targetPairs, CacheTagPair{CacheTag: checkResult.cacheTag, NewTag: originalTag})
 			}
 		}
 
-		if !targetAllExist || len(targetPairs) != len(tags) {
-			allExist = false
-			slog.Debug("Not all cache tags found for target", "target", target, "found", len(targetPairs), "expected", len(tags))
-		} else {
-			cacheTagPairs[target] = targetPairs
-		}
-	}
-
-	if len(checkErrors) > 0 {
-		return false, nil, checkErrors[0]
-	}
-
-	if !allExist {
-		return false, nil, nil
+		cacheTagPairs[targetName] = targetPairs
 	}
 
 	return true, cacheTagPairs, nil
@@ -133,6 +112,7 @@ func (rc *RegistryCache) SaveCacheTags(dryRun bool) error {
 
 	if dryRun {
 		slog.Info("> DRY RUN: would create cache tags")
+		seen := make(map[string]bool)
 		for _, tags := range rc.TagsByTarget {
 			for _, tag := range tags {
 				cacheTag, err := rc.GetCacheTagForRegistry(tag)
@@ -140,16 +120,24 @@ func (rc *RegistryCache) SaveCacheTags(dryRun bool) error {
 					slog.Debug("Failed to construct cache tag", "tag", tag, "error", err)
 					continue
 				}
-				slog.Info("> DRY RUN: would tag", "from", tag, "to", cacheTag)
+				if !seen[cacheTag] {
+					seen[cacheTag] = true
+					slog.Info("> DRY RUN: would tag", "from", tag, "to", cacheTag)
+				}
 			}
 		}
 		return nil
 	}
 
-	var wg sync.WaitGroup
-	errChan := make(chan error, 100) // Buffer for errors
+	// Collect unique cache tag operations (multiple tags may map to the same cache tag)
+	type retagOp struct {
+		sourceTag string
+		cacheTag  string
+		target    string
+	}
+	seen := make(map[string]bool)
+	var ops []retagOp
 
-	// For each tag, create the corresponding cache tag
 	for target, tags := range rc.TagsByTarget {
 		for _, tag := range tags {
 			cacheTag, err := rc.GetCacheTagForRegistry(tag)
@@ -157,19 +145,29 @@ func (rc *RegistryCache) SaveCacheTags(dryRun bool) error {
 				slog.Debug("Failed to construct cache tag", "tag", tag, "error", err)
 				continue
 			}
-
-			wg.Add(1)
-			go func(sourceTag, destTag string) {
-				defer wg.Done()
-				// Use RetagSingleTag to properly handle manifest lists (multi-platform images)
-				err := docker.RetagSingleTag(sourceTag, destTag, false)
-				if err != nil {
-					errChan <- fmt.Errorf("failed to create cache tag %s from %s: %w", destTag, sourceTag, err)
-					return
-				}
-				slog.Debug("Created cache tag", "from", sourceTag, "to", destTag, "target", target)
-			}(tag, cacheTag)
+			// Only add if we haven't seen this cache tag yet
+			if !seen[cacheTag] {
+				seen[cacheTag] = true
+				ops = append(ops, retagOp{sourceTag: tag, cacheTag: cacheTag, target: target})
+			}
 		}
+	}
+
+	var wg sync.WaitGroup
+	errChan := make(chan error, len(ops))
+
+	for _, op := range ops {
+		wg.Add(1)
+		go func(op retagOp) {
+			defer wg.Done()
+			// Use RetagSingleTag to properly handle manifest lists (multi-platform images)
+			err := docker.RetagSingleTag(op.sourceTag, op.cacheTag, false)
+			if err != nil {
+				errChan <- fmt.Errorf("failed to create cache tag %s from %s: %w", op.cacheTag, op.sourceTag, err)
+				return
+			}
+			slog.Debug("Created cache tag", "from", op.sourceTag, "to", op.cacheTag, "target", op.target)
+		}(op)
 	}
 
 	wg.Wait()
