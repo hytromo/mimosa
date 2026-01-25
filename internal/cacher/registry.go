@@ -112,7 +112,7 @@ func (rc *RegistryCache) SaveCacheTags(dryRun bool) error {
 
 	if dryRun {
 		slog.Info("> DRY RUN: would create cache tags")
-		seen := make(map[string]bool)
+		seenCacheTags := make(map[string]bool)
 		for _, tags := range rc.TagsByTarget {
 			for _, tag := range tags {
 				cacheTag, err := rc.GetCacheTagForRegistry(tag)
@@ -120,8 +120,8 @@ func (rc *RegistryCache) SaveCacheTags(dryRun bool) error {
 					slog.Debug("Failed to construct cache tag", "tag", tag, "error", err)
 					continue
 				}
-				if !seen[cacheTag] {
-					seen[cacheTag] = true
+				if !seenCacheTags[cacheTag] {
+					seenCacheTags[cacheTag] = true
 					slog.Info("> DRY RUN: would tag", "from", tag, "to", cacheTag)
 				}
 			}
@@ -135,8 +135,8 @@ func (rc *RegistryCache) SaveCacheTags(dryRun bool) error {
 		cacheTag  string
 		target    string
 	}
-	seen := make(map[string]bool)
-	var ops []retagOp
+	seenCacheTags := make(map[string]bool)
+	var retagOps []retagOp
 
 	for target, tags := range rc.TagsByTarget {
 		for _, tag := range tags {
@@ -146,17 +146,17 @@ func (rc *RegistryCache) SaveCacheTags(dryRun bool) error {
 				continue
 			}
 			// Only add if we haven't seen this cache tag yet
-			if !seen[cacheTag] {
-				seen[cacheTag] = true
-				ops = append(ops, retagOp{sourceTag: tag, cacheTag: cacheTag, target: target})
+			if !seenCacheTags[cacheTag] {
+				seenCacheTags[cacheTag] = true
+				retagOps = append(retagOps, retagOp{sourceTag: tag, cacheTag: cacheTag, target: target})
 			}
 		}
 	}
 
 	var wg sync.WaitGroup
-	errChan := make(chan error, len(ops))
+	errChan := make(chan error, len(retagOps))
 
-	for _, op := range ops {
+	for _, op := range retagOps {
 		wg.Add(1)
 		go func(op retagOp) {
 			defer wg.Done()

@@ -55,7 +55,7 @@ func (m *MockActions) SaveRegistryCacheTags(hash string, tagsByTarget map[string
 func TestRun_NoSubcommandsEnabled(t *testing.T) {
 	mockActions := &MockActions{}
 
-	err := HandleRememberOrForgetSubcommands(configuration.RememberSubcommandOptions{}, configuration.ForgetSubcommandOptions{}, mockActions)
+	err := HandleRememberSubcommand(configuration.RememberSubcommandOptions{}, mockActions)
 
 	assert.Error(t, err)
 	mockActions.AssertExpectations(t)
@@ -86,7 +86,7 @@ func TestRun_RememberEnabled_RegistryCache_CacheExists(t *testing.T) {
 	mockActions.On("CheckRegistryCacheExists", TestHash, parsedCommand.TagsByTarget).Return(true, cacheTagPairs, nil)
 	mockActions.On("RetagFromCacheTags", cacheTagPairs, false).Return(nil)
 
-	err := HandleRememberOrForgetSubcommands(rememberOptions, configuration.ForgetSubcommandOptions{}, mockActions)
+	err := HandleRememberSubcommand(rememberOptions, mockActions)
 
 	assert.NoError(t, err)
 	mockActions.AssertExpectations(t)
@@ -112,7 +112,7 @@ func TestRun_RememberEnabled_RegistryCache_CacheMiss(t *testing.T) {
 	mockActions.On("RunCommand", false, parsedCommand.Command).Return(0)
 	mockActions.On("SaveRegistryCacheTags", TestHash, parsedCommand.TagsByTarget, false).Return(nil)
 
-	err := HandleRememberOrForgetSubcommands(rememberOptions, configuration.ForgetSubcommandOptions{}, mockActions)
+	err := HandleRememberSubcommand(rememberOptions, mockActions)
 
 	assert.NoError(t, err)
 	mockActions.AssertExpectations(t)
@@ -138,7 +138,7 @@ func TestRun_RememberEnabled_RegistryCache_CheckError_Fallback(t *testing.T) {
 	mockActions.On("RunCommand", false, parsedCommand.Command).Return(0)
 	mockActions.On("ExitProcessWithCode", 0).Return()
 
-	err := HandleRememberOrForgetSubcommands(rememberOptions, configuration.ForgetSubcommandOptions{}, mockActions)
+	err := HandleRememberSubcommand(rememberOptions, mockActions)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "check error")
@@ -172,7 +172,7 @@ func TestRun_RememberEnabled_RegistryCache_RetagFails_Fallback(t *testing.T) {
 	mockActions.On("RunCommand", false, parsedCommand.Command).Return(1)
 	mockActions.On("ExitProcessWithCode", 1).Return()
 
-	err := HandleRememberOrForgetSubcommands(rememberOptions, configuration.ForgetSubcommandOptions{}, mockActions)
+	err := HandleRememberSubcommand(rememberOptions, mockActions)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "retag error")
@@ -199,7 +199,7 @@ func TestRun_RememberEnabled_RegistryCache_CommandFails(t *testing.T) {
 	mockActions.On("RunCommand", false, parsedCommand.Command).Return(1)
 	mockActions.On("ExitProcessWithCode", 1).Return()
 
-	err := HandleRememberOrForgetSubcommands(rememberOptions, configuration.ForgetSubcommandOptions{}, mockActions)
+	err := HandleRememberSubcommand(rememberOptions, mockActions)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "error running command - exit code: 1")
@@ -226,7 +226,7 @@ func TestRun_RememberEnabled_RegistryCache_SaveCacheTagsFails_Continues(t *testi
 	mockActions.On("RunCommand", false, parsedCommand.Command).Return(0)
 	mockActions.On("SaveRegistryCacheTags", TestHash, parsedCommand.TagsByTarget, false).Return(errors.New("save error"))
 
-	err := HandleRememberOrForgetSubcommands(rememberOptions, configuration.ForgetSubcommandOptions{}, mockActions)
+	err := HandleRememberSubcommand(rememberOptions, mockActions)
 
 	// SaveRegistryCacheTags errors are logged as warnings but don't fail the command
 	assert.NoError(t, err)
@@ -264,7 +264,7 @@ func TestRun_RememberEnabled_RegistryCache_MultipleTargets(t *testing.T) {
 	mockActions.On("CheckRegistryCacheExists", TestHash, parsedCommand.TagsByTarget).Return(true, cacheTagPairs, nil)
 	mockActions.On("RetagFromCacheTags", cacheTagPairs, false).Return(nil)
 
-	err := HandleRememberOrForgetSubcommands(rememberOptions, configuration.ForgetSubcommandOptions{}, mockActions)
+	err := HandleRememberSubcommand(rememberOptions, mockActions)
 
 	assert.NoError(t, err)
 	mockActions.AssertExpectations(t)
@@ -285,7 +285,7 @@ func TestRun_RememberEnabled_ParseCommandError_Fallback(t *testing.T) {
 	mockActions.On("RunCommand", false, []string{"invalid", "--push", "command"}).Return(1)
 	mockActions.On("ExitProcessWithCode", 1).Return()
 
-	err := HandleRememberOrForgetSubcommands(rememberOptions, configuration.ForgetSubcommandOptions{}, mockActions)
+	err := HandleRememberSubcommand(rememberOptions, mockActions)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "parse error")
@@ -312,7 +312,7 @@ func TestRun_DryRunMode(t *testing.T) {
 	mockActions.On("RunCommand", true, parsedCommand.Command).Return(0)
 	mockActions.On("SaveRegistryCacheTags", TestHash, parsedCommand.TagsByTarget, true).Return(nil)
 
-	err := HandleRememberOrForgetSubcommands(rememberOptions, configuration.ForgetSubcommandOptions{}, mockActions)
+	err := HandleRememberSubcommand(rememberOptions, mockActions)
 
 	assert.NoError(t, err)
 	mockActions.AssertExpectations(t)

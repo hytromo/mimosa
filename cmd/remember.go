@@ -41,12 +41,12 @@ var rememberCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, positionalArgs []string) {
 		dryRun, _ := cmd.Flags().GetBool(dryRunFlag)
 
-		err := orchestrator.HandleRememberOrForgetSubcommands(
+		err := orchestrator.HandleRememberSubcommand(
 			configuration.RememberSubcommandOptions{
 				Enabled:      true,
 				DryRun:       dryRun,
 				CommandToRun: positionalArgs,
-			}, configuration.ForgetSubcommandOptions{},
+			},
 			actions.New())
 
 		if err != nil {

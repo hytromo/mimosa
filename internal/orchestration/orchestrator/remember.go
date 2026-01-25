@@ -38,7 +38,7 @@ func hasPushFlag(command []string) bool {
 	return false
 }
 
-func HandleRememberOrForgetSubcommands(rememberOptions configuration.RememberSubcommandOptions, forgetOptions configuration.ForgetSubcommandOptions, act actions.Actions) error {
+func HandleRememberSubcommand(rememberOptions configuration.RememberSubcommandOptions, act actions.Actions) error {
 	if !rememberOptions.Enabled {
 		return errors.New("remember subcommand must be enabled")
 	}

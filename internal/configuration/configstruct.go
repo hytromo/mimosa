@@ -14,20 +14,6 @@ func (r RememberSubcommandOptions) GetCommandToRun() []string {
 	return r.CommandToRun
 }
 
-// ForgetSubcommandOptions defines the options of the forget subcommand (deprecated - kept for compatibility)
-type ForgetSubcommandOptions struct {
-	Enabled      bool
-	CommandToRun []string
-	Period       string
-	AutoYes      bool
-	Everything   bool
-	DryRun       bool
-}
-
-func (f ForgetSubcommandOptions) GetCommandToRun() []string {
-	return f.CommandToRun
-}
-
 // ParsedCommand is the parsed command from the user input
 type ParsedCommand struct {
 	// map of target to tags, default target is "default"
