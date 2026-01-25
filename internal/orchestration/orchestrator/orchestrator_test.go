@@ -64,7 +64,7 @@ func TestRun_NoSubcommandsEnabled(t *testing.T) {
 func TestRun_RememberEnabled_RegistryCache_CacheExists(t *testing.T) {
 	rememberOptions := configuration.RememberSubcommandOptions{
 		Enabled:      true,
-		CommandToRun: []string{"docker", "build", "-t", "myreg1/myimage:v1", "."},
+		CommandToRun: []string{"docker", "build", "--push", "-t", "myreg1/myimage:v1", "."},
 		DryRun:       false,
 	}
 
@@ -72,7 +72,7 @@ func TestRun_RememberEnabled_RegistryCache_CacheExists(t *testing.T) {
 
 	parsedCommand := configuration.ParsedCommand{
 		Hash:         TestHash,
-		Command:      []string{"docker", "build", "-t", "myreg1/myimage:v1", "."},
+		Command:      []string{"docker", "build", "--push", "-t", "myreg1/myimage:v1", "."},
 		TagsByTarget: map[string][]string{"default": {"myreg1/myimage:v1"}},
 	}
 
@@ -82,7 +82,7 @@ func TestRun_RememberEnabled_RegistryCache_CacheExists(t *testing.T) {
 		},
 	}
 
-	mockActions.On("ParseCommand", []string{"docker", "build", "-t", "myreg1/myimage:v1", "."}).Return(parsedCommand, nil)
+	mockActions.On("ParseCommand", []string{"docker", "build", "--push", "-t", "myreg1/myimage:v1", "."}).Return(parsedCommand, nil)
 	mockActions.On("CheckRegistryCacheExists", TestHash, parsedCommand.TagsByTarget).Return(true, cacheTagPairs, nil)
 	mockActions.On("RetagFromCacheTags", cacheTagPairs, false).Return(nil)
 
@@ -95,7 +95,7 @@ func TestRun_RememberEnabled_RegistryCache_CacheExists(t *testing.T) {
 func TestRun_RememberEnabled_RegistryCache_CacheMiss(t *testing.T) {
 	rememberOptions := configuration.RememberSubcommandOptions{
 		Enabled:      true,
-		CommandToRun: []string{"docker", "build", "-t", "myreg1/myimage:v1", "."},
+		CommandToRun: []string{"docker", "build", "--push", "-t", "myreg1/myimage:v1", "."},
 		DryRun:       false,
 	}
 
@@ -103,11 +103,11 @@ func TestRun_RememberEnabled_RegistryCache_CacheMiss(t *testing.T) {
 
 	parsedCommand := configuration.ParsedCommand{
 		Hash:         TestHash,
-		Command:      []string{"docker", "build", "-t", "myreg1/myimage:v1", "."},
+		Command:      []string{"docker", "build", "--push", "-t", "myreg1/myimage:v1", "."},
 		TagsByTarget: map[string][]string{"default": {"myreg1/myimage:v1"}},
 	}
 
-	mockActions.On("ParseCommand", []string{"docker", "build", "-t", "myreg1/myimage:v1", "."}).Return(parsedCommand, nil)
+	mockActions.On("ParseCommand", []string{"docker", "build", "--push", "-t", "myreg1/myimage:v1", "."}).Return(parsedCommand, nil)
 	mockActions.On("CheckRegistryCacheExists", TestHash, parsedCommand.TagsByTarget).Return(false, nil, nil)
 	mockActions.On("RunCommand", false, parsedCommand.Command).Return(0)
 	mockActions.On("SaveRegistryCacheTags", TestHash, parsedCommand.TagsByTarget, false).Return(nil)
@@ -121,7 +121,7 @@ func TestRun_RememberEnabled_RegistryCache_CacheMiss(t *testing.T) {
 func TestRun_RememberEnabled_RegistryCache_CheckError_Fallback(t *testing.T) {
 	rememberOptions := configuration.RememberSubcommandOptions{
 		Enabled:      true,
-		CommandToRun: []string{"docker", "build", "-t", "myreg1/myimage:v1", "."},
+		CommandToRun: []string{"docker", "build", "--push", "-t", "myreg1/myimage:v1", "."},
 		DryRun:       false,
 	}
 
@@ -129,11 +129,11 @@ func TestRun_RememberEnabled_RegistryCache_CheckError_Fallback(t *testing.T) {
 
 	parsedCommand := configuration.ParsedCommand{
 		Hash:         TestHash,
-		Command:      []string{"docker", "build", "-t", "myreg1/myimage:v1", "."},
+		Command:      []string{"docker", "build", "--push", "-t", "myreg1/myimage:v1", "."},
 		TagsByTarget: map[string][]string{"default": {"myreg1/myimage:v1"}},
 	}
 
-	mockActions.On("ParseCommand", []string{"docker", "build", "-t", "myreg1/myimage:v1", "."}).Return(parsedCommand, nil)
+	mockActions.On("ParseCommand", []string{"docker", "build", "--push", "-t", "myreg1/myimage:v1", "."}).Return(parsedCommand, nil)
 	mockActions.On("CheckRegistryCacheExists", TestHash, parsedCommand.TagsByTarget).Return(false, nil, errors.New("check error"))
 	mockActions.On("RunCommand", false, parsedCommand.Command).Return(0)
 	mockActions.On("ExitProcessWithCode", 0).Return()
@@ -148,7 +148,7 @@ func TestRun_RememberEnabled_RegistryCache_CheckError_Fallback(t *testing.T) {
 func TestRun_RememberEnabled_RegistryCache_RetagFails_Fallback(t *testing.T) {
 	rememberOptions := configuration.RememberSubcommandOptions{
 		Enabled:      true,
-		CommandToRun: []string{"docker", "build", "-t", "myreg1/myimage:v1", "."},
+		CommandToRun: []string{"docker", "build", "--push", "-t", "myreg1/myimage:v1", "."},
 		DryRun:       false,
 	}
 
@@ -156,7 +156,7 @@ func TestRun_RememberEnabled_RegistryCache_RetagFails_Fallback(t *testing.T) {
 
 	parsedCommand := configuration.ParsedCommand{
 		Hash:         TestHash,
-		Command:      []string{"docker", "build", "-t", "myreg1/myimage:v1", "."},
+		Command:      []string{"docker", "build", "--push", "-t", "myreg1/myimage:v1", "."},
 		TagsByTarget: map[string][]string{"default": {"myreg1/myimage:v1"}},
 	}
 
@@ -166,7 +166,7 @@ func TestRun_RememberEnabled_RegistryCache_RetagFails_Fallback(t *testing.T) {
 		},
 	}
 
-	mockActions.On("ParseCommand", []string{"docker", "build", "-t", "myreg1/myimage:v1", "."}).Return(parsedCommand, nil)
+	mockActions.On("ParseCommand", []string{"docker", "build", "--push", "-t", "myreg1/myimage:v1", "."}).Return(parsedCommand, nil)
 	mockActions.On("CheckRegistryCacheExists", TestHash, parsedCommand.TagsByTarget).Return(true, cacheTagPairs, nil)
 	mockActions.On("RetagFromCacheTags", cacheTagPairs, false).Return(errors.New("retag error"))
 	mockActions.On("RunCommand", false, parsedCommand.Command).Return(1)
@@ -182,7 +182,7 @@ func TestRun_RememberEnabled_RegistryCache_RetagFails_Fallback(t *testing.T) {
 func TestRun_RememberEnabled_RegistryCache_CommandFails(t *testing.T) {
 	rememberOptions := configuration.RememberSubcommandOptions{
 		Enabled:      true,
-		CommandToRun: []string{"docker", "build", "-t", "myreg1/myimage:v1", "."},
+		CommandToRun: []string{"docker", "build", "--push", "-t", "myreg1/myimage:v1", "."},
 		DryRun:       false,
 	}
 
@@ -190,11 +190,11 @@ func TestRun_RememberEnabled_RegistryCache_CommandFails(t *testing.T) {
 
 	parsedCommand := configuration.ParsedCommand{
 		Hash:         TestHash,
-		Command:      []string{"docker", "build", "-t", "myreg1/myimage:v1", "."},
+		Command:      []string{"docker", "build", "--push", "-t", "myreg1/myimage:v1", "."},
 		TagsByTarget: map[string][]string{"default": {"myreg1/myimage:v1"}},
 	}
 
-	mockActions.On("ParseCommand", []string{"docker", "build", "-t", "myreg1/myimage:v1", "."}).Return(parsedCommand, nil)
+	mockActions.On("ParseCommand", []string{"docker", "build", "--push", "-t", "myreg1/myimage:v1", "."}).Return(parsedCommand, nil)
 	mockActions.On("CheckRegistryCacheExists", TestHash, parsedCommand.TagsByTarget).Return(false, nil, nil)
 	mockActions.On("RunCommand", false, parsedCommand.Command).Return(1)
 	mockActions.On("ExitProcessWithCode", 1).Return()
@@ -209,7 +209,7 @@ func TestRun_RememberEnabled_RegistryCache_CommandFails(t *testing.T) {
 func TestRun_RememberEnabled_RegistryCache_SaveCacheTagsFails_Continues(t *testing.T) {
 	rememberOptions := configuration.RememberSubcommandOptions{
 		Enabled:      true,
-		CommandToRun: []string{"docker", "build", "-t", "myreg1/myimage:v1", "."},
+		CommandToRun: []string{"docker", "build", "--push", "-t", "myreg1/myimage:v1", "."},
 		DryRun:       false,
 	}
 
@@ -217,11 +217,11 @@ func TestRun_RememberEnabled_RegistryCache_SaveCacheTagsFails_Continues(t *testi
 
 	parsedCommand := configuration.ParsedCommand{
 		Hash:         TestHash,
-		Command:      []string{"docker", "build", "-t", "myreg1/myimage:v1", "."},
+		Command:      []string{"docker", "build", "--push", "-t", "myreg1/myimage:v1", "."},
 		TagsByTarget: map[string][]string{"default": {"myreg1/myimage:v1"}},
 	}
 
-	mockActions.On("ParseCommand", []string{"docker", "build", "-t", "myreg1/myimage:v1", "."}).Return(parsedCommand, nil)
+	mockActions.On("ParseCommand", []string{"docker", "build", "--push", "-t", "myreg1/myimage:v1", "."}).Return(parsedCommand, nil)
 	mockActions.On("CheckRegistryCacheExists", TestHash, parsedCommand.TagsByTarget).Return(false, nil, nil)
 	mockActions.On("RunCommand", false, parsedCommand.Command).Return(0)
 	mockActions.On("SaveRegistryCacheTags", TestHash, parsedCommand.TagsByTarget, false).Return(errors.New("save error"))
@@ -236,7 +236,7 @@ func TestRun_RememberEnabled_RegistryCache_SaveCacheTagsFails_Continues(t *testi
 func TestRun_RememberEnabled_RegistryCache_MultipleTargets(t *testing.T) {
 	rememberOptions := configuration.RememberSubcommandOptions{
 		Enabled:      true,
-		CommandToRun: []string{"docker", "buildx", "bake", "-f", "docker-bake.hcl"},
+		CommandToRun: []string{"docker", "buildx", "bake", "--push", "-f", "docker-bake.hcl"},
 		DryRun:       false,
 	}
 
@@ -244,7 +244,7 @@ func TestRun_RememberEnabled_RegistryCache_MultipleTargets(t *testing.T) {
 
 	parsedCommand := configuration.ParsedCommand{
 		Hash:    TestHash,
-		Command: []string{"docker", "buildx", "bake", "-f", "docker-bake.hcl"},
+		Command: []string{"docker", "buildx", "bake", "--push", "-f", "docker-bake.hcl"},
 		TagsByTarget: map[string][]string{
 			"frontend": {"frontend:latest"},
 			"backend":  {"backend:latest"},
@@ -260,7 +260,7 @@ func TestRun_RememberEnabled_RegistryCache_MultipleTargets(t *testing.T) {
 		},
 	}
 
-	mockActions.On("ParseCommand", []string{"docker", "buildx", "bake", "-f", "docker-bake.hcl"}).Return(parsedCommand, nil)
+	mockActions.On("ParseCommand", []string{"docker", "buildx", "bake", "--push", "-f", "docker-bake.hcl"}).Return(parsedCommand, nil)
 	mockActions.On("CheckRegistryCacheExists", TestHash, parsedCommand.TagsByTarget).Return(true, cacheTagPairs, nil)
 	mockActions.On("RetagFromCacheTags", cacheTagPairs, false).Return(nil)
 
@@ -273,16 +273,16 @@ func TestRun_RememberEnabled_RegistryCache_MultipleTargets(t *testing.T) {
 func TestRun_RememberEnabled_ParseCommandError_Fallback(t *testing.T) {
 	rememberOptions := configuration.RememberSubcommandOptions{
 		Enabled:      true,
-		CommandToRun: []string{"invalid", "command"},
+		CommandToRun: []string{"invalid", "--push", "command"},
 		DryRun:       false,
 	}
 
 	mockActions := &MockActions{}
 
-	mockActions.On("ParseCommand", []string{"invalid", "command"}).Return(configuration.ParsedCommand{
-		Command: []string{"invalid", "command"},
+	mockActions.On("ParseCommand", []string{"invalid", "--push", "command"}).Return(configuration.ParsedCommand{
+		Command: []string{"invalid", "--push", "command"},
 	}, errors.New("parse error"))
-	mockActions.On("RunCommand", false, []string{"invalid", "command"}).Return(1)
+	mockActions.On("RunCommand", false, []string{"invalid", "--push", "command"}).Return(1)
 	mockActions.On("ExitProcessWithCode", 1).Return()
 
 	err := HandleRememberOrForgetSubcommands(rememberOptions, configuration.ForgetSubcommandOptions{}, mockActions)
@@ -295,7 +295,7 @@ func TestRun_RememberEnabled_ParseCommandError_Fallback(t *testing.T) {
 func TestRun_DryRunMode(t *testing.T) {
 	rememberOptions := configuration.RememberSubcommandOptions{
 		Enabled:      true,
-		CommandToRun: []string{"docker", "build", "-t", "myreg1/myimage:v1", "."},
+		CommandToRun: []string{"docker", "build", "--push", "-t", "myreg1/myimage:v1", "."},
 		DryRun:       true,
 	}
 
@@ -303,11 +303,11 @@ func TestRun_DryRunMode(t *testing.T) {
 
 	parsedCommand := configuration.ParsedCommand{
 		Hash:         TestHash,
-		Command:      []string{"docker", "build", "-t", "myreg1/myimage:v1", "."},
+		Command:      []string{"docker", "build", "--push", "-t", "myreg1/myimage:v1", "."},
 		TagsByTarget: map[string][]string{"default": {"myreg1/myimage:v1"}},
 	}
 
-	mockActions.On("ParseCommand", []string{"docker", "build", "-t", "myreg1/myimage:v1", "."}).Return(parsedCommand, nil)
+	mockActions.On("ParseCommand", []string{"docker", "build", "--push", "-t", "myreg1/myimage:v1", "."}).Return(parsedCommand, nil)
 	mockActions.On("CheckRegistryCacheExists", TestHash, parsedCommand.TagsByTarget).Return(false, nil, nil)
 	mockActions.On("RunCommand", true, parsedCommand.Command).Return(0)
 	mockActions.On("SaveRegistryCacheTags", TestHash, parsedCommand.TagsByTarget, true).Return(nil)
