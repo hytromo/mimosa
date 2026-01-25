@@ -274,39 +274,51 @@ async def main():
                             for context in env_variable_to_list(
                                 "context", ["cwd", "subdir"]
                             ):
+                                # Determine which tag_styles to test
+                                # For bakefile builds, tag_style doesn't apply (tags come from bake file)
+                                # For non-bake builds (bakefile_type == "none"), test different tag styles
                                 if bakefile_type == "none":
-                                    if (
-                                        dockerfile_type == "multiple"
-                                        or dockerignore == "multiple"
-                                        or targets == "multiple"
+                                    tag_styles_to_test = env_variable_to_list(
+                                        "tag_style", ["tag", "output"]
+                                    )
+                                else:
+                                    tag_styles_to_test = ["tag"]  # Not applicable for bake
+
+                                for tag_style in tag_styles_to_test:
+                                    if bakefile_type == "none":
+                                        if (
+                                            dockerfile_type == "multiple"
+                                            or dockerignore == "multiple"
+                                            or targets == "multiple"
+                                        ):
+                                            continue
+                                    elif (
+                                        bakefile_type == "single"
+                                        and context == "subdir"
                                     ):
                                         continue
-                                elif (
-                                    bakefile_type == "single"
-                                    and context == "subdir"
-                                ):
-                                    continue
-                                elif (
-                                    bakefile_type == "multiple"
-                                    and context == "subdir"
-                                ):
-                                    continue
+                                    elif (
+                                        bakefile_type == "multiple"
+                                        and context == "subdir"
+                                    ):
+                                        continue
 
-                                setup_config = {
-                                    "bakefile_type": bakefile_type,
-                                    "bakefile_location": bakefile_location,
-                                    "dockerfile_type": dockerfile_type,
-                                    "dockerfile_location": dockerfile_location,
-                                    "targets": targets,
-                                    "dockerignore": dockerignore,
-                                    "context": context,
-                                }
-                                output_dir = Path(
-                                    tempfile.mkdtemp(
-                                        prefix="mimosa_", suffix="_workdir"
+                                    setup_config = {
+                                        "bakefile_type": bakefile_type,
+                                        "bakefile_location": bakefile_location,
+                                        "dockerfile_type": dockerfile_type,
+                                        "dockerfile_location": dockerfile_location,
+                                        "targets": targets,
+                                        "dockerignore": dockerignore,
+                                        "context": context,
+                                        "tag_style": tag_style,
+                                    }
+                                    output_dir = Path(
+                                        tempfile.mkdtemp(
+                                            prefix="mimosa_", suffix="_workdir"
+                                        )
                                     )
-                                )
-                                test_configs.append((setup_config, str(output_dir)))
+                                    test_configs.append((setup_config, str(output_dir)))
 
     # Run tests in processes, keep per-test logs at output_dir/test.log
     pending_test_configs = deque(test_configs)

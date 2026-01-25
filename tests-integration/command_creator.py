@@ -44,12 +44,24 @@ def generate_docker_command(
         else:
             dockerFileArg = f"-f '{dockerfileRelativePath}'"
 
-        dockerTagsArg = " ".join([f"-t {tag}" for tag in first_target_tags])
+        # Generate tag arguments based on tag_style
+        tag_style = getattr(setup_config, "tag_style", "tag")
+        if tag_style == "output":
+            # Use --output type=registry,name=<name> for all tags
+            # Note: --output type=registry already pushes, so we don't need --push
+            dockerTagsArg = " ".join(
+                [f"--output type=registry,name={tag}" for tag in first_target_tags]
+            )
+            push_flag = ""
+        else:
+            # Default: use -t for all tags
+            dockerTagsArg = " ".join([f"-t {tag}" for tag in first_target_tags])
+            push_flag = "--push"
 
         context = "." if setup_config.context == "cwd" else "subdir"
 
         return Command(
-            command=f"{MIMOSA_BINARY} remember -- docker buildx build --push --platform linux/amd64,linux/arm64 {dockerFileArg} {dockerTagsArg} {context}",
+            command=f"{MIMOSA_BINARY} remember -- docker buildx build {push_flag} --platform linux/amd64,linux/arm64 {dockerFileArg} {dockerTagsArg} {context}",
             cwd=cwd,
             tagsByTarget={
                 "target1": first_target_tags,

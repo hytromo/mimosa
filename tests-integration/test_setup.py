@@ -11,3 +11,4 @@ class SetupConfig(BaseModel):
     targets: Literal["single", "multiple"]
     dockerignore: Literal["single", "multiple", "none"]
     context: Literal["cwd", "subdir"]
+    tag_style: Literal["tag", "output"] = "tag"

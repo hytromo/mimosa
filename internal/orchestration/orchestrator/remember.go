@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"log/slog"
 
@@ -12,11 +13,26 @@ import (
 	"github.com/hytromo/mimosa/internal/orchestration/actions"
 )
 
-// hasPushFlag checks if the --push flag exists in the command arguments
+// hasPushFlag checks if the command will push to a registry.
+// This is true if:
+// - --push flag exists
+// - --output type=registry,... exists (or -o type=registry,...)
 func hasPushFlag(command []string) bool {
-	for _, arg := range command {
+	for i, arg := range command {
 		if arg == "--push" {
 			return true
+		}
+		// Check for --output type=registry or -o type=registry (space-separated)
+		if arg == "--output" || arg == "-o" {
+			if i+1 < len(command) && strings.Contains(command[i+1], "type=registry") {
+				return true
+			}
+		}
+		// Check for --output=type=registry or -o=type=registry (equals format)
+		if strings.HasPrefix(arg, "--output=") || strings.HasPrefix(arg, "-o=") {
+			if strings.Contains(arg, "type=registry") {
+				return true
+			}
 		}
 	}
 	return false

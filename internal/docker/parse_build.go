@@ -28,11 +28,46 @@ type ParsedBuildCommand struct {
 }
 
 const (
-	tagFlagEq       = "--tag="
-	tagShortFlagEq  = "-t="
-	fileFlagEq      = "--file="
-	fileShortFlagEq = "-f="
+	tagFlagEq         = "--tag="
+	tagShortFlagEq    = "-t="
+	fileFlagEq        = "--file="
+	fileShortFlagEq   = "-f="
+	outputFlagEq      = "--output="
+	outputShortFlagEq = "-o="
 )
+
+// extractRegistryNameFromOutput extracts the image name from an --output flag value
+// when the output type is "registry". For example, for "type=registry,name=localhost:6000/image:tag",
+// it returns "localhost:6000/image:tag" and true. If the type is not "registry" or there's no name,
+// it returns empty string and false.
+func extractRegistryNameFromOutput(outputValue string) (string, bool) {
+	// Parse key=value pairs separated by commas
+	pairs := strings.Split(outputValue, ",")
+
+	var isRegistry bool
+	var name string
+
+	for _, pair := range pairs {
+		// Split on first '=' only to handle values with '=' in them
+		idx := strings.Index(pair, "=")
+		if idx == -1 {
+			continue
+		}
+		key := pair[:idx]
+		value := pair[idx+1:]
+
+		if key == "type" && value == "registry" {
+			isRegistry = true
+		} else if key == "name" && value != "" {
+			name = value
+		}
+	}
+
+	if isRegistry && name != "" {
+		return name, true
+	}
+	return "", false
+}
 
 // flagTemplate defines a flag whose value should be templated for hash calculation.
 // This ensures that run-specific values (like temp file paths or builder IDs) don't
@@ -49,6 +84,9 @@ type flagTemplate struct {
 var flagsToTemplate = []flagTemplate{
 	// Tags are different between builds but don't affect the image content
 	{longFlag: "--tag", shortFlag: "-t"},
+	// Output destination flags - where to put the image, not what's in it
+	// The name= part contains the image tag which varies between builds
+	{longFlag: "--output", shortFlag: "-o", subKeys: []string{"name"}},
 	// Output files - purely for writing results, don't affect the build
 	{longFlag: "--iidfile"},
 	{longFlag: "--metadata-file"},
@@ -88,6 +126,27 @@ func extractBuildFlags(args []string) (allTags []string, additionalBuildContexts
 			allTags = append(allTags, args[i][len(tagFlagEq):])
 		} else if len(args[i]) > len(tagShortFlagEq)-1 && args[i][:len(tagShortFlagEq)] == tagShortFlagEq {
 			allTags = append(allTags, args[i][len(tagShortFlagEq):])
+		} else if args[i] == "--output" || args[i] == "-o" {
+			// Handle: --output type=registry,name=VALUE or -o type=registry,name=VALUE
+			if i+1 < len(args) {
+				outputValue := args[i+1]
+				if name, ok := extractRegistryNameFromOutput(outputValue); ok {
+					allTags = append(allTags, name)
+				}
+				i++ // skip next
+			}
+		} else if strings.HasPrefix(args[i], outputFlagEq) {
+			// Handle: --output=type=registry,name=VALUE
+			outputValue := args[i][len(outputFlagEq):]
+			if name, ok := extractRegistryNameFromOutput(outputValue); ok {
+				allTags = append(allTags, name)
+			}
+		} else if strings.HasPrefix(args[i], outputShortFlagEq) {
+			// Handle: -o=type=registry,name=VALUE
+			outputValue := args[i][len(outputShortFlagEq):]
+			if name, ok := extractRegistryNameFromOutput(outputValue); ok {
+				allTags = append(allTags, name)
+			}
 		} else if args[i] == "--file" || args[i] == "-f" {
 			if i+1 < len(args) {
 				dockerfilePath = args[i+1]
@@ -122,7 +181,7 @@ func extractBuildFlags(args []string) (allTags []string, additionalBuildContexts
 	}
 
 	if len(allTags) == 0 {
-		return nil, nil, "", fmt.Errorf("cannot find image tag using the -t or --tag option")
+		return nil, nil, "", fmt.Errorf("cannot find image tag using -t, --tag, or --output type=registry,name=<name>")
 	}
 
 	return
