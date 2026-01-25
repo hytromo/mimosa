@@ -1,10 +1,10 @@
 variable "TARGET1_TAGS" {
-  type = list(string)
+  type = string
 }
 
 {% if targets == 'multiple' %}
 variable "TARGET2_TAGS" {
-  type = list(string)
+  type = string
 }
 {% endif %}
 
@@ -26,7 +26,7 @@ target "target1"{
     {% endif %}
   {% endif %}
 
-  tags = [for tag in TARGET1_TAGS : tag]
+  tags = split(",", TARGET1_TAGS)
 
 {# if we have multiple bakefiles, the 2nd one will include the platforms field #}
 {% if bakefile_type == 'single' %}
@@ -57,7 +57,7 @@ target "target2"{
     {% endif %}
   {% endif %}
 
-  tags = [for tag in TARGET2_TAGS : tag]
+  tags = split(",", TARGET2_TAGS)
 
   {% if bakefile_type == 'single' %}
   platforms = [

@@ -86,6 +86,77 @@ func TestParseBuildCommand_ValidCommand(t *testing.T) {
 				},
 			},
 		},
+		// --output type=registry tests
+		{
+			name:    "Build command with output type=registry",
+			command: []string{"docker", "buildx", "build", "--push", "--output", "type=registry,name=localhost:6000/image:tag", "."},
+			expected: configuration.ParsedCommand{
+				Command: []string{"docker", "buildx", "build", "--push", "--output", "type=registry,name=localhost:6000/image:tag", "."},
+				TagsByTarget: map[string][]string{
+					"default": {"localhost:6000/image:tag"},
+				},
+			},
+		},
+		{
+			name:    "Build command with output type=registry equals syntax",
+			command: []string{"docker", "buildx", "build", "--push", "--output=type=registry,name=myregistry.com/myimage:v1.0", "."},
+			expected: configuration.ParsedCommand{
+				Command: []string{"docker", "buildx", "build", "--push", "--output=type=registry,name=myregistry.com/myimage:v1.0", "."},
+				TagsByTarget: map[string][]string{
+					"default": {"myregistry.com/myimage:v1.0"},
+				},
+			},
+		},
+		{
+			name:    "Build command with short output flag",
+			command: []string{"docker", "buildx", "build", "--push", "-o", "type=registry,name=localhost:5000/img:latest", "."},
+			expected: configuration.ParsedCommand{
+				Command: []string{"docker", "buildx", "build", "--push", "-o", "type=registry,name=localhost:5000/img:latest", "."},
+				TagsByTarget: map[string][]string{
+					"default": {"localhost:5000/img:latest"},
+				},
+			},
+		},
+		{
+			name:    "Build command with short output flag equals syntax",
+			command: []string{"docker", "buildx", "build", "--push", "-o=type=registry,name=localhost:5000/img:v2", "."},
+			expected: configuration.ParsedCommand{
+				Command: []string{"docker", "buildx", "build", "--push", "-o=type=registry,name=localhost:5000/img:v2", "."},
+				TagsByTarget: map[string][]string{
+					"default": {"localhost:5000/img:v2"},
+				},
+			},
+		},
+		{
+			name:    "Build command with multiple output flags",
+			command: []string{"docker", "buildx", "build", "--push", "--output", "type=registry,name=localhost:6000/image:tag1", "--output", "type=registry,name=localhost:6000/image:tag2", "."},
+			expected: configuration.ParsedCommand{
+				Command: []string{"docker", "buildx", "build", "--push", "--output", "type=registry,name=localhost:6000/image:tag1", "--output", "type=registry,name=localhost:6000/image:tag2", "."},
+				TagsByTarget: map[string][]string{
+					"default": {"localhost:6000/image:tag1", "localhost:6000/image:tag2"},
+				},
+			},
+		},
+		{
+			name:    "Build command with tag and output combined",
+			command: []string{"docker", "buildx", "build", "--push", "-t", "localhost:5000/image:tag1", "--output", "type=registry,name=localhost:6000/image:tag2", "."},
+			expected: configuration.ParsedCommand{
+				Command: []string{"docker", "buildx", "build", "--push", "-t", "localhost:5000/image:tag1", "--output", "type=registry,name=localhost:6000/image:tag2", "."},
+				TagsByTarget: map[string][]string{
+					"default": {"localhost:5000/image:tag1", "localhost:6000/image:tag2"},
+				},
+			},
+		},
+		{
+			name:    "Build command with output name before type",
+			command: []string{"docker", "buildx", "build", "--push", "--output", "name=localhost:6000/image:tag,type=registry", "."},
+			expected: configuration.ParsedCommand{
+				Command: []string{"docker", "buildx", "build", "--push", "--output", "name=localhost:6000/image:tag,type=registry", "."},
+				TagsByTarget: map[string][]string{
+					"default": {"localhost:6000/image:tag"},
+				},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -144,7 +215,7 @@ func TestParseBuildCommand_InvalidCommands(t *testing.T) {
 		{
 			name:        "No tag specified",
 			command:     []string{"docker", "build", "."},
-			expectedErr: "cannot find image tag using the -t or --tag option",
+			expectedErr: "cannot find image tag using -t, --tag, or --output type=registry,name=<name>",
 		},
 		{
 			name:        "No context path",
@@ -231,6 +302,77 @@ func TestExtractBuildFlags(t *testing.T) {
 			args:                   []string{"build", "--build-context", "backend=./backend", "-t", "myapp:latest", "."},
 			expectedTags:           []string{"myapp:latest"},
 			expectedBuildContexts:  map[string]string{"backend": "./backend"},
+			expectedDockerfilePath: "",
+		},
+		// --output type=registry tests
+		{
+			name:                   "Output type=registry with name",
+			args:                   []string{"build", "--output", "type=registry,name=localhost:6000/image:tag", "."},
+			expectedTags:           []string{"localhost:6000/image:tag"},
+			expectedBuildContexts:  map[string]string{},
+			expectedDockerfilePath: "",
+		},
+		{
+			name:                   "Output type=registry with equals syntax",
+			args:                   []string{"build", "--output=type=registry,name=myregistry.com/myimage:v1.0", "."},
+			expectedTags:           []string{"myregistry.com/myimage:v1.0"},
+			expectedBuildContexts:  map[string]string{},
+			expectedDockerfilePath: "",
+		},
+		{
+			name:                   "Short output flag with type=registry",
+			args:                   []string{"build", "-o", "type=registry,name=localhost:5000/img:latest", "."},
+			expectedTags:           []string{"localhost:5000/img:latest"},
+			expectedBuildContexts:  map[string]string{},
+			expectedDockerfilePath: "",
+		},
+		{
+			name:                   "Short output flag with equals syntax",
+			args:                   []string{"build", "-o=type=registry,name=localhost:5000/img:v2", "."},
+			expectedTags:           []string{"localhost:5000/img:v2"},
+			expectedBuildContexts:  map[string]string{},
+			expectedDockerfilePath: "",
+		},
+		{
+			name:                   "Multiple output flags",
+			args:                   []string{"build", "--output", "type=registry,name=localhost:6000/image:tag1", "--output", "type=registry,name=localhost:6000/image:tag2", "."},
+			expectedTags:           []string{"localhost:6000/image:tag1", "localhost:6000/image:tag2"},
+			expectedBuildContexts:  map[string]string{},
+			expectedDockerfilePath: "",
+		},
+		{
+			name:                   "Tag and output combined",
+			args:                   []string{"build", "-t", "localhost:5000/image:tag1", "--output", "type=registry,name=localhost:6000/image:tag2", "."},
+			expectedTags:           []string{"localhost:5000/image:tag1", "localhost:6000/image:tag2"},
+			expectedBuildContexts:  map[string]string{},
+			expectedDockerfilePath: "",
+		},
+		{
+			name:                   "Output with name before type",
+			args:                   []string{"build", "--output", "name=localhost:6000/image:tag,type=registry", "."},
+			expectedTags:           []string{"localhost:6000/image:tag"},
+			expectedBuildContexts:  map[string]string{},
+			expectedDockerfilePath: "",
+		},
+		{
+			name:                   "Output type=local should be ignored for tags",
+			args:                   []string{"build", "-t", "myapp:latest", "--output", "type=local,dest=/tmp/output", "."},
+			expectedTags:           []string{"myapp:latest"},
+			expectedBuildContexts:  map[string]string{},
+			expectedDockerfilePath: "",
+		},
+		{
+			name:                   "Output type=registry without name",
+			args:                   []string{"build", "-t", "myapp:latest", "--output", "type=registry", "."},
+			expectedTags:           []string{"myapp:latest"},
+			expectedBuildContexts:  map[string]string{},
+			expectedDockerfilePath: "",
+		},
+		{
+			name:                   "Output type=docker should be ignored for tags",
+			args:                   []string{"build", "-t", "myapp:latest", "--output", "type=docker,name=myimage:tag", "."},
+			expectedTags:           []string{"myapp:latest"},
+			expectedBuildContexts:  map[string]string{},
 			expectedDockerfilePath: "",
 		},
 		{
@@ -454,6 +596,42 @@ func TestNormalizeCommandForHashing(t *testing.T) {
 			name:     "buildx with multiple templated flags",
 			input:    []string{"docker", "buildx", "build", "--iidfile", "/tmp/id.txt", "--metadata-file", "/tmp/meta.json", "-t", "myapp:latest", "."},
 			expected: []string{"docker", "buildx", "build", "--iidfile", "<VALUE>", "--metadata-file", "<VALUE>", "-t", "<VALUE>", "."},
+		},
+		// Output flag tests - name= should be templated
+		{
+			name:     "output with name templating",
+			input:    []string{"docker", "build", "--output", "type=registry,name=localhost:6000/image:tag", "-t", "myapp:latest", "."},
+			expected: []string{"docker", "build", "--output", "type=registry,name=<VALUE>", "-t", "<VALUE>", "."},
+		},
+		{
+			name:     "output with equals syntax and name templating",
+			input:    []string{"docker", "build", "--output=type=registry,name=myregistry.com/myimage:v1.0", "-t", "myapp:latest", "."},
+			expected: []string{"docker", "build", "--output=type=registry,name=<VALUE>", "-t", "<VALUE>", "."},
+		},
+		{
+			name:     "short output flag with name templating",
+			input:    []string{"docker", "build", "-o", "type=registry,name=localhost:5000/img:latest", "-t", "myapp:latest", "."},
+			expected: []string{"docker", "build", "-o", "type=registry,name=<VALUE>", "-t", "<VALUE>", "."},
+		},
+		{
+			name:     "short output flag with equals syntax",
+			input:    []string{"docker", "build", "-o=type=registry,name=localhost:5000/img:v2", "-t", "myapp:latest", "."},
+			expected: []string{"docker", "build", "-o=type=registry,name=<VALUE>", "-t", "<VALUE>", "."},
+		},
+		{
+			name:     "multiple output flags templating",
+			input:    []string{"docker", "buildx", "build", "--push", "--output", "type=registry,name=localhost:6000/image:tag1", "--output", "type=registry,name=localhost:6000/image:tag2", "."},
+			expected: []string{"docker", "buildx", "build", "--output", "type=registry,name=<VALUE>", "--output", "type=registry,name=<VALUE>", "--push", "."},
+		},
+		{
+			name:     "output without name should not be templated",
+			input:    []string{"docker", "build", "--output", "type=local,dest=/tmp/output", "-t", "myapp:latest", "."},
+			expected: []string{"docker", "build", "--output", "type=local,dest=/tmp/output", "-t", "<VALUE>", "."},
+		},
+		{
+			name:     "output with name in different position",
+			input:    []string{"docker", "build", "--output", "name=localhost:6000/image:tag,type=registry", "-t", "myapp:latest", "."},
+			expected: []string{"docker", "build", "--output", "name=<VALUE>,type=registry", "-t", "<VALUE>", "."},
 		},
 		// Boolean flags to discard tests
 		{
@@ -1018,6 +1196,142 @@ func TestTemplateLabelValue(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			result := templateLabelValue(tc.input)
 			assert.Equal(t, tc.expected, result)
+		})
+	}
+}
+
+func TestExtractRegistryNameFromOutput(t *testing.T) {
+	testCases := []struct {
+		name         string
+		input        string
+		expectedName string
+		expectedOk   bool
+	}{
+		{
+			name:         "type=registry with name",
+			input:        "type=registry,name=localhost:6000/image:tag",
+			expectedName: "localhost:6000/image:tag",
+			expectedOk:   true,
+		},
+		{
+			name:         "name before type",
+			input:        "name=localhost:6000/image:tag,type=registry",
+			expectedName: "localhost:6000/image:tag",
+			expectedOk:   true,
+		},
+		{
+			name:         "type=registry without name",
+			input:        "type=registry",
+			expectedName: "",
+			expectedOk:   false,
+		},
+		{
+			name:         "type=local with name (not registry)",
+			input:        "type=local,name=myimage:tag,dest=/tmp/output",
+			expectedName: "",
+			expectedOk:   false,
+		},
+		{
+			name:         "type=docker with name (not registry)",
+			input:        "type=docker,name=myimage:tag",
+			expectedName: "",
+			expectedOk:   false,
+		},
+		{
+			name:         "type=registry with empty name",
+			input:        "type=registry,name=",
+			expectedName: "",
+			expectedOk:   false,
+		},
+		{
+			name:         "complex registry name with port",
+			input:        "type=registry,name=myregistry.com:5000/org/image:v1.0.0",
+			expectedName: "myregistry.com:5000/org/image:v1.0.0",
+			expectedOk:   true,
+		},
+		{
+			name:         "registry with additional options",
+			input:        "type=registry,name=localhost:6000/image:tag,push=true",
+			expectedName: "localhost:6000/image:tag",
+			expectedOk:   true,
+		},
+		{
+			name:         "empty input",
+			input:        "",
+			expectedName: "",
+			expectedOk:   false,
+		},
+		{
+			name:         "no type specified",
+			input:        "name=localhost:6000/image:tag",
+			expectedName: "",
+			expectedOk:   false,
+		},
+		{
+			name:         "type=oci with name (not registry)",
+			input:        "type=oci,name=myimage:tag,dest=/tmp/output",
+			expectedName: "",
+			expectedOk:   false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			name, ok := extractRegistryNameFromOutput(tc.input)
+			assert.Equal(t, tc.expectedName, name)
+			assert.Equal(t, tc.expectedOk, ok)
+		})
+	}
+}
+
+func TestNormalizeCommandForHashing_OutputBehavior(t *testing.T) {
+	testCases := []struct {
+		name     string
+		input1   []string
+		input2   []string
+		expected bool // true if they should normalize to the same result
+	}{
+		{
+			name:     "Same output type, different names should produce same normalized output",
+			input1:   []string{"docker", "build", "--output", "type=registry,name=localhost:6000/image:tag1", "-t", "myapp:latest", "."},
+			input2:   []string{"docker", "build", "--output", "type=registry,name=localhost:6000/image:tag2", "-t", "myapp:latest", "."},
+			expected: true,
+		},
+		{
+			name:     "Same output type with equals syntax, different names should produce same normalized output",
+			input1:   []string{"docker", "build", "--output=type=registry,name=localhost:6000/image:tag1", "-t", "myapp:latest", "."},
+			input2:   []string{"docker", "build", "--output=type=registry,name=localhost:6000/image:tag2", "-t", "myapp:latest", "."},
+			expected: true,
+		},
+		{
+			name:     "Short output flag, different names should produce same normalized output",
+			input1:   []string{"docker", "build", "-o", "type=registry,name=localhost:6000/image:tag1", "-t", "myapp:latest", "."},
+			input2:   []string{"docker", "build", "-o", "type=registry,name=localhost:6000/image:tag2", "-t", "myapp:latest", "."},
+			expected: true,
+		},
+		{
+			name:     "Different output types should produce different normalized output",
+			input1:   []string{"docker", "build", "--output", "type=registry,name=localhost:6000/image:tag", "-t", "myapp:latest", "."},
+			input2:   []string{"docker", "build", "--output", "type=local,dest=/tmp/output", "-t", "myapp:latest", "."},
+			expected: false,
+		},
+		{
+			name:     "Output without name vs with name (name templated so no difference after templating)",
+			input1:   []string{"docker", "build", "--output", "type=registry", "-t", "myapp:latest", "."},
+			input2:   []string{"docker", "build", "--output", "type=registry", "-t", "myapp:latest", "."},
+			expected: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result1 := normalizeCommandForHashing(tc.input1)
+			result2 := normalizeCommandForHashing(tc.input2)
+			if tc.expected {
+				assert.Equal(t, result1, result2, "Commands should normalize to the same result")
+			} else {
+				assert.NotEqual(t, result1, result2, "Commands should normalize to different results")
+			}
 		})
 	}
 }

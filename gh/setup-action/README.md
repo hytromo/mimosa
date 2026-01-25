@@ -11,7 +11,6 @@ See [here](../../docs/gh-actions/README.md) for example usage.
 
 ## Outputs
 
-| Name          | Description                                 |
-| ------------- | ------------------------------------------- |
-| `binary-path` | The full path to the mimosa binary          |
-| `cache-path`  | The full path to the mimosa cache directory |
+| Name          | Description                        |
+| ------------- | ---------------------------------- |
+| `binary-path` | The full path to the mimosa binary |

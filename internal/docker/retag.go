@@ -3,7 +3,6 @@ package docker
 import (
 	"errors"
 	"fmt"
-	"strings"
 	"sync"
 
 	"log/slog"
@@ -22,6 +21,11 @@ func RetagSingleTag(fromTag string, toTag string, dryRun bool) error {
 	toRef, err := dockerutil.ParseTag(toTag)
 	if err != nil {
 		return err
+	}
+
+	// Retagging MUST be within the same repository
+	if fromRef.Registry != toRef.Registry || fromRef.ImageName != toRef.ImageName {
+		return fmt.Errorf("retagging across repositories is not supported: %s -> %s", fromTag, toTag)
 	}
 
 	// Fetch the descriptor from the remote registry
@@ -59,12 +63,13 @@ func RetagSingleTag(fromTag string, toTag string, dryRun bool) error {
 			return fmt.Errorf("no manifests to repush from %v", fromTag)
 		}
 
-		imageNameWithoutTag := fmt.Sprintf("%s/%s", toRef.Registry, toRef.ImageName)
+		// Same repository for source and target (enforced above)
+		imageName := fmt.Sprintf("%s/%s", fromRef.Registry, fromRef.ImageName)
 		bareNewTagName := toRef.Tag
 
-		slog.Debug("image will be created", "name", imageNameWithoutTag, "tag", bareNewTagName, "manifests", manifestsToRepush)
+		slog.Debug("image will be created", "imageName", imageName, "tag", bareNewTagName, "manifests", manifestsToRepush)
 
-		err = PublishManifestsUnderTag(imageNameWithoutTag, bareNewTagName, manifestsToRepush)
+		err = PublishManifestsUnderTag(imageName, bareNewTagName, manifestsToRepush)
 
 		if err != nil {
 			slog.Debug("Failed to repush manifests", "fromTag", fromTag, "error", err)
@@ -82,41 +87,32 @@ func RetagSingleTag(fromTag string, toTag string, dryRun bool) error {
 	return nil
 }
 
-func getTargetsCommaSeparated[V any](m map[string]V) string {
-	var targets []string
-	for k := range m {
-		targets = append(targets, k)
-	}
-	return strings.Join(targets, ",")
+// CacheTagPair represents a pair of cache tag and new tag (always in the same repository)
+type CacheTagPair struct {
+	CacheTag string
+	NewTag   string
 }
 
-// Retag an image by fetching its descriptor and pushing it under a new tag.
-// If the image is a manifest list, it will repush all manifests under the new tag
-// cachedLatestTagByTarget is the map of target->latest cached tag
-// newTagsByTarget is the map of target->new tags to push based on the cached entries
-func Retag(cachedLatestTagByTarget map[string]string, newTagsByTarget map[string][]string, dryRun bool) error {
-	if len(cachedLatestTagByTarget) != len(newTagsByTarget) {
-		return fmt.Errorf("different amount of targets between cache and new tags (cache=%s - new=%s)", getTargetsCommaSeparated(cachedLatestTagByTarget), getTargetsCommaSeparated(newTagsByTarget))
+// Retag creates new tags from cache tags.
+// Each CacheTagPair contains a cache tag and its corresponding new tag - both MUST be in the same repository.
+// cacheTagPairsByTarget maps target name -> list of (cacheTag, newTag) pairs
+func Retag(cacheTagPairsByTarget map[string][]CacheTagPair, dryRun bool) error {
+	if len(cacheTagPairsByTarget) == 0 {
+		return fmt.Errorf("no cache tag pairs provided")
 	}
 
-	for target := range cachedLatestTagByTarget {
-		if _, ok := newTagsByTarget[target]; !ok {
-			return fmt.Errorf("different targets between cache and new tags (cache=%s - new=%s)", getTargetsCommaSeparated(cachedLatestTagByTarget), getTargetsCommaSeparated(newTagsByTarget))
-		}
+	// Count total retag operations
+	nWorkers := 0
+	for _, pairs := range cacheTagPairsByTarget {
+		nWorkers += len(pairs)
 	}
 
 	if dryRun {
-		slog.Info("> DRY RUN: would be retagged", "from", cachedLatestTagByTarget, "to", newTagsByTarget)
+		slog.Info("> DRY RUN: would retag", "pairs", cacheTagPairsByTarget)
 		return nil
 	}
 
-	slog.Info("Retagging", "from", cachedLatestTagByTarget, "to", newTagsByTarget)
-
-	// each worker will do 1 retag operation, so the total workers needs to be len(newTagsByTarget[*])
-	nWorkers := 0
-	for _, tags := range newTagsByTarget {
-		nWorkers += len(tags)
-	}
+	slog.Info("Retagging from cache", "targets", len(cacheTagPairsByTarget), "totalOperations", nWorkers)
 
 	var wg sync.WaitGroup
 	wg.Add(nWorkers)
@@ -124,23 +120,24 @@ func Retag(cachedLatestTagByTarget map[string]string, newTagsByTarget map[string
 	// Create error channel to collect errors from workers
 	errChan := make(chan error, nWorkers)
 
-	// Worker function
+	// Worker function - retag within the same repository
 	worker := func(fromTag string, toTag string) {
 		defer wg.Done()
 		if fromTag == toTag {
 			slog.Info("Skipping retagging to itself", "tag", fromTag)
 			return
 		}
+		slog.Info("Retagging", "from", fromTag, "to", toTag)
 		if err := RetagSingleTag(fromTag, toTag, dryRun); err != nil {
-			errChan <- err
+			errChan <- fmt.Errorf("failed to retag %s -> %s: %w", fromTag, toTag, err)
 		}
 	}
 
-	// Launch workers
-	for target, latestTag := range cachedLatestTagByTarget {
-		for _, newTag := range newTagsByTarget[target] {
-			slog.Debug("Starting retag worker", "from", latestTag, "to", newTag)
-			go worker(latestTag, newTag)
+	// Launch workers - each pair is cache tag -> new tag in the SAME repository
+	for target, pairs := range cacheTagPairsByTarget {
+		for _, pair := range pairs {
+			slog.Debug("Starting retag worker", "target", target, "from", pair.CacheTag, "to", pair.NewTag)
+			go worker(pair.CacheTag, pair.NewTag)
 		}
 	}
 
@@ -148,7 +145,7 @@ func Retag(cachedLatestTagByTarget map[string]string, newTagsByTarget map[string
 	wg.Wait()
 	close(errChan)
 
-	// Check for any allErrs
+	// Check for any errors
 	var allErrs []error
 	for err := range errChan {
 		if err != nil {

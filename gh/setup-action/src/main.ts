@@ -1,8 +1,6 @@
 import * as core from '@actions/core'
-import * as github from '@actions/github'
 import toolCache from '@actions/tool-cache'
 import type { RestEndpointMethodTypes } from '@octokit/plugin-rest-endpoint-methods'
-import { execSync } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 
@@ -113,11 +111,6 @@ export async function run(): Promise<void> {
 
       binaryPath = path.join(cachedDir, binaryFileName)
     }
-
-    core.setOutput(
-      'cache-path',
-      execSync(`"${binaryPath}" cache --show`).toString().trim()
-    )
 
     core.setOutput('binary-path', binaryPath)
 

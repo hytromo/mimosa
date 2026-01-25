@@ -20,22 +20,6 @@ inputs:
     required: false
     default: '.tool-versions'
 
-  mimosa-cache-enabled:
-    description: Enable/disable the mimosa cache-action step. Set to false to manage cache yourself using actions/cache (non-recommended way)
-    required: false
-    default: 'true'
-  mimosa-cache-github-token:
-    description: GitHub token to use for authentication - needs to have write:variables scope. Required if mimosa-cache-enabled is true.
-    required: false
-  mimosa-cache-variable-name:
-    description: The repository variable name to save the cache
-    required: false
-    default: 'MIMOSA_CACHE'
-  mimosa-cache-max-length:
-    description: The maximum length of the cache
-    required: false
-    default: '48000'
-
   add-hosts:
     description: "List of a customs host-to-IP mapping (e.g., docker:10.180.0.1)"
     required: false
@@ -145,13 +129,7 @@ outputs:
   mimosa-setup-binary-path:
     description: The full path to the mimosa binary
     value: ${{ steps.setup-mimosa.outputs.binary-path }}
-  mimosa-setup-cache-path:
-    description: The full path to the mimosa cache directory
-    value: ${{ steps.setup-mimosa.outputs.cache-path }}
 
-  mimosa-cache-new-cache-value:
-    description: The new calculated cache value saved back as a GitHub Actions variable
-    value: ${{ steps.cache-mimosa.outputs.new-cache-value }}
   imageid:
     description: Image ID
     value: ${{ steps.build-push.outputs.imageid }}
@@ -213,12 +191,3 @@ runs:
         target: ${{ inputs.target }}
         ulimit: ${{ inputs.ulimit }}
         github-token: ${{ inputs.github-token }}
-
-    - name: Cache Mimosa
-      id: cache-mimosa
-      if: inputs.mimosa-cache-enabled == 'true'
-      uses: hytromo/mimosa/gh/cache-action@v6-build-push
-      with:
-        github-token: ${{ inputs.mimosa-cache-github-token }}
-        variable-name: ${{ inputs.mimosa-cache-variable-name }}
-        max-length: ${{ inputs.mimosa-cache-max-length }}

@@ -46,18 +46,12 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
-      # docker builds and dockerhub access required by tests
+      # docker builds required by tests (uses local registry on localhost:5000)
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: hytromo
-          password: ${{ secrets.DOCKER_PAT }}
       
       - name: Run unit tests
         run: mise run tests:unit -coverprofile=coverage.txt
@@ -92,13 +86,14 @@ jobs:
     needs: build
     runs-on: ubuntu-24.04
     timeout-minutes: 20
-    name: "Integration tests with dockerignore=${{ matrix.dockerignore }}, location=${{ matrix.bakefile_location }}, dockerfile=${{ matrix.dockerfile_type }}"
+    name: "Integration tests with dockerignore=${{ matrix.dockerignore }}, location=${{ matrix.bakefile_location }}, dockerfile=${{ matrix.dockerfile_type }}, tag_style=${{ matrix.tag_style }}"
     strategy:
       fail-fast: false
       matrix:
         dockerignore: [single, multiple, none]
         bakefile_location: [root, subdir]
         dockerfile_type: [single, multiple]
+        tag_style: [tag, output]
     steps:
       - uses: actions/checkout@v5
 
@@ -130,12 +125,13 @@ jobs:
           dockerignore: ${{ matrix.dockerignore }}
           bakefile_location: ${{ matrix.bakefile_location }}
           dockerfile_type: ${{ matrix.dockerfile_type }}
+          tag_style: ${{ matrix.tag_style }}
         run: mise run tests:integration
 
       - name: Upload test summary artifact
         uses: actions/upload-artifact@v4
         with:
-          name: test-summary-${{ matrix.dockerignore }}-${{ matrix.bakefile_location }}-${{ matrix.dockerfile_type }}
+          name: test-summary-${{ matrix.dockerignore }}-${{ matrix.bakefile_location }}-${{ matrix.dockerfile_type }}-${{ matrix.tag_style }}
           path: tests-integration/integration_tests_summary.json
 
   integration-tests-summarizer:

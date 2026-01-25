@@ -86,7 +86,6 @@ async def run_command_with_expectations(
         print(tree_result.stdout)
         sys.stdout.flush()
 
-        print(f"> export MIMOSA_CACHE_DIR={command.env['MIMOSA_CACHE_DIR']}")
         if "TARGET1_TAGS" in command.env and "TARGET2_TAGS" in command.env:
             print(f"export TARGET1_TAGS={command.env['TARGET1_TAGS']}")
             print(f"export TARGET2_TAGS={command.env['TARGET2_TAGS']}")
@@ -141,32 +140,39 @@ async def run_command_with_expectations(
             and expect_same_manifests_with_on_cache_hit
             and len(expect_same_manifests_with_on_cache_hit) > 0
         ):
-            for tag in command.tagsByTarget["target1"]:
-                for expect_tag in expect_same_manifests_with_on_cache_hit:
-                    hostname, image_name, tag_name = decompose_tag(tag)
-                    expect_hostname, expect_image_name, expect_tag_name = decompose_tag(
-                        expect_tag
-                    )
+            # Compare corresponding tags by index, not all combinations
+            # Both lists should have the same length and correspond by position
+            current_tags = command.tagsByTarget["target1"]
+            assert len(current_tags) == len(expect_same_manifests_with_on_cache_hit), (
+                f"Expected same number of tags: {len(current_tags)} vs {len(expect_same_manifests_with_on_cache_hit)}"
+            )
+            
+            for tag, expect_tag in zip(current_tags, expect_same_manifests_with_on_cache_hit):
+                hostname, image_name, tag_name = decompose_tag(tag)
+                expect_hostname, expect_image_name, expect_tag_name = decompose_tag(
+                    expect_tag
+                )
 
-                    now_manifests = await get_manifest_ids_for_tag(
-                        hostname,
-                        image_name,
-                        tag_name,
-                    )
+                now_manifests = await get_manifest_ids_for_tag(
+                    hostname,
+                    image_name,
+                    tag_name,
+                )
 
-                    expected_manifests = await get_manifest_ids_for_tag(
-                        expect_hostname,
-                        expect_image_name,
-                        expect_tag_name,
-                    )
+                expected_manifests = await get_manifest_ids_for_tag(
+                    expect_hostname,
+                    expect_image_name,
+                    expect_tag_name,
+                )
 
-                    assert set(now_manifests) == set(expected_manifests), (
-                        f"Expected manifests for tag {tag} to be the same as for tag {expect_tag}"
-                    )
+                assert set(now_manifests) == set(expected_manifests), (
+                    f"Expected manifests for tag {tag} to be the same as for tag {expect_tag}. "
+                    f"Got: {now_manifests}, expected: {expected_manifests}"
+                )
 
-                    assert len(now_manifests) > 0, (
-                        f"Expected at least one manifest for tag {tag}"
-                    )
+                assert len(now_manifests) > 0, (
+                    f"Expected at least one manifest for tag {tag}"
+                )
 
         # make sure that every target has the assumed files included
         for target, tags in command.tagsByTarget.items():
@@ -222,12 +228,12 @@ def generate_target_tags(
 
     return existing_uuid, {
         "first_target_tags": [
-            f"localhost:5000/target1_1st:{existing_uuid}-{suffix}",
-            f"localhost:5000/target1_2nd:{existing_uuid}-2-{suffix}",
+            f"localhost:5000/{existing_uuid}/target1_1st:{suffix}",
+            f"localhost:5000/{existing_uuid}/target1_2nd:{suffix}",
         ],
         "second_target_tags": [
-            f"localhost:5000/target2_1st:{existing_uuid}-{suffix}",
-            f"localhost:5000/target2_2nd:{existing_uuid}-2-{suffix}",
+            f"localhost:5000/{existing_uuid}/target2_1st:{suffix}",
+            f"localhost:5000/{existing_uuid}/target2_2nd:{suffix}",
         ],
     }
 
@@ -268,9 +274,17 @@ async def main():
                             for context in env_variable_to_list(
                                 "context", ["cwd", "subdir"]
                             ):
-                                for cache_source in env_variable_to_list(
-                                    "cache_source", ["memory", "disk"]
-                                ):
+                                # Determine which tag_styles to test
+                                # For bakefile builds, tag_style doesn't apply (tags come from bake file)
+                                # For non-bake builds (bakefile_type == "none"), test different tag styles
+                                if bakefile_type == "none":
+                                    tag_styles_to_test = env_variable_to_list(
+                                        "tag_style", ["tag", "output"]
+                                    )
+                                else:
+                                    tag_styles_to_test = ["tag"]  # Not applicable for bake
+
+                                for tag_style in tag_styles_to_test:
                                     if bakefile_type == "none":
                                         if (
                                             dockerfile_type == "multiple"
@@ -296,8 +310,8 @@ async def main():
                                         "dockerfile_location": dockerfile_location,
                                         "targets": targets,
                                         "dockerignore": dockerignore,
-                                        "cache_source": cache_source,
                                         "context": context,
+                                        "tag_style": tag_style,
                                     }
                                     output_dir = Path(
                                         tempfile.mkdtemp(
@@ -400,7 +414,6 @@ async def run_test(setup_config: SetupConfig, output_dir: Path):
             "dockerfiles": dockerfiles,
             "bakefiles": bakefiles,
             "output_dir": output_dir,
-            "cache_source": setup_config.cache_source,
             **target_tags,
         }
         initial_1st_target_tags: List[str] = original_command_options[
@@ -432,14 +445,10 @@ async def run_test(setup_config: SetupConfig, output_dir: Path):
                         generate_docker_command(
                             **command_options_no_tags,
                             **new_tags,
-                            cache_dir=command.env["MIMOSA_CACHE_DIR"],
                         ),
                         cwd=output_dir,
                         cache_hit=cache_hit_expected,
                         expect_same_manifests_with_on_cache_hit=initial_1st_target_tags,
-                        extra_output_expectation="Cache hit in memory"
-                        if setup_config.cache_source == "memory" and cache_hit_expected
-                        else None,
                     )
                     tested_changes[file_type] = True
 
@@ -463,7 +472,6 @@ async def run_test(setup_config: SetupConfig, output_dir: Path):
                     generate_docker_command(
                         **command_options_no_tags,
                         **new_tags,
-                        cache_dir=command.env["MIMOSA_CACHE_DIR"],
                     ),
                     cwd=output_dir,
                     cache_hit=False,
@@ -485,7 +493,6 @@ async def run_test(setup_config: SetupConfig, output_dir: Path):
                     generate_docker_command(
                         **command_options_no_tags,
                         **new_tags,
-                        cache_dir=command.env["MIMOSA_CACHE_DIR"],
                     ),
                     cwd=output_dir,
                     cache_hit=False,
@@ -507,10 +514,10 @@ def run_test_worker(
     setup_config_dict: dict,
     output_dir_str: str,
 ):
+    log_path = f"{output_dir_str}-test.log"
     try:
         setup = SetupConfig(**setup_config_dict)
         output_dir = Path(output_dir_str)
-        log_path = f"{output_dir_str}-test.log"
         with open(log_path, "w", buffering=1) as logf:
             # redirect both stdout and stderr to the per-test log file
             sys.stdout = logf
@@ -520,7 +527,7 @@ def run_test_worker(
     except Exception:
         tb = traceback.format_exc()
         try:
-            with open(Path(f"{output_dir_str}-test.log", "a")) as logf:
+            with open(log_path, "a") as logf:
                 logf.write("\n\n=== EXCEPTION ===\n")
                 logf.write(tb)
         except Exception:

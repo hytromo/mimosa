@@ -49,14 +49,10 @@ if (isMap(jobs)) {
 				continue;
 			}
 
-			if (uses?.value?.includes('./gh/cache-action')) {
-				stepNode.set('uses', 'hytromo/mimosa/gh/cache-action@v2-cache');
-			}
-
 			if (uses?.value?.includes('./gh/build-push-action')) {
 				stepNode.set('uses', 'hytromo/mimosa/gh/build-push-action@v6-build-push');
 
-				// Remove default values from the example (mimosa-setup-enabled: 'false' and mimosa-cache-enabled: 'true')
+				// Remove default values from the example (mimosa-setup-enabled: 'false' since default is 'true')
 				const withNode = stepNode.get('with', true);
 				if (withNode && isMap(withNode)) {
 					const newWithObj = {};
@@ -64,9 +60,6 @@ if (isMap(jobs)) {
 						const key = withItem.key.value;
 						const value = withItem.value.value;
 						if (key === 'mimosa-setup-enabled' && value === 'false') {
-							continue;
-						}
-						if (key === 'mimosa-cache-enabled' && value === 'true') {
 							continue;
 						}
 						newWithObj[key] = value;

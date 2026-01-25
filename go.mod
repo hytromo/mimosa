@@ -3,20 +3,16 @@ module github.com/hytromo/mimosa
 go 1.24.5
 
 require (
-	github.com/apparentlymart/go-userdirs v0.0.0-20200915174352-b0c018a67c13
 	github.com/awslabs/amazon-ecr-credential-helper/ecr-login v0.9.1
 	github.com/chrismellard/docker-credential-acr-env v0.0.0-20230304212654-82a0ddb27589
 	github.com/compose-spec/compose-go/v2 v2.8.1
 	github.com/docker/buildx v0.27.0-rc1.0.20250816052640-8033908d092d
-	github.com/elliotchance/orderedmap/v3 v3.1.0
 	github.com/google/go-containerregistry v0.20.6
 	github.com/kalafut/imohash v1.1.0
 	github.com/moby/patternmatcher v0.6.0
 	github.com/samber/lo v1.51.0
 	github.com/spf13/cobra v1.10.1
 	github.com/stretchr/testify v1.11.0
-	github.com/tilinna/z85 v1.0.0
-	golang.org/x/term v0.32.0
 )
 
 require (

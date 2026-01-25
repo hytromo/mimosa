@@ -13,16 +13,12 @@ type Actions interface {
 	RunCommand(dryRun bool, command []string) int
 	ExitProcessWithCode(code int)
 
-	// caching
-	GetCacheEntry(hash string) cacher.Cache
-	RemoveCacheEntry(cacheEntry cacher.Cache, dryRun bool) error
-	SaveCache(cacheEntry cacher.Cache, tagsByTarget map[string][]string, dryRun bool) error
-	ForgetCacheEntriesOlderThan(duration string, autoApprove bool, dryRun bool) error
-	PrintCacheDir()
-	ExportCacheToFile(cacheDir string, filePath string) error
-
 	// docker
-	Retag(cacheEntry cacher.Cache, parsedCommand configuration.ParsedCommand, dryRun bool) error
+	RetagFromCacheTags(cacheTagPairsByTarget map[string][]cacher.CacheTagPair, dryRun bool) error
+
+	// registry cache
+	CheckRegistryCacheExists(hash string, tagsByTarget map[string][]string) (bool, map[string][]cacher.CacheTagPair, error)
+	SaveRegistryCacheTags(hash string, tagsByTarget map[string][]string, dryRun bool) error
 }
 
 // Actioner is a concrete implementation of the Actions interface

@@ -55,10 +55,12 @@ func TestRetagSingle_MultiPlatform(t *testing.T) {
 
 func TestRetagSingle_InvalidSourceTag(t *testing.T) {
 	testID := rand.IntN(10000000000)
-	newTag := fmt.Sprintf("%s/testapp-%d:v1.0.0", "localhost:5000", testID)
+	imageName := fmt.Sprintf("%s/testapp-%d", "localhost:5000", testID)
+	newTag := fmt.Sprintf("%s:v1.0.0", imageName)
 
-	// Test with invalid source tag
-	err := RetagSingleTag("invalid-image:tag", newTag, false)
+	// Test with non-existent source tag (valid format, same repo, but doesn't exist)
+	nonExistentSource := fmt.Sprintf("%s:nonexistent-tag-%d", imageName, testID)
+	err := RetagSingleTag(nonExistentSource, newTag, false)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to get descriptor")
 }
@@ -106,33 +108,32 @@ func TestRetag_SingleTarget(t *testing.T) {
 				originalImage = testutils.CreateTestImage(t, fmt.Sprintf("%s-%d", tc.imageName, testID), "v1.0.0")
 			}
 
-			// Create parsed command with new tags
-			latestTagByTarget := map[string]string{
-				"default": originalImage,
-			}
-			newTagsByTarget := map[string][]string{
+			// Create cache tag pairs - each pair has cache tag and new tag in the same repository
+			newTag1 := fmt.Sprintf("%s/%s-%d:v1.1.0", "localhost:5000", tc.imageName, testID)
+			newTag2 := fmt.Sprintf("%s/%s-%d:latest", "localhost:5000", tc.imageName, testID)
+			cacheTagPairsByTarget := map[string][]CacheTagPair{
 				"default": {
-					fmt.Sprintf("%s/%s-%d:v1.1.0", "localhost:5000", tc.imageName, testID),
-					fmt.Sprintf("%s/%s-%d:latest", "localhost:5000", tc.imageName, testID),
+					{CacheTag: originalImage, NewTag: newTag1},
+					{CacheTag: originalImage, NewTag: newTag2},
 				},
 			}
 
 			// Test dry run
-			err := Retag(latestTagByTarget, newTagsByTarget, true)
+			err := Retag(cacheTagPairsByTarget, true)
 			assert.NoError(t, err)
 
 			// Test actual retag
-			err = Retag(latestTagByTarget, newTagsByTarget, false)
+			err = Retag(cacheTagPairsByTarget, false)
 			assert.NoError(t, err)
 
 			// Verify the new tags exist
-			for _, newTag := range newTagsByTarget["default"] {
-				err := testutils.CheckTagExists(newTag)
-				assert.NoError(t, err, "Failed to check retagged image %s: %s", newTag, err)
+			for _, pair := range cacheTagPairsByTarget["default"] {
+				err := testutils.CheckTagExists(pair.NewTag)
+				assert.NoError(t, err, "Failed to check retagged image %s: %s", pair.NewTag, err)
 
 				// For multi-platform images, also check that all original digests are preserved
 				if tc.verifyManifest {
-					checkMultiPlatformManifest(t, newTag, originalImage)
+					checkMultiPlatformManifest(t, pair.NewTag, originalImage)
 				}
 			}
 		})
@@ -172,28 +173,24 @@ func TestRetag_MultipleTargets(t *testing.T) {
 				frontendImage = testutils.CreateTestImage(t, fmt.Sprintf("frontend-%d", testID), "v1.0.0")
 			}
 
-			// Create parsed command with new tags for multiple targets
-			latestTagByTarget := map[string]string{
-				"backend":  backendImage,
-				"frontend": frontendImage,
-			}
-			newTagsByTarget := map[string][]string{
+			// Create cache tag pairs for multiple targets - each pair has cache tag and new tag in the same repository
+			cacheTagPairsByTarget := map[string][]CacheTagPair{
 				"backend": {
-					fmt.Sprintf("%s/backend-%d:v1.1.0", "localhost:5000", testID),
-					fmt.Sprintf("%s/backend-%d:latest", "localhost:5000", testID),
+					{CacheTag: backendImage, NewTag: fmt.Sprintf("%s/backend-%d:v1.1.0", "localhost:5000", testID)},
+					{CacheTag: backendImage, NewTag: fmt.Sprintf("%s/backend-%d:latest", "localhost:5000", testID)},
 				},
 				"frontend": {
-					fmt.Sprintf("%s/frontend-%d:v1.1.0", "localhost:5000", testID),
-					fmt.Sprintf("%s/frontend-%d:latest", "localhost:5000", testID),
+					{CacheTag: frontendImage, NewTag: fmt.Sprintf("%s/frontend-%d:v1.1.0", "localhost:5000", testID)},
+					{CacheTag: frontendImage, NewTag: fmt.Sprintf("%s/frontend-%d:latest", "localhost:5000", testID)},
 				},
 			}
 
 			// Test actual retag
-			err := Retag(latestTagByTarget, newTagsByTarget, false)
+			err := Retag(cacheTagPairsByTarget, false)
 			assert.NoError(t, err)
 
 			// Verify all new tags exist
-			for target, newTags := range newTagsByTarget {
+			for target, pairs := range cacheTagPairsByTarget {
 				originalImage := ""
 				switch target {
 				case "backend":
@@ -202,13 +199,13 @@ func TestRetag_MultipleTargets(t *testing.T) {
 					originalImage = frontendImage
 				}
 
-				for _, newTag := range newTags {
-					err := testutils.CheckTagExists(newTag)
-					assert.NoError(t, err, "Failed to check retagged image %s for target %s: %s", newTag, target, err)
+				for _, pair := range pairs {
+					err := testutils.CheckTagExists(pair.NewTag)
+					assert.NoError(t, err, "Failed to check retagged image %s for target %s: %s", pair.NewTag, target, err)
 
 					// For multi-platform images, also check that all original digests are preserved
 					if tc.verifyManifest {
-						checkMultiPlatformManifest(t, newTag, originalImage)
+						checkMultiPlatformManifest(t, pair.NewTag, originalImage)
 					}
 				}
 			}
@@ -216,39 +213,30 @@ func TestRetag_MultipleTargets(t *testing.T) {
 	}
 }
 
-func TestRetag_DifferentTargetCounts(t *testing.T) {
-	testID := rand.IntN(10000000000)
-	originalImage := testutils.CreateTestImage(t, fmt.Sprintf("testapp-%d", testID), "v1.0.0")
-
-	latestTagByTarget := map[string]string{
-		"default": originalImage,
-	}
-	newTagsByTarget := map[string][]string{
-		"default": {fmt.Sprintf("%s/testapp-%d:v1.1.0", "localhost:5000", testID)},
-		"extra":   {fmt.Sprintf("%s/extra-%d:v1.1.0", "localhost:5000", testID)},
-	}
-
-	// Test should fail because target counts don't match
-	err := Retag(latestTagByTarget, newTagsByTarget, false)
+func TestRetag_EmptyCacheTagPairs(t *testing.T) {
+	// Test should fail because no cache tag pairs provided
+	emptyCacheTagPairs := map[string][]CacheTagPair{}
+	err := Retag(emptyCacheTagPairs, false)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "different amount of targets between cache and new tags")
+	assert.Contains(t, err.Error(), "no cache tag pairs provided")
 }
 
-func TestRetag_DifferentTargets(t *testing.T) {
+func TestRetag_CrossRepositoryRetag(t *testing.T) {
 	testID := rand.IntN(10000000000)
 	originalImage := testutils.CreateTestImage(t, fmt.Sprintf("testapp-%d", testID), "v1.0.0")
 
-	latestTagByTarget := map[string]string{
-		"default": originalImage,
-	}
-	newTagsByTarget := map[string][]string{
-		"different_target": {fmt.Sprintf("%s/testapp-%d:v1.1.0", "localhost:5000", testID)},
+	// Try to retag from one repository to a different repository - should fail
+	differentRepoTag := fmt.Sprintf("%s/different-repo-%d:v1.1.0", "localhost:5000", testID)
+	cacheTagPairsByTarget := map[string][]CacheTagPair{
+		"default": {
+			{CacheTag: originalImage, NewTag: differentRepoTag},
+		},
 	}
 
-	// Test should fail because targets don't match
-	err := Retag(latestTagByTarget, newTagsByTarget, false)
+	// Test should fail because retagging across repositories is not supported
+	err := Retag(cacheTagPairsByTarget, false)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "different targets between cache and new tags")
+	assert.Contains(t, err.Error(), "retagging across repositories is not supported")
 }
 
 func TestRetag_DryRun(t *testing.T) {
@@ -282,20 +270,19 @@ func TestRetag_DryRun(t *testing.T) {
 				originalImage = testutils.CreateTestImage(t, fmt.Sprintf("%s-%d", tc.imageName, testID), "v1.0.0")
 			}
 
-			// Create parsed command
-			latestTagByTarget := map[string]string{
-				"default": originalImage,
-			}
-			newTagsByTarget := map[string][]string{
-				"default": {fmt.Sprintf("%s/%s-%d:v1.1.0", "localhost:5000", tc.imageName, testID)},
+			// Create cache tag pairs
+			newTag := fmt.Sprintf("%s/%s-%d:v1.1.0", "localhost:5000", tc.imageName, testID)
+			cacheTagPairsByTarget := map[string][]CacheTagPair{
+				"default": {
+					{CacheTag: originalImage, NewTag: newTag},
+				},
 			}
 
 			// Test dry run - should not actually retag
-			err := Retag(latestTagByTarget, newTagsByTarget, true)
+			err := Retag(cacheTagPairsByTarget, true)
 			assert.NoError(t, err)
 
 			// Verify the new tag doesn't exist (because it was dry run)
-			newTag := newTagsByTarget["default"][0]
 			err = testutils.CheckTagExists(newTag)
 			assert.Error(t, err, "Image should not exist in dry run mode: %s", newTag)
 		})

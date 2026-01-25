@@ -32,10 +32,10 @@ Just prepend your docker build commands like this: `mimosa remember -- docker bu
 
 
 * It calculates a unique hash based on your docker command, build context, and your `Dockerfile`/`.dockerignore` files.  
-* It saves the hash-tag map to the cache.  
+* It saves the hash as a tag to your remote registry.  
 * If it calculates the same hash in the future, it simply retags the already built image instead of rebuilding.  
 * All without downloading or reuploading the image - that's what makes it fast.  
-* If it hasn't seen the hash before, it builds the image as normal - no tricks. The hash is then saved to the cache for future use.
+* If it hasn't seen the hash before, it builds the image as normal - no tricks. The hash is then saved as a tag for future use.
 * Falls back to normal command execution in case of any errors.
 
 # Key Features
@@ -47,13 +47,13 @@ Just prepend your docker build commands like this: `mimosa remember -- docker bu
   Mimosa automatically detects the build context, Dockerfile, bakefile and `.dockerignore` (including custom-named dockerignore files). It accounts for exactly what's needed to ensure that your build gets a unique cache key. It ignores all files specified in your `.dockerignore`, so a well-maintained `.dockerignore` makes all the difference.
 
 - **Seamless Integration with GitHub Actions:**  
-  `mimosa` works with `actions/cache` as well as its own `hytromo/mimosa/gh/cache-action` action, which offers repository-scoped caching [instead of branch-scoped](https://docs.github.com/en/actions/reference/dependency-caching-reference#restrictions-for-accessing-a-cache) - which means that all your branches can have unrestricted access to the same cache at the same time.
+  `mimosa` works seamlessly with GitHub Actions - just replace `docker/build-push-action` with `hytromo/mimosa/gh/build-push-action`.
 
 # Installation
 
 ## Inside GitHub Actions
 
-Just replace your `docker/build-push-action` with `hytromo/mimosa/gh/build-push-action` in your GitHub Actions workflow and give read and write access to the `MIMOSA_CACHE` variable.
+Just replace your `docker/build-push-action` with `hytromo/mimosa/gh/build-push-action` in your GitHub Actions workflow.
 
 ```yaml
   - uses: hytromo/mimosa/gh/build-push-action@v6-build-push
@@ -62,9 +62,6 @@ Just replace your `docker/build-push-action` with `hytromo/mimosa/gh/build-push-
       push: "true"
       tags: my-org/my-image:${{ github.sha }}
       context: .
-      mimosa-cache-github-token: ${{ secrets.WRITE_VARIABLES_GH_PAT }}
-    env:
-      MIMOSA_CACHE: ${{ vars.MIMOSA_CACHE }}
 ```
 
 See the [GitHub Action docs](./docs/gh-actions/README.md) for details on how to use `mimosa` in your GitHub Actions.
@@ -89,29 +86,12 @@ mimosa remember -- docker buildx build --build-arg MYARG=MYVALUE --platform linu
 # Docker Bake support - cache multiple targets and tags
 mimosa remember -- docker buildx bake -f docker-bake.hcl
 
-# dry run - do not build, retag or write to cache, just show what would happen
+# dry run - do not build or retag, just show what would happen
 mimosa remember --dry-run -- docker buildx build --build-arg MYARG=MYVALUE --platform linux/amd64,linux/arm64 --push -t hytromo/mimosa-example:v2 .
 ```
 
-* The `remember` subcommand tells Mimosa to retag the image, if the same build has been run before, otherwise to run and cache the build.
+* The `remember` subcommand tells Mimosa to retag the image, if the same build has been run before, otherwise to run the build and save the hash as a tag.
 * The rest of the command is exactly what you'd pass to `docker buildx build/bake`.
-
-## Cache
-
-### Cache Management
-
-```sh
-mimosa cache --show # Show where the cache is being saved
-
-# forget cache associated with a specific build - this influences the local cache only, it doesn't touch the remote registry
-mimosa forget -- docker buildx build --build-arg MYARG=MYVALUE --platform linux/amd64,linux/arm64 --push -t hytromo/mimosa-example:v1 .
-
-mimosa forget --older-than 6M # Forget entries older than 6 months
-mimosa forget --older-than 24h # Forget entries older than 24 hours
-
-mimosa forget --older-than 1y --yes # No user prompt
-mimosa forget --everything # Delete all entries
-```
 
 ## Shell completion
 
@@ -141,11 +121,11 @@ Mimosa analyzes the docker command and understands what your build context is, w
 
 ## What about remote URLs as build context?
 
-Mimosa does not support remote URLs (e.g., Git repositories or tarballs) as build context. If you use a remote URL, Mimosa will fall back to running the docker command normally without caching the build.
+Mimosa does not support remote URLs (e.g., Git repositories or tarballs) as build context. If you use a remote URL, Mimosa will fall back to running the docker command normally without saving the hash.
 
 ## How does it work for multiple targets in a bakefile?
 
-If you are using `docker buildx bake`, a single cache is created for the whole build - in this cache the generated tag(s) are saved for each target separately.
+If you are using `docker buildx bake`, a single hash is calculated for the whole build - with this hash the generated tag(s) are saved for each target separately.
 
 This means practically that if a single target changes, the whole build is invalidated and all the targets need to be rebuilt. This is a design decision, because `mimosa` is not a build tool - it doesn't decide how to build the targets - so building some of the targets itself while retagging others is out of the scope of this application. To make things more complex, [targets can depend on each other](https://docs.docker.com/build/bake/contexts/#using-a-target-as-a-build-context) - so it is the safe choice to invalidate the whole build.
 
