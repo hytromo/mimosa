@@ -33,7 +33,6 @@ func HandleRememberOrForgetSubcommands(rememberOptions configuration.RememberSub
 	if !hasPushFlag(commandToRun) {
 		// unsafe to continue without a --push flag, because command success does not guarantee that the tags were pushed to the registry
 		err := errors.New("--push flag not found, skipping caching behavior and running command directly")
-		slog.Warn(err.Error())
 		fallbackToSimpleCommandExecution(err, dryRun, act, commandToRun)
 		return err
 	}
