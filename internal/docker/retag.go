@@ -114,13 +114,6 @@ func Retag(cacheTagPairsByTarget map[string][]CacheTagPair, dryRun bool) error {
 
 	slog.Info("Retagging from cache", "targets", len(cacheTagPairsByTarget), "totalOperations", nWorkers)
 
-	// let's print explicitly the FROM->TO tags
-	for target, pairs := range cacheTagPairsByTarget {
-		for _, pair := range pairs {
-			slog.Info("Retagging", "target", target, "from", pair.CacheTag, "to", pair.NewTag)
-		}
-	}
-
 	var wg sync.WaitGroup
 	wg.Add(nWorkers)
 
@@ -134,7 +127,7 @@ func Retag(cacheTagPairsByTarget map[string][]CacheTagPair, dryRun bool) error {
 			slog.Info("Skipping retagging to itself", "tag", fromTag)
 			return
 		}
-		slog.Debug("Retagging", "from", fromTag, "to", toTag)
+		slog.Info("Retagging", "from", fromTag, "to", toTag)
 		if err := RetagSingleTag(fromTag, toTag, dryRun); err != nil {
 			errChan <- fmt.Errorf("failed to retag %s -> %s: %w", fromTag, toTag, err)
 		}
