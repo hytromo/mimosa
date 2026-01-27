@@ -149,14 +149,14 @@ runs:
     - name: Setup Mimosa
       if: inputs.mimosa-setup-enabled == 'true'
       id: setup-mimosa
-      uses: hytromo/mimosa/gh/setup-action@v6-build-push
+      uses: hytromo/mimosa/gh/setup-action@v6.0.1-build-push
       with:
         version: ${{ inputs.mimosa-setup-version }}
         tools-file: ${{ inputs.mimosa-setup-tools-file }}
 
     - name: Build and push Docker image
       id: build-push
-      uses: hytromo/mimosa/gh/.almost-original-build-push-action@v6-build-push
+      uses: hytromo/mimosa/gh/.almost-original-build-push-action@v6.0.1-build-push
       with:
         add-hosts: ${{ inputs.add-hosts }}
         allow: ${{ inputs.allow }}
