@@ -128,12 +128,11 @@ async def run_command_with_expectations(
             else:
                 print(f"👍 Extra output expectation met: {extra_output_expectation}")
 
-        if not cache_hit:
-            # the original manifests need to include information about the platforms
-            await assert_tags_have_platforms(
-                command.tagsByTarget,
-                ["linux/amd64", "linux/arm64"],
-            )
+        # All manifests (both fresh builds and retags from cache) must include platform info
+        await assert_tags_have_platforms(
+            command.tagsByTarget,
+            ["linux/amd64", "linux/arm64"],
+        )
 
         if (
             cache_hit

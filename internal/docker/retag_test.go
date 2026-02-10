@@ -330,10 +330,10 @@ func TestSimpleRetag_NonExistentSource(t *testing.T) {
 	// Test with non-existent source image
 	err := SimpleRetag("nonexistent/image:tag", newTag)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to get image from source reference")
+	assert.Contains(t, err.Error(), "failed to get descriptor from source reference")
 }
 
-// checkMultiPlatformManifest checks if a multi-platform image has the same digests as the original
+// checkMultiPlatformManifest checks if a multi-platform image has the same digests and platform info as the original
 func checkMultiPlatformManifest(t *testing.T, imageTag string, originalImageTag string) {
 	// Helper function to get manifest list from image tag
 	getManifestList := func(tag string, description string) (*name.Reference, *v1.IndexManifest) {
@@ -359,10 +359,22 @@ func checkMultiPlatformManifest(t *testing.T, imageTag string, originalImageTag 
 	// Get original image manifest list
 	originalRef, originalIndexManifest := getManifestList(originalImageTag, "original")
 
-	// Get original digests
+	// Get original digests and their platform info
+	type digestPlatform struct {
+		OS           string
+		Architecture string
+	}
 	originalDigests := make(map[string]bool)
+	originalPlatforms := make(map[string]digestPlatform)
 	for _, descriptor := range originalIndexManifest.Manifests {
-		originalDigests[descriptor.Digest.String()] = true
+		digest := descriptor.Digest.String()
+		originalDigests[digest] = true
+		if descriptor.Platform != nil {
+			originalPlatforms[digest] = digestPlatform{
+				OS:           descriptor.Platform.OS,
+				Architecture: descriptor.Platform.Architecture,
+			}
+		}
 	}
 
 	// Assert that original manifest list has at least 2 manifests
@@ -376,7 +388,7 @@ func checkMultiPlatformManifest(t *testing.T, imageTag string, originalImageTag 
 	assert.GreaterOrEqual(t, len(indexManifest.Manifests), 2,
 		"Retagged image %s should have at least 2 manifests, but has %d", *ref, len(indexManifest.Manifests))
 
-	// Check that all original digests are present
+	// Check that all original digests are present and platform info is preserved
 	foundDigests := make(map[string]bool)
 	for _, descriptor := range indexManifest.Manifests {
 		digest := descriptor.Digest.String()
@@ -388,6 +400,16 @@ func checkMultiPlatformManifest(t *testing.T, imageTag string, originalImageTag 
 
 		_, err = remote.Get(digestRef)
 		require.NoError(t, err, "Failed to get manifest for digest %s", digest)
+
+		// Verify platform info is preserved (os and architecture must not be empty)
+		if origPlat, ok := originalPlatforms[digest]; ok {
+			require.NotNil(t, descriptor.Platform,
+				"Retagged manifest %s should have platform info, but it is nil", digest)
+			assert.Equal(t, origPlat.OS, descriptor.Platform.OS,
+				"Retagged manifest %s should have OS=%q, got %q", digest, origPlat.OS, descriptor.Platform.OS)
+			assert.Equal(t, origPlat.Architecture, descriptor.Platform.Architecture,
+				"Retagged manifest %s should have Architecture=%q, got %q", digest, origPlat.Architecture, descriptor.Platform.Architecture)
+		}
 	}
 
 	// Verify all original digests are present
@@ -397,5 +419,5 @@ func checkMultiPlatformManifest(t *testing.T, imageTag string, originalImageTag 
 			originalDigest, *ref, foundDigests)
 	}
 
-	t.Logf("Multi-platform image %s contains all original digests: %v", *ref, originalDigests)
+	t.Logf("Multi-platform image %s contains all original digests with preserved platform info: %v", *ref, originalDigests)
 }

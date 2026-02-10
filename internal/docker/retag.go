@@ -49,17 +49,13 @@ func RetagSingleTag(fromTag string, toTag string, dryRun bool) error {
 			return err
 		}
 
-		// Get the manifest descriptors for each platform
+		// Get the manifest descriptors for each platform (preserving platform metadata)
 		manifestList, err := index.IndexManifest()
 		if err != nil {
 			slog.Debug("Failed to get manifest list", "fromTag", fromTag, "error", err)
 			return err
 		}
-		var manifestsToRepush []string
-		for _, manifest := range manifestList.Manifests {
-			manifestsToRepush = append(manifestsToRepush, manifest.Digest.String())
-		}
-		if len(manifestsToRepush) == 0 {
+		if len(manifestList.Manifests) == 0 {
 			return fmt.Errorf("no manifests to repush from %v", fromTag)
 		}
 
@@ -67,9 +63,9 @@ func RetagSingleTag(fromTag string, toTag string, dryRun bool) error {
 		imageName := fmt.Sprintf("%s/%s", fromRef.Registry, fromRef.ImageName)
 		bareNewTagName := toRef.Tag
 
-		slog.Debug("image will be created", "imageName", imageName, "tag", bareNewTagName, "manifests", manifestsToRepush)
+		slog.Debug("image will be created", "imageName", imageName, "tag", bareNewTagName, "manifests", len(manifestList.Manifests))
 
-		err = PublishManifestsUnderTag(imageName, bareNewTagName, manifestsToRepush)
+		err = PublishManifestsUnderTag(imageName, bareNewTagName, manifestList.Manifests)
 
 		if err != nil {
 			slog.Debug("Failed to repush manifests", "fromTag", fromTag, "error", err)
@@ -173,17 +169,36 @@ func SimpleRetag(source, target string) error {
 		return fmt.Errorf("failed to parse destination reference: %w", err)
 	}
 
-	// Get the image from the source tag
-	img, err := remote.Image(srcRef, remote.WithAuthFromKeychain(Keychain))
+	// Fetch the descriptor to determine if it's an index or a single image.
+	// Modern Docker Desktop may create OCI indexes even for single-platform builds
+	// (e.g., with attestation manifests), so we must handle both cases.
+	desc, err := Get(srcRef)
 	if err != nil {
-		slog.Debug("Failed to get image from source reference", "error", err)
-		return fmt.Errorf("failed to get image from source reference: %w", err)
+		slog.Debug("Failed to get descriptor from source reference", "error", err)
+		return fmt.Errorf("failed to get descriptor from source reference: %w", err)
 	}
 
-	// Write the same image to the new tag
-	if err := remote.Write(dstRef, img, remote.WithAuthFromKeychain(Keychain)); err != nil {
-		slog.Debug("Failed to write image to new tag", "error", err)
-		return err
+	switch desc.MediaType {
+	case types.OCIImageIndex, types.DockerManifestList:
+		idx, err := desc.ImageIndex()
+		if err != nil {
+			slog.Debug("Failed to get image index from source reference", "error", err)
+			return fmt.Errorf("failed to get image index from source reference: %w", err)
+		}
+		if err := WriteIndex(dstRef, idx); err != nil {
+			slog.Debug("Failed to write index to new tag", "error", err)
+			return fmt.Errorf("failed to write index to new tag: %w", err)
+		}
+	default:
+		img, err := desc.Image()
+		if err != nil {
+			slog.Debug("Failed to get image from source reference", "error", err)
+			return fmt.Errorf("failed to get image from source reference: %w", err)
+		}
+		if err := remote.Write(dstRef, img, remote.WithAuthFromKeychain(Keychain)); err != nil {
+			slog.Debug("Failed to write image to new tag", "error", err)
+			return fmt.Errorf("failed to write image to new tag: %w", err)
+		}
 	}
 
 	return nil
