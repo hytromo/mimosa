@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/google/go-containerregistry/pkg/name"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -163,4 +164,48 @@ func GetImageDigests(t *testing.T, imageTag string) []string {
 	require.NoError(t, err, "Failed to get digest for %s", parsed)
 
 	return []string{digest.String()}
+}
+
+// GetImageDescriptors gets the full v1.Descriptor list for an image (including platform info)
+func GetImageDescriptors(t *testing.T, imageTag string) []v1.Descriptor {
+	parsed, err := name.ParseReference(imageTag)
+	require.NoError(t, err, "Failed to parse image tag %s", imageTag)
+
+	manifest, err := remote.Get(parsed)
+	require.NoError(t, err, "Failed to get manifest for %s", parsed)
+
+	// Check if it's a multi-platform image
+	manifestList, err := manifest.ImageIndex()
+	if err == nil {
+		indexManifest, err := manifestList.IndexManifest()
+		require.NoError(t, err, "Failed to get index manifest for %s", parsed)
+		return indexManifest.Manifests
+	}
+
+	// It's a single platform image - build a descriptor from the image metadata
+	img, err := manifest.Image()
+	require.NoError(t, err, "Failed to get image for %s", parsed)
+
+	digest, err := img.Digest()
+	require.NoError(t, err, "Failed to get digest for %s", parsed)
+
+	mt, err := img.MediaType()
+	require.NoError(t, err, "Failed to get media type for %s", parsed)
+
+	size, err := img.Size()
+	require.NoError(t, err, "Failed to get size for %s", parsed)
+
+	desc := v1.Descriptor{
+		MediaType: mt,
+		Size:      size,
+		Digest:    digest,
+	}
+
+	// Try to get platform info from the config file
+	cf, err := img.ConfigFile()
+	if err == nil && cf != nil {
+		desc.Platform = cf.Platform()
+	}
+
+	return []v1.Descriptor{desc}
 }

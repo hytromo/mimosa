@@ -53,6 +53,26 @@ func TestRetagSingle_MultiPlatform(t *testing.T) {
 	checkMultiPlatformManifest(t, newTag, originalImage)
 }
 
+func TestRetagSingle_InvalidFromTagFormat(t *testing.T) {
+	testID := rand.IntN(10000000000)
+	newTag := fmt.Sprintf("%s/testapp-%d:v1.0.0", "localhost:5000", testID)
+
+	// Test with invalid from tag format (ParseTag fails)
+	err := RetagSingleTag("invalid:reference:format", newTag, false)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid image reference")
+}
+
+func TestRetagSingle_InvalidToTagFormat(t *testing.T) {
+	testID := rand.IntN(10000000000)
+	originalImage := testutils.CreateTestImage(t, fmt.Sprintf("testapp-%d", testID), "v1.0.0")
+
+	// Test with invalid to tag format (ParseTag fails)
+	err := RetagSingleTag(originalImage, "invalid:reference:format", false)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid image reference")
+}
+
 func TestRetagSingle_InvalidSourceTag(t *testing.T) {
 	testID := rand.IntN(10000000000)
 	imageName := fmt.Sprintf("%s/testapp-%d", "localhost:5000", testID)
@@ -239,6 +259,48 @@ func TestRetag_CrossRepositoryRetag(t *testing.T) {
 	assert.Contains(t, err.Error(), "retagging across repositories is not supported")
 }
 
+func TestRetag_SkipRetaggingToItself(t *testing.T) {
+	testID := rand.IntN(10000000000)
+	originalImage := testutils.CreateTestImage(t, fmt.Sprintf("testapp-%d", testID), "v1.0.0")
+
+	// Include a pair where cache tag and new tag are the same - should skip
+	newTag := fmt.Sprintf("%s/testapp-%d:v1.1.0", "localhost:5000", testID)
+	cacheTagPairsByTarget := map[string][]CacheTagPair{
+		"default": {
+			{CacheTag: originalImage, NewTag: originalImage}, // skip: same tag
+			{CacheTag: originalImage, NewTag: newTag},         // actual retag
+		},
+	}
+
+	err := Retag(cacheTagPairsByTarget, false)
+	assert.NoError(t, err)
+
+	// Verify the new tag exists (actual retag succeeded)
+	err = testutils.CheckTagExists(newTag)
+	assert.NoError(t, err, "Failed to check retagged image %s: %s", newTag, err)
+}
+
+func TestRetag_WorkerErrorPropagation(t *testing.T) {
+	testID := rand.IntN(10000000000)
+	originalImage := testutils.CreateTestImage(t, fmt.Sprintf("testapp-%d", testID), "v1.0.0")
+	newTag := fmt.Sprintf("%s/testapp-%d:v1.1.0", "localhost:5000", testID)
+
+	// One valid pair, one with non-existent source - error should be propagated
+	nonExistentSource := fmt.Sprintf("%s/nonexistent-%d:nosuchtag", "localhost:5000", testID)
+	nonExistentNewTag := fmt.Sprintf("%s/nonexistent-%d:v2", "localhost:5000", testID)
+	cacheTagPairsByTarget := map[string][]CacheTagPair{
+		"default": {
+			{CacheTag: originalImage, NewTag: newTag},
+			{CacheTag: nonExistentSource, NewTag: nonExistentNewTag},
+		},
+	}
+
+	err := Retag(cacheTagPairsByTarget, false)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to retag")
+	assert.Contains(t, err.Error(), "failed to get descriptor")
+}
+
 func TestRetag_DryRun(t *testing.T) {
 	testCases := []struct {
 		name          string
@@ -330,10 +392,25 @@ func TestSimpleRetag_NonExistentSource(t *testing.T) {
 	// Test with non-existent source image
 	err := SimpleRetag("nonexistent/image:tag", newTag)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to get image from source reference")
+	assert.Contains(t, err.Error(), "failed to get descriptor from source reference")
 }
 
-// checkMultiPlatformManifest checks if a multi-platform image has the same digests as the original
+func TestSimpleRetag_MultiPlatformIndex(t *testing.T) {
+	testID := rand.IntN(10000000000)
+	platforms := []string{"linux/amd64", "linux/arm64"}
+	originalImage := testutils.CreateMultiPlatformTestImage(t, fmt.Sprintf("multiplatform-app-%d", testID), "v1.0.0", platforms)
+	newTag := fmt.Sprintf("%s/multiplatform-app-%d:v1.1.0", "localhost:5000", testID)
+
+	// SimpleRetag handles both single images and multi-platform indexes
+	err := SimpleRetag(originalImage, newTag)
+	assert.NoError(t, err)
+
+	err = testutils.CheckTagExists(newTag)
+	assert.NoError(t, err, "Failed to check retagged image %s: %s", newTag, err)
+	checkMultiPlatformManifest(t, newTag, originalImage)
+}
+
+// checkMultiPlatformManifest checks if a multi-platform image has the same digests and platform info as the original
 func checkMultiPlatformManifest(t *testing.T, imageTag string, originalImageTag string) {
 	// Helper function to get manifest list from image tag
 	getManifestList := func(tag string, description string) (*name.Reference, *v1.IndexManifest) {
@@ -359,10 +436,22 @@ func checkMultiPlatformManifest(t *testing.T, imageTag string, originalImageTag 
 	// Get original image manifest list
 	originalRef, originalIndexManifest := getManifestList(originalImageTag, "original")
 
-	// Get original digests
+	// Get original digests and their platform info
+	type digestPlatform struct {
+		OS           string
+		Architecture string
+	}
 	originalDigests := make(map[string]bool)
+	originalPlatforms := make(map[string]digestPlatform)
 	for _, descriptor := range originalIndexManifest.Manifests {
-		originalDigests[descriptor.Digest.String()] = true
+		digest := descriptor.Digest.String()
+		originalDigests[digest] = true
+		if descriptor.Platform != nil {
+			originalPlatforms[digest] = digestPlatform{
+				OS:           descriptor.Platform.OS,
+				Architecture: descriptor.Platform.Architecture,
+			}
+		}
 	}
 
 	// Assert that original manifest list has at least 2 manifests
@@ -376,7 +465,7 @@ func checkMultiPlatformManifest(t *testing.T, imageTag string, originalImageTag 
 	assert.GreaterOrEqual(t, len(indexManifest.Manifests), 2,
 		"Retagged image %s should have at least 2 manifests, but has %d", *ref, len(indexManifest.Manifests))
 
-	// Check that all original digests are present
+	// Check that all original digests are present and platform info is preserved
 	foundDigests := make(map[string]bool)
 	for _, descriptor := range indexManifest.Manifests {
 		digest := descriptor.Digest.String()
@@ -388,6 +477,16 @@ func checkMultiPlatformManifest(t *testing.T, imageTag string, originalImageTag 
 
 		_, err = remote.Get(digestRef)
 		require.NoError(t, err, "Failed to get manifest for digest %s", digest)
+
+		// Verify platform info is preserved (os and architecture must not be empty)
+		if origPlat, ok := originalPlatforms[digest]; ok {
+			require.NotNil(t, descriptor.Platform,
+				"Retagged manifest %s should have platform info, but it is nil", digest)
+			assert.Equal(t, origPlat.OS, descriptor.Platform.OS,
+				"Retagged manifest %s should have OS=%q, got %q", digest, origPlat.OS, descriptor.Platform.OS)
+			assert.Equal(t, origPlat.Architecture, descriptor.Platform.Architecture,
+				"Retagged manifest %s should have Architecture=%q, got %q", digest, origPlat.Architecture, descriptor.Platform.Architecture)
+		}
 	}
 
 	// Verify all original digests are present
@@ -397,5 +496,5 @@ func checkMultiPlatformManifest(t *testing.T, imageTag string, originalImageTag 
 			originalDigest, *ref, foundDigests)
 	}
 
-	t.Logf("Multi-platform image %s contains all original digests: %v", *ref, originalDigests)
+	t.Logf("Multi-platform image %s contains all original digests with preserved platform info: %v", *ref, originalDigests)
 }

@@ -4,15 +4,16 @@ import (
 	"fmt"
 
 	"github.com/google/go-containerregistry/pkg/name"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
-func PublishManifestsUnderTag(imageName string, tag string, manifests []string) error {
+func PublishManifestsUnderTag(imageName string, tag string, manifests []v1.Descriptor) error {
 	// imageName is the repository (e.g., "registry.example.com/myapp")
 	// tag is the new tag to push to (e.g. "v1.0.0")
-	// manifests are digests that exist in the same repository
+	// manifests are descriptors (including platform info) that exist in the same repository
 
 	if len(manifests) == 0 {
 		return fmt.Errorf("no manifests provided")
@@ -25,9 +26,9 @@ func PublishManifestsUnderTag(imageName string, tag string, manifests []string) 
 
 	var indexManifests []mutate.IndexAddendum
 
-	for _, digest := range manifests {
+	for _, manifest := range manifests {
 		// Fetch manifests from the same repository
-		ref, err := name.NewDigest(fmt.Sprintf("%s@%s", imageName, digest))
+		ref, err := name.NewDigest(fmt.Sprintf("%s@%s", imageName, manifest.Digest.String()))
 		if err != nil {
 			return fmt.Errorf("creating digest ref: %w", err)
 		}
@@ -50,6 +51,9 @@ func PublishManifestsUnderTag(imageName string, tag string, manifests []string) 
 
 		indexManifests = append(indexManifests, mutate.IndexAddendum{
 			Add: add,
+			Descriptor: v1.Descriptor{
+				Platform: manifest.Platform,
+			},
 		})
 	}
 
