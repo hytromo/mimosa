@@ -53,6 +53,26 @@ func TestRetagSingle_MultiPlatform(t *testing.T) {
 	checkMultiPlatformManifest(t, newTag, originalImage)
 }
 
+func TestRetagSingle_InvalidFromTagFormat(t *testing.T) {
+	testID := rand.IntN(10000000000)
+	newTag := fmt.Sprintf("%s/testapp-%d:v1.0.0", "localhost:5000", testID)
+
+	// Test with invalid from tag format (ParseTag fails)
+	err := RetagSingleTag("invalid:reference:format", newTag, false)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid image reference")
+}
+
+func TestRetagSingle_InvalidToTagFormat(t *testing.T) {
+	testID := rand.IntN(10000000000)
+	originalImage := testutils.CreateTestImage(t, fmt.Sprintf("testapp-%d", testID), "v1.0.0")
+
+	// Test with invalid to tag format (ParseTag fails)
+	err := RetagSingleTag(originalImage, "invalid:reference:format", false)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid image reference")
+}
+
 func TestRetagSingle_InvalidSourceTag(t *testing.T) {
 	testID := rand.IntN(10000000000)
 	imageName := fmt.Sprintf("%s/testapp-%d", "localhost:5000", testID)
@@ -239,6 +259,48 @@ func TestRetag_CrossRepositoryRetag(t *testing.T) {
 	assert.Contains(t, err.Error(), "retagging across repositories is not supported")
 }
 
+func TestRetag_SkipRetaggingToItself(t *testing.T) {
+	testID := rand.IntN(10000000000)
+	originalImage := testutils.CreateTestImage(t, fmt.Sprintf("testapp-%d", testID), "v1.0.0")
+
+	// Include a pair where cache tag and new tag are the same - should skip
+	newTag := fmt.Sprintf("%s/testapp-%d:v1.1.0", "localhost:5000", testID)
+	cacheTagPairsByTarget := map[string][]CacheTagPair{
+		"default": {
+			{CacheTag: originalImage, NewTag: originalImage}, // skip: same tag
+			{CacheTag: originalImage, NewTag: newTag},         // actual retag
+		},
+	}
+
+	err := Retag(cacheTagPairsByTarget, false)
+	assert.NoError(t, err)
+
+	// Verify the new tag exists (actual retag succeeded)
+	err = testutils.CheckTagExists(newTag)
+	assert.NoError(t, err, "Failed to check retagged image %s: %s", newTag, err)
+}
+
+func TestRetag_WorkerErrorPropagation(t *testing.T) {
+	testID := rand.IntN(10000000000)
+	originalImage := testutils.CreateTestImage(t, fmt.Sprintf("testapp-%d", testID), "v1.0.0")
+	newTag := fmt.Sprintf("%s/testapp-%d:v1.1.0", "localhost:5000", testID)
+
+	// One valid pair, one with non-existent source - error should be propagated
+	nonExistentSource := fmt.Sprintf("%s/nonexistent-%d:nosuchtag", "localhost:5000", testID)
+	nonExistentNewTag := fmt.Sprintf("%s/nonexistent-%d:v2", "localhost:5000", testID)
+	cacheTagPairsByTarget := map[string][]CacheTagPair{
+		"default": {
+			{CacheTag: originalImage, NewTag: newTag},
+			{CacheTag: nonExistentSource, NewTag: nonExistentNewTag},
+		},
+	}
+
+	err := Retag(cacheTagPairsByTarget, false)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to retag")
+	assert.Contains(t, err.Error(), "failed to get descriptor")
+}
+
 func TestRetag_DryRun(t *testing.T) {
 	testCases := []struct {
 		name          string
@@ -331,6 +393,21 @@ func TestSimpleRetag_NonExistentSource(t *testing.T) {
 	err := SimpleRetag("nonexistent/image:tag", newTag)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to get descriptor from source reference")
+}
+
+func TestSimpleRetag_MultiPlatformIndex(t *testing.T) {
+	testID := rand.IntN(10000000000)
+	platforms := []string{"linux/amd64", "linux/arm64"}
+	originalImage := testutils.CreateMultiPlatformTestImage(t, fmt.Sprintf("multiplatform-app-%d", testID), "v1.0.0", platforms)
+	newTag := fmt.Sprintf("%s/multiplatform-app-%d:v1.1.0", "localhost:5000", testID)
+
+	// SimpleRetag handles both single images and multi-platform indexes
+	err := SimpleRetag(originalImage, newTag)
+	assert.NoError(t, err)
+
+	err = testutils.CheckTagExists(newTag)
+	assert.NoError(t, err, "Failed to check retagged image %s: %s", newTag, err)
+	checkMultiPlatformManifest(t, newTag, originalImage)
 }
 
 // checkMultiPlatformManifest checks if a multi-platform image has the same digests and platform info as the original
