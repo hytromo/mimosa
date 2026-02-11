@@ -268,7 +268,7 @@ func TestRetag_SkipRetaggingToItself(t *testing.T) {
 	cacheTagPairsByTarget := map[string][]CacheTagPair{
 		"default": {
 			{CacheTag: originalImage, NewTag: originalImage}, // skip: same tag
-			{CacheTag: originalImage, NewTag: newTag},         // actual retag
+			{CacheTag: originalImage, NewTag: newTag},        // actual retag
 		},
 	}
 
@@ -349,65 +349,6 @@ func TestRetag_DryRun(t *testing.T) {
 			assert.Error(t, err, "Image should not exist in dry run mode: %s", newTag)
 		})
 	}
-}
-
-func TestSimpleRetag_Success(t *testing.T) {
-	testID := rand.IntN(10000000000)
-	originalImage := testutils.CreateTestImage(t, fmt.Sprintf("testapp-%d", testID), "v1.0.0")
-	newTag := fmt.Sprintf("%s/testapp-%d:v1.1.0", "localhost:5000", testID)
-
-	// Test simple retag
-	err := SimpleRetag(originalImage, newTag)
-	assert.NoError(t, err)
-
-	// Verify the new tag exists
-	err = testutils.CheckTagExists(newTag)
-	assert.NoError(t, err, "Failed to check retagged image %s: %s", newTag, err)
-}
-
-func TestSimpleRetag_InvalidSourceReference(t *testing.T) {
-	testID := rand.IntN(10000000000)
-	newTag := fmt.Sprintf("%s/testapp-%d:v1.0.0", "localhost:5000", testID)
-
-	// Test with invalid source reference
-	err := SimpleRetag("invalid:reference:format", newTag)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to parse source reference")
-}
-
-func TestSimpleRetag_InvalidTargetReference(t *testing.T) {
-	testID := rand.IntN(10000000000)
-	originalImage := testutils.CreateTestImage(t, fmt.Sprintf("testapp-%d", testID), "v1.0.0")
-
-	// Test with invalid target reference
-	err := SimpleRetag(originalImage, "invalid:reference:format")
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to parse destination reference")
-}
-
-func TestSimpleRetag_NonExistentSource(t *testing.T) {
-	testID := rand.IntN(10000000000)
-	newTag := fmt.Sprintf("%s/testapp-%d:v1.0.0", "localhost:5000", testID)
-
-	// Test with non-existent source image
-	err := SimpleRetag("nonexistent/image:tag", newTag)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to get descriptor from source reference")
-}
-
-func TestSimpleRetag_MultiPlatformIndex(t *testing.T) {
-	testID := rand.IntN(10000000000)
-	platforms := []string{"linux/amd64", "linux/arm64"}
-	originalImage := testutils.CreateMultiPlatformTestImage(t, fmt.Sprintf("multiplatform-app-%d", testID), "v1.0.0", platforms)
-	newTag := fmt.Sprintf("%s/multiplatform-app-%d:v1.1.0", "localhost:5000", testID)
-
-	// SimpleRetag handles both single images and multi-platform indexes
-	err := SimpleRetag(originalImage, newTag)
-	assert.NoError(t, err)
-
-	err = testutils.CheckTagExists(newTag)
-	assert.NoError(t, err, "Failed to check retagged image %s: %s", newTag, err)
-	checkMultiPlatformManifest(t, newTag, originalImage)
 }
 
 // checkMultiPlatformManifest checks if a multi-platform image has the same digests and platform info as the original

@@ -9,7 +9,6 @@ import (
 
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
-	"github.com/google/go-containerregistry/pkg/v1/types"
 	"github.com/hytromo/mimosa/internal/utils/dockerutil"
 )
 
@@ -41,43 +40,18 @@ func RetagSingleTag(fromTag string, toTag string, dryRun bool) error {
 		return nil
 	}
 
-	// Check if it's an index (manifest list)
-	if fromDesc.MediaType == types.OCIImageIndex || fromDesc.MediaType == types.DockerManifestList {
-		index, err := fromDesc.ImageIndex()
-		if err != nil {
-			slog.Debug("Failed to get image index", "fromTag", fromTag, "error", err)
-			return err
-		}
+	// Use descriptor-based tagging: since source and destination are in the same
+	// repository, the registry already has all blobs/manifests. We just point
+	// the new tag at the existing descriptor (works for both images and indexes).
+	dstTag, err := name.NewTag(toTag)
+	if err != nil {
+		slog.Debug("Failed to parse destination as tag", "toTag", toTag, "error", err)
+		return fmt.Errorf("failed to parse destination tag: %w", err)
+	}
 
-		// Get the manifest descriptors for each platform (preserving platform metadata)
-		manifestList, err := index.IndexManifest()
-		if err != nil {
-			slog.Debug("Failed to get manifest list", "fromTag", fromTag, "error", err)
-			return err
-		}
-		if len(manifestList.Manifests) == 0 {
-			return fmt.Errorf("no manifests to repush from %v", fromTag)
-		}
-
-		// Same repository for source and target (enforced above)
-		imageName := fmt.Sprintf("%s/%s", fromRef.Registry, fromRef.ImageName)
-		bareNewTagName := toRef.Tag
-
-		slog.Debug("image will be created", "imageName", imageName, "tag", bareNewTagName, "manifests", len(manifestList.Manifests))
-
-		err = PublishManifestsUnderTag(imageName, bareNewTagName, manifestList.Manifests)
-
-		if err != nil {
-			slog.Debug("Failed to repush manifests", "fromTag", fromTag, "error", err)
-			return err
-		}
-	} else {
-		// this means that the tag does not point to an image index, so a simple retagging is enough
-		err = SimpleRetag(fromTag, toTag)
-		if err != nil {
-			slog.Debug("Failed to retag", "fromTag", fromTag, "toTag", toTag, "error", err)
-			return err
-		}
+	if err := remote.Tag(dstTag, fromDesc, remote.WithAuthFromKeychain(Keychain)); err != nil {
+		slog.Debug("Failed to tag descriptor", "fromTag", fromTag, "toTag", toTag, "error", err)
+		return fmt.Errorf("failed to tag %s -> %s: %w", fromTag, toTag, err)
 	}
 
 	return nil
@@ -151,54 +125,6 @@ func Retag(cacheTagPairsByTarget map[string][]CacheTagPair, dryRun bool) error {
 
 	if len(allErrs) > 0 {
 		return errors.Join(allErrs...)
-	}
-
-	return nil
-}
-
-func SimpleRetag(source, target string) error {
-	srcRef, err := name.ParseReference(source)
-	if err != nil {
-		slog.Debug("Failed to parse source reference", "error", err)
-		return fmt.Errorf("failed to parse source reference: %w", err)
-	}
-
-	dstRef, err := name.ParseReference(target)
-	if err != nil {
-		slog.Debug("Failed to parse destination reference", "error", err)
-		return fmt.Errorf("failed to parse destination reference: %w", err)
-	}
-
-	// Fetch the descriptor to determine if it's an index or a single image.
-	// Modern Docker Desktop may create OCI indexes even for single-platform builds
-	// (e.g., with attestation manifests), so we must handle both cases.
-	desc, err := Get(srcRef)
-	if err != nil {
-		slog.Debug("Failed to get descriptor from source reference", "error", err)
-		return fmt.Errorf("failed to get descriptor from source reference: %w", err)
-	}
-
-	switch desc.MediaType {
-	case types.OCIImageIndex, types.DockerManifestList:
-		idx, err := desc.ImageIndex()
-		if err != nil {
-			slog.Debug("Failed to get image index from source reference", "error", err)
-			return fmt.Errorf("failed to get image index from source reference: %w", err)
-		}
-		if err := WriteIndex(dstRef, idx); err != nil {
-			slog.Debug("Failed to write index to new tag", "error", err)
-			return fmt.Errorf("failed to write index to new tag: %w", err)
-		}
-	default:
-		img, err := desc.Image()
-		if err != nil {
-			slog.Debug("Failed to get image from source reference", "error", err)
-			return fmt.Errorf("failed to get image from source reference: %w", err)
-		}
-		if err := remote.Write(dstRef, img, remote.WithAuthFromKeychain(Keychain)); err != nil {
-			slog.Debug("Failed to write image to new tag", "error", err)
-			return fmt.Errorf("failed to write image to new tag: %w", err)
-		}
 	}
 
 	return nil
