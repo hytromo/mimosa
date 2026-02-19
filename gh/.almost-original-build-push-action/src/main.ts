@@ -104,10 +104,10 @@ actionsToolkit.run(
 
     const buildCmd = await toolkit.buildx.getCommand(args);
     const retagOnly = core.getInput('mimosa-retag-only').toLowerCase() === 'true';
-    const mimosaSubcommand = retagOnly ? 'remember --retag-only' : 'remember';
+    const mimosaArgs = retagOnly ? ['remember', '--retag-only'] : ['remember'];
     const buildCmdModified = {
       command: 'mimosa',
-      args: [mimosaSubcommand, '--', buildCmd.command, ...buildCmd.args]
+      args: [...mimosaArgs, '--', buildCmd.command, ...buildCmd.args]
     };
 
     core.debug(`buildCmdModified.command: ${buildCmdModified.command}`);
