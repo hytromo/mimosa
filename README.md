@@ -88,9 +88,13 @@ mimosa remember -- docker buildx bake -f docker-bake.hcl
 
 # dry run - do not build or retag, just show what would happen
 mimosa remember --dry-run -- docker buildx build --build-arg MYARG=MYVALUE --platform linux/amd64,linux/arm64 --push -t hytromo/mimosa-example:v2 .
+
+# retag-only: on cache miss do not build; only check cache and output mimosa-cache-hit (exit 0). Useful in CI to skip Docker/Buildx setup when cache hits.
+mimosa remember --retag-only -- docker buildx build --platform linux/amd64,linux/arm64 --push -t myorg/image:v1 .
 ```
 
 * The `remember` subcommand tells Mimosa to retag the image, if the same build has been run before, otherwise to run the build and save the hash as a tag.
+* With `--retag-only`, on cache miss Mimosa does not run the build; it only checks the cache, prints `mimosa-cache-hit: false`, and exits 0 so your workflow can run a real build step. On cache hit it retags and prints `mimosa-cache-hit: true`.
 * The rest of the command is exactly what you'd pass to `docker buildx build/bake`.
 
 ## Shell completion
