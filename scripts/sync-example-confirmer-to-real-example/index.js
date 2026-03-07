@@ -39,10 +39,18 @@ if (isMap(jobs)) {
 			const stepNode = stepsNode.items[i];
 			const uses = stepNode.get('uses', true);
 
+			// Skip steps that are only relevant to the confirmer workflow
+			const name = stepNode.get('name', true);
+			if (name?.value === 'Verify cache hit outputs') {
+				indicesToRemove.push(i);
+				continue;
+			}
+
 			if (uses?.value?.includes('actions/setup-go')) {
 				indicesToRemove.push(i);
 				continue;
 			}
+
 			const id = stepNode.get('id', true);
 
 			if (id?.value === 'setup-mimosa') {
