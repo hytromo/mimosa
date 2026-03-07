@@ -54,45 +54,22 @@ if (isMap(jobs)) {
 			if (uses?.value?.includes('./gh/build-push-action')) {
 				stepNode.set('uses', 'hytromo/mimosa/gh/build-push-action@v6-build-push');
 
-				// Remove default values from the example (mimosa-setup-enabled: 'false' since default is 'true')
+				// Remove default values from the example (mimosa-setup-enabled: false since default is true).
+				// Mutate in place to preserve value-level anchors and aliases.
 				const withNode = stepNode.get('with', true);
 				if (withNode && isMap(withNode)) {
-					const hasMergeKey = withNode.items.some(
-						(pair) => isScalar(pair.key) && pair.key.value === '<<'
+					const idx = withNode.items.findIndex(
+						(pair) =>
+							isScalar(pair.key) &&
+							pair.key.value === 'mimosa-setup-enabled' &&
+							isScalar(pair.value) &&
+							(pair.value.value === false || pair.value.value === 'false')
 					);
-					const hasAnchor = withNode.anchor != null;
-
-					if (hasAnchor) {
-						// Node defines an anchor - modify in place to preserve it
-						const idx = withNode.items.findIndex(
-							(pair) =>
-								isScalar(pair.key) &&
-								pair.key.value === 'mimosa-setup-enabled' &&
-								isScalar(pair.value) &&
-								(pair.value.value === false || pair.value.value === 'false')
-						);
-						if (idx !== -1) {
-							withNode.items.splice(idx, 1);
-						}
-					} else if (hasMergeKey) {
-						// Node uses merge (<<: *anchor) - leave as-is to preserve merge
-						// mimosa-setup-enabled is removed from the anchor definition above
-					} else {
-						// Plain map without anchors - rebuild without mimosa-setup-enabled
-						const newWithObj = {};
-						for (const withItem of withNode.items) {
-							const key = withItem.key.value;
-							const value = withItem.value?.value;
-							if (key === 'mimosa-setup-enabled' && value === 'false') {
-								continue;
-							}
-							newWithObj[key] = value;
-						}
-						if (Object.keys(newWithObj).length === 0) {
-							stepNode.delete('with');
-						} else {
-							stepNode.set('with', doc.createNode(newWithObj));
-						}
+					if (idx !== -1) {
+						withNode.items.splice(idx, 1);
+					}
+					if (withNode.items.length === 0) {
+						stepNode.delete('with');
 					}
 				}
 			}

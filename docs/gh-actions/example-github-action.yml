@@ -42,10 +42,10 @@ jobs:
       - name: Retag-only check (Docker Hub)
         id: retag-dockerhub
         uses: hytromo/mimosa/gh/build-push-action@v6-build-push
-        with: &mimosa-retag-with
+        with:
           mimosa-retag-only: true
-          context: docs/gh-actions/actions-example
-          platforms: linux/amd64,linux/arm64
+          context: &mimosa_context docs/gh-actions/actions-example
+          platforms: &mimosa_platforms linux/amd64,linux/arm64
           push: true
           tags: hytromo/mimosa-testing:recommended-example-${{ github.sha }}
 
@@ -53,7 +53,10 @@ jobs:
         id: retag-ecr
         uses: hytromo/mimosa/gh/build-push-action@v6-build-push
         with:
-          <<: *mimosa-retag-with
+          mimosa-retag-only: true
+          context: *mimosa_context
+          platforms: *mimosa_platforms
+          push: true
           tags: ${{ steps.login-ecr.outputs.registry }}/mimosa-testing:recommended-example-${{ github.sha }}
 
       - name: Set up QEMU
@@ -75,9 +78,9 @@ jobs:
         id: build-dockerhub
         if: steps.retag-dockerhub.outputs.mimosa-cache-hit != 'true'
         uses: hytromo/mimosa/gh/build-push-action@v6-build-push
-        with: &mimosa-build-with
-          context: docs/gh-actions/actions-example
-          platforms: linux/amd64,linux/arm64
+        with:
+          context: *mimosa_context
+          platforms: *mimosa_platforms
           push: true
           tags: hytromo/mimosa-testing:recommended-example-${{ github.sha }}
 
@@ -86,7 +89,9 @@ jobs:
         if: steps.retag-ecr.outputs.mimosa-cache-hit != 'true'
         uses: hytromo/mimosa/gh/build-push-action@v6-build-push
         with:
-          <<: *mimosa-build-with
+          context: *mimosa_context
+          platforms: *mimosa_platforms
+          push: true
           tags: ${{ steps.login-ecr.outputs.registry }}/mimosa-testing:recommended-example-${{ github.sha }}
 
       ### That's it! - the next steps are just proving that the cache is working - you DO NOT need to include them in your typical workflow
@@ -100,14 +105,18 @@ jobs:
         id: build-dockerhub-cache-hit
         uses: hytromo/mimosa/gh/build-push-action@v6-build-push
         with:
-          <<: *mimosa-build-with
+          context: *mimosa_context
+          platforms: *mimosa_platforms
+          push: true
           tags: hytromo/mimosa-testing:recommended-example-cache-hit-${{ github.sha }}
 
       - name: Build and push to ECR (cache verification)
         id: build-ecr-cache-hit
         uses: hytromo/mimosa/gh/build-push-action@v6-build-push
         with:
-          <<: *mimosa-build-with
+          context: *mimosa_context
+          platforms: *mimosa_platforms
+          push: true
           tags: ${{ steps.login-ecr.outputs.registry }}/mimosa-testing:recommended-example-cache-hit-${{ github.sha }}
 
       - name: Verify cache hit outputs
