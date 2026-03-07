@@ -42,7 +42,7 @@ jobs:
       - name: Retag-only check (Docker Hub)
         id: retag-dockerhub
         uses: hytromo/mimosa/gh/build-push-action@v6-build-push
-        with:
+        with: &mimosa-retag-with
           mimosa-setup-enabled: false
           mimosa-retag-only: true
           context: docs/gh-actions/actions-example
@@ -54,11 +54,7 @@ jobs:
         id: retag-ecr
         uses: hytromo/mimosa/gh/build-push-action@v6-build-push
         with:
-          mimosa-setup-enabled: false
-          mimosa-retag-only: true
-          context: docs/gh-actions/actions-example
-          platforms: linux/amd64,linux/arm64
-          push: true
+          <<: *mimosa-retag-with
           tags: ${{ steps.login-ecr.outputs.registry }}/mimosa-testing:recommended-example-${{ github.sha }}
 
       - name: Set up QEMU
@@ -80,7 +76,7 @@ jobs:
         id: build-dockerhub
         if: steps.retag-dockerhub.outputs.mimosa-cache-hit != 'true'
         uses: hytromo/mimosa/gh/build-push-action@v6-build-push
-        with:
+        with: &mimosa-build-with
           mimosa-setup-enabled: false
           context: docs/gh-actions/actions-example
           platforms: linux/amd64,linux/arm64
@@ -92,10 +88,7 @@ jobs:
         if: steps.retag-ecr.outputs.mimosa-cache-hit != 'true'
         uses: hytromo/mimosa/gh/build-push-action@v6-build-push
         with:
-          mimosa-setup-enabled: false
-          context: docs/gh-actions/actions-example
-          platforms: linux/amd64,linux/arm64
-          push: true
+          <<: *mimosa-build-with
           tags: ${{ steps.login-ecr.outputs.registry }}/mimosa-testing:recommended-example-${{ github.sha }}
 
       ### That's it! - the next steps are just proving that the cache is working - you DO NOT need to include them in your typical workflow
@@ -109,20 +102,14 @@ jobs:
         id: build-dockerhub-cache-hit
         uses: hytromo/mimosa/gh/build-push-action@v6-build-push
         with:
-          mimosa-setup-enabled: false
-          context: docs/gh-actions/actions-example
-          platforms: linux/amd64,linux/arm64
-          push: true
+          <<: *mimosa-build-with
           tags: hytromo/mimosa-testing:recommended-example-cache-hit-${{ github.sha }}
 
       - name: Build and push to ECR (cache verification)
         id: build-ecr-cache-hit
         uses: hytromo/mimosa/gh/build-push-action@v6-build-push
         with:
-          mimosa-setup-enabled: false
-          context: docs/gh-actions/actions-example
-          platforms: linux/amd64,linux/arm64
-          push: true
+          <<: *mimosa-build-with
           tags: ${{ steps.login-ecr.outputs.registry }}/mimosa-testing:recommended-example-cache-hit-${{ github.sha }}
 
       - name: Verify cache hit outputs
