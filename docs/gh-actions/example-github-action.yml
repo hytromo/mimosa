@@ -43,7 +43,6 @@ jobs:
         id: retag-dockerhub
         uses: hytromo/mimosa/gh/build-push-action@v6-build-push
         with: &mimosa-retag-with
-          mimosa-setup-enabled: false
           mimosa-retag-only: true
           context: docs/gh-actions/actions-example
           platforms: linux/amd64,linux/arm64
@@ -77,7 +76,6 @@ jobs:
         if: steps.retag-dockerhub.outputs.mimosa-cache-hit != 'true'
         uses: hytromo/mimosa/gh/build-push-action@v6-build-push
         with: &mimosa-build-with
-          mimosa-setup-enabled: false
           context: docs/gh-actions/actions-example
           platforms: linux/amd64,linux/arm64
           push: true
