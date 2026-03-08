@@ -61,5 +61,5 @@ func init() {
 	rootCmd.AddCommand(rememberCmd)
 
 	rememberCmd.Flags().BoolP(dryRunFlag, "", false, "Dry run - do not really build or push anything - just show if it would be a cache hit or not")
-	rememberCmd.Flags().Bool("retag-only", false, "On cache miss do not run the build; only check cache and output mimosa-cache-hit (exit 0). On cache hit, retag and output cache-hit")
+	rememberCmd.Flags().Bool("retag-only", false, "On cache miss do not run the real build; on cache hit, retag")
 }
