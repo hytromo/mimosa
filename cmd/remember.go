@@ -40,11 +40,13 @@ var rememberCmd = &cobra.Command{
       mimosa remember -- docker buildx bake -f docker-bake.hcl`,
 	Run: func(cmd *cobra.Command, positionalArgs []string) {
 		dryRun, _ := cmd.Flags().GetBool(dryRunFlag)
+		retagOnly, _ := cmd.Flags().GetBool("retag-only")
 
 		err := orchestrator.HandleRememberSubcommand(
 			configuration.RememberSubcommandOptions{
 				Enabled:      true,
 				DryRun:       dryRun,
+				RetagOnly:    retagOnly,
 				CommandToRun: positionalArgs,
 			},
 			actions.New())
@@ -59,4 +61,5 @@ func init() {
 	rootCmd.AddCommand(rememberCmd)
 
 	rememberCmd.Flags().BoolP(dryRunFlag, "", false, "Dry run - do not really build or push anything - just show if it would be a cache hit or not")
+	rememberCmd.Flags().Bool("retag-only", false, "On cache miss do not run the real build; on cache hit, retag")
 }

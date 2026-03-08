@@ -8,6 +8,7 @@ type RememberSubcommandOptions struct {
 	Enabled      bool
 	CommandToRun []string
 	DryRun       bool
+	RetagOnly    bool
 }
 
 func (r RememberSubcommandOptions) GetCommandToRun() []string {

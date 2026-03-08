@@ -44,19 +44,20 @@ func HandleRememberSubcommand(rememberOptions configuration.RememberSubcommandOp
 	}
 
 	dryRun := rememberOptions.DryRun
+	retagOnly := rememberOptions.RetagOnly
 	commandToRun := rememberOptions.GetCommandToRun()
 
 	if !hasPushFlag(commandToRun) {
 		// unsafe to continue without a --push flag, because command success does not guarantee that the tags were pushed to the registry
 		err := errors.New("--push flag not found, skipping caching behavior and running command directly")
-		fallbackToSimpleCommandExecution(err, dryRun, act, commandToRun)
+		fallbackToSimpleCommandExecution(err, dryRun, retagOnly, act, commandToRun)
 		return err
 	}
 
 	parsedCommand, err := act.ParseCommand(commandToRun)
 
 	if err != nil {
-		fallbackToSimpleCommandExecution(err, dryRun, act, parsedCommand.Command)
+		fallbackToSimpleCommandExecution(err, dryRun, retagOnly, act, parsedCommand.Command)
 		return err
 	}
 
@@ -66,7 +67,7 @@ func HandleRememberSubcommand(rememberOptions configuration.RememberSubcommandOp
 	exists, cacheTagsByTarget, err := act.CheckRegistryCacheExists(parsedCommand.Hash, parsedCommand.TagsByTarget)
 	if err != nil {
 		slog.Warn("Error checking registry cache, falling back to command execution", "error", err)
-		fallbackToSimpleCommandExecution(err, dryRun, act, parsedCommand.Command)
+		fallbackToSimpleCommandExecution(err, dryRun, retagOnly, act, parsedCommand.Command)
 		return err
 	}
 
@@ -76,9 +77,12 @@ func HandleRememberSubcommand(rememberOptions configuration.RememberSubcommandOp
 		// Retag from cache tags to requested tags (each pair is cache tag -> new tag in the SAME repository)
 		err = act.RetagFromCacheTags(cacheTagsByTarget, dryRun)
 		if err != nil {
-			fallbackToSimpleCommandExecution(err, dryRun, act, parsedCommand.Command)
+			fallbackToSimpleCommandExecution(err, dryRun, retagOnly, act, parsedCommand.Command)
 			return err
 		}
+	} else if rememberOptions.RetagOnly {
+		// Retag-only mode: on cache miss do not build or save cache; just report cache miss and exit 0
+		// so the workflow can run a real build step.
 	} else {
 		// Run command
 		exitCode := act.RunCommand(dryRun, parsedCommand.Command)
@@ -102,7 +106,11 @@ func HandleRememberSubcommand(rememberOptions configuration.RememberSubcommandOp
 	return nil
 }
 
-func fallbackToSimpleCommandExecution(err error, dryRun bool, act actions.Actions, commandToRun []string) {
+func fallbackToSimpleCommandExecution(err error, dryRun, retagOnly bool, act actions.Actions, commandToRun []string) {
+	if retagOnly {
+		return
+	}
+
 	slog.Error("Falling back to plain command execution", "command", commandToRun, "error", err.Error())
 
 	exitCode := act.RunCommand(dryRun, commandToRun)

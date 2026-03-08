@@ -317,3 +317,173 @@ func TestRun_DryRunMode(t *testing.T) {
 	assert.NoError(t, err)
 	mockActions.AssertExpectations(t)
 }
+
+func TestRun_RememberEnabled_RetagOnly_CacheHit(t *testing.T) {
+	rememberOptions := configuration.RememberSubcommandOptions{
+		Enabled:      true,
+		CommandToRun: []string{"docker", "build", "--push", "-t", "myreg1/myimage:v1", "."},
+		DryRun:       false,
+		RetagOnly:    true,
+	}
+
+	mockActions := &MockActions{}
+
+	parsedCommand := configuration.ParsedCommand{
+		Hash:         TestHash,
+		Command:      []string{"docker", "build", "--push", "-t", "myreg1/myimage:v1", "."},
+		TagsByTarget: map[string][]string{"default": {"myreg1/myimage:v1"}},
+	}
+
+	cacheTagPairs := map[string][]cacher.CacheTagPair{
+		"default": {
+			{CacheTag: "myreg1/myimage:mimosa-content-hash-" + TestHash, NewTag: "myreg1/myimage:v1"},
+		},
+	}
+
+	mockActions.On("ParseCommand", []string{"docker", "build", "--push", "-t", "myreg1/myimage:v1", "."}).Return(parsedCommand, nil)
+	mockActions.On("CheckRegistryCacheExists", TestHash, parsedCommand.TagsByTarget).Return(true, cacheTagPairs, nil)
+	mockActions.On("RetagFromCacheTags", cacheTagPairs, false).Return(nil)
+
+	err := HandleRememberSubcommand(rememberOptions, mockActions)
+
+	assert.NoError(t, err)
+	mockActions.AssertExpectations(t)
+	// RunCommand and SaveRegistryCacheTags must NOT be called
+	mockActions.AssertNotCalled(t, "RunCommand")
+	mockActions.AssertNotCalled(t, "SaveRegistryCacheTags")
+}
+
+func TestRun_RememberEnabled_RetagOnly_CacheMiss(t *testing.T) {
+	rememberOptions := configuration.RememberSubcommandOptions{
+		Enabled:      true,
+		CommandToRun: []string{"docker", "build", "--push", "-t", "myreg1/myimage:v1", "."},
+		DryRun:       false,
+		RetagOnly:    true,
+	}
+
+	mockActions := &MockActions{}
+
+	parsedCommand := configuration.ParsedCommand{
+		Hash:         TestHash,
+		Command:      []string{"docker", "build", "--push", "-t", "myreg1/myimage:v1", "."},
+		TagsByTarget: map[string][]string{"default": {"myreg1/myimage:v1"}},
+	}
+
+	mockActions.On("ParseCommand", []string{"docker", "build", "--push", "-t", "myreg1/myimage:v1", "."}).Return(parsedCommand, nil)
+	mockActions.On("CheckRegistryCacheExists", TestHash, parsedCommand.TagsByTarget).Return(false, nil, nil)
+
+	err := HandleRememberSubcommand(rememberOptions, mockActions)
+
+	assert.NoError(t, err)
+	mockActions.AssertExpectations(t)
+	// On cache miss with RetagOnly: no RunCommand, no SaveRegistryCacheTags, no RetagFromCacheTags
+	mockActions.AssertNotCalled(t, "RunCommand")
+	mockActions.AssertNotCalled(t, "SaveRegistryCacheTags")
+	mockActions.AssertNotCalled(t, "RetagFromCacheTags")
+}
+
+func TestRun_RememberEnabled_RetagOnly_NoPush_ReturnsError_NoRunCommand(t *testing.T) {
+	rememberOptions := configuration.RememberSubcommandOptions{
+		Enabled:      true,
+		CommandToRun: []string{"docker", "build", "-t", "myreg1/myimage:v1", "."},
+		DryRun:       false,
+		RetagOnly:    true,
+	}
+
+	mockActions := &MockActions{}
+
+	err := HandleRememberSubcommand(rememberOptions, mockActions)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "--push flag not found")
+	mockActions.AssertExpectations(t)
+	mockActions.AssertNotCalled(t, "ParseCommand")
+	mockActions.AssertNotCalled(t, "RunCommand")
+	mockActions.AssertNotCalled(t, "ExitProcessWithCode")
+}
+
+func TestRun_RememberEnabled_RetagOnly_ParseCommandError_ReturnsError_NoRunCommand(t *testing.T) {
+	rememberOptions := configuration.RememberSubcommandOptions{
+		Enabled:      true,
+		CommandToRun: []string{"invalid", "--push", "command"},
+		DryRun:       false,
+		RetagOnly:    true,
+	}
+
+	mockActions := &MockActions{}
+
+	mockActions.On("ParseCommand", []string{"invalid", "--push", "command"}).Return(configuration.ParsedCommand{
+		Command: []string{"invalid", "--push", "command"},
+	}, errors.New("parse error"))
+
+	err := HandleRememberSubcommand(rememberOptions, mockActions)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "parse error")
+	mockActions.AssertExpectations(t)
+	mockActions.AssertNotCalled(t, "RunCommand")
+	mockActions.AssertNotCalled(t, "ExitProcessWithCode")
+}
+
+func TestRun_RememberEnabled_RetagOnly_CheckRegistryCacheError_ReturnsError_NoRunCommand(t *testing.T) {
+	rememberOptions := configuration.RememberSubcommandOptions{
+		Enabled:      true,
+		CommandToRun: []string{"docker", "build", "--push", "-t", "myreg1/myimage:v1", "."},
+		DryRun:       false,
+		RetagOnly:    true,
+	}
+
+	mockActions := &MockActions{}
+
+	parsedCommand := configuration.ParsedCommand{
+		Hash:         TestHash,
+		Command:      []string{"docker", "build", "--push", "-t", "myreg1/myimage:v1", "."},
+		TagsByTarget: map[string][]string{"default": {"myreg1/myimage:v1"}},
+	}
+
+	mockActions.On("ParseCommand", []string{"docker", "build", "--push", "-t", "myreg1/myimage:v1", "."}).Return(parsedCommand, nil)
+	mockActions.On("CheckRegistryCacheExists", TestHash, parsedCommand.TagsByTarget).Return(false, nil, errors.New("check error"))
+
+	err := HandleRememberSubcommand(rememberOptions, mockActions)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "check error")
+	mockActions.AssertExpectations(t)
+	mockActions.AssertNotCalled(t, "RunCommand")
+	mockActions.AssertNotCalled(t, "ExitProcessWithCode")
+}
+
+func TestRun_RememberEnabled_RetagOnly_RetagFails_ReturnsError_NoRunCommand(t *testing.T) {
+	rememberOptions := configuration.RememberSubcommandOptions{
+		Enabled:      true,
+		CommandToRun: []string{"docker", "build", "--push", "-t", "myreg1/myimage:v1", "."},
+		DryRun:       false,
+		RetagOnly:    true,
+	}
+
+	mockActions := &MockActions{}
+
+	parsedCommand := configuration.ParsedCommand{
+		Hash:         TestHash,
+		Command:      []string{"docker", "build", "--push", "-t", "myreg1/myimage:v1", "."},
+		TagsByTarget: map[string][]string{"default": {"myreg1/myimage:v1"}},
+	}
+
+	cacheTagPairs := map[string][]cacher.CacheTagPair{
+		"default": {
+			{CacheTag: "myreg1/myimage:mimosa-content-hash-" + TestHash, NewTag: "myreg1/myimage:v1"},
+		},
+	}
+
+	mockActions.On("ParseCommand", []string{"docker", "build", "--push", "-t", "myreg1/myimage:v1", "."}).Return(parsedCommand, nil)
+	mockActions.On("CheckRegistryCacheExists", TestHash, parsedCommand.TagsByTarget).Return(true, cacheTagPairs, nil)
+	mockActions.On("RetagFromCacheTags", cacheTagPairs, false).Return(errors.New("retag error"))
+
+	err := HandleRememberSubcommand(rememberOptions, mockActions)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "retag error")
+	mockActions.AssertExpectations(t)
+	mockActions.AssertNotCalled(t, "RunCommand")
+	mockActions.AssertNotCalled(t, "ExitProcessWithCode")
+}

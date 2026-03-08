@@ -103,10 +103,12 @@ actionsToolkit.run(
     core.debug(`context.getArgs: ${JSON.stringify(args)}`);
 
     const buildCmd = await toolkit.buildx.getCommand(args);
+    const retagOnly = core.getInput('mimosa-retag-only').toLowerCase() === 'true';
+    const mimosaArgs = retagOnly ? ['remember', '--retag-only'] : ['remember'];
     const buildCmdModified = {
-      command: "mimosa",
-      args: ["remember", "--", buildCmd.command, ...buildCmd.args]
-    }
+      command: 'mimosa',
+      args: [...mimosaArgs, '--', buildCmd.command, ...buildCmd.args]
+    };
 
     core.debug(`buildCmdModified.command: ${buildCmdModified.command}`);
     core.debug(`buildCmdModified.args: ${JSON.stringify(buildCmdModified.args)}`);
@@ -134,6 +136,11 @@ actionsToolkit.run(
         }
       }
     });
+
+    if (retagOnly) {
+      if (err) throw err;
+      return;
+    }
 
     const imageID = toolkit.buildxBuild.resolveImageID();
     const metadata = toolkit.buildxBuild.resolveMetadata();

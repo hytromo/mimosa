@@ -17,12 +17,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
       - uses: actions/setup-go@v5
         with:
           go-version-file: 'go.mod'
@@ -49,7 +43,38 @@ jobs:
           username: hytromo
           password: ${{ secrets.DOCKER_PAT }}
 
+      - name: Retag-only check (Docker Hub)
+        id: retag-dockerhub
+        uses: ./gh/build-push-action
+        with:
+          mimosa-setup-enabled: false
+          mimosa-retag-only: true
+          context: &mimosa_context docs/gh-actions/actions-example
+          platforms: &mimosa_platforms linux/amd64,linux/arm64
+          push: true
+          tags: hytromo/mimosa-testing:recommended-example-${{ github.sha }}
+
+      - name: Retag-only check (ECR)
+        id: retag-ecr
+        uses: ./gh/build-push-action
+        with:
+          mimosa-setup-enabled: false
+          mimosa-retag-only: true
+          context: *mimosa_context
+          platforms: *mimosa_platforms
+          push: true
+          tags: ${{ steps.login-ecr.outputs.registry }}/mimosa-testing:recommended-example-${{ github.sha }}
+
+      - name: Set up QEMU
+        if: steps.retag-dockerhub.outputs.mimosa-cache-hit != 'true' || steps.retag-ecr.outputs.mimosa-cache-hit != 'true'
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        if: steps.retag-dockerhub.outputs.mimosa-cache-hit != 'true' || steps.retag-ecr.outputs.mimosa-cache-hit != 'true'
+        uses: docker/setup-buildx-action@v3
+
       - name: Prepare build context
+        if: steps.retag-dockerhub.outputs.mimosa-cache-hit != 'true' || steps.retag-ecr.outputs.mimosa-cache-hit != 'true'
         working-directory: docs/gh-actions/actions-example
         run: |
           echo $RANDOM > to-ignore.txt
@@ -57,21 +82,23 @@ jobs:
 
       - name: Build and push to Docker Hub
         id: build-dockerhub
+        if: steps.retag-dockerhub.outputs.mimosa-cache-hit != 'true'
         uses: ./gh/build-push-action
         with:
           mimosa-setup-enabled: false
-          context: docs/gh-actions/actions-example
-          platforms: linux/amd64,linux/arm64
+          context: *mimosa_context
+          platforms: *mimosa_platforms
           push: true
           tags: hytromo/mimosa-testing:recommended-example-${{ github.sha }}
 
       - name: Build and push to ECR
         id: build-ecr
+        if: steps.retag-ecr.outputs.mimosa-cache-hit != 'true'
         uses: ./gh/build-push-action
         with:
           mimosa-setup-enabled: false
-          context: docs/gh-actions/actions-example
-          platforms: linux/amd64,linux/arm64
+          context: *mimosa_context
+          platforms: *mimosa_platforms
           push: true
           tags: ${{ steps.login-ecr.outputs.registry }}/mimosa-testing:recommended-example-${{ github.sha }}
 
@@ -87,8 +114,8 @@ jobs:
         uses: ./gh/build-push-action
         with:
           mimosa-setup-enabled: false
-          context: docs/gh-actions/actions-example
-          platforms: linux/amd64,linux/arm64
+          context: *mimosa_context
+          platforms: *mimosa_platforms
           push: true
           tags: hytromo/mimosa-testing:recommended-example-cache-hit-${{ github.sha }}
 
@@ -97,16 +124,22 @@ jobs:
         uses: ./gh/build-push-action
         with:
           mimosa-setup-enabled: false
-          context: docs/gh-actions/actions-example
-          platforms: linux/amd64,linux/arm64
+          context: *mimosa_context
+          platforms: *mimosa_platforms
           push: true
           tags: ${{ steps.login-ecr.outputs.registry }}/mimosa-testing:recommended-example-cache-hit-${{ github.sha }}
 
       - name: Verify cache hit outputs
         run: |
           errors=()
-          [ "${{ steps.build-dockerhub.outputs.mimosa-cache-hit }}" = "false" ] || errors+=("ERROR: Initial Docker Hub build should have cache-hit=false")
-          [ "${{ steps.build-ecr.outputs.mimosa-cache-hit }}" = "false" ] || errors+=("ERROR: Initial ECR build should have cache-hit=false")
+          [ "${{ steps.retag-dockerhub.outputs.mimosa-cache-hit }}" = "false" ] || errors+=("ERROR: Initial retag-only Docker Hub should have cache-hit=false")
+          [ "${{ steps.retag-ecr.outputs.mimosa-cache-hit }}" = "false" ] || errors+=("ERROR: Initial retag-only ECR should have cache-hit=false")
+          if [ -n "${{ steps.build-dockerhub.outputs.mimosa-cache-hit }}" ]; then
+            [ "${{ steps.build-dockerhub.outputs.mimosa-cache-hit }}" = "false" ] || errors+=("ERROR: Initial Docker Hub build should have cache-hit=false")
+          fi
+          if [ -n "${{ steps.build-ecr.outputs.mimosa-cache-hit }}" ]; then
+            [ "${{ steps.build-ecr.outputs.mimosa-cache-hit }}" = "false" ] || errors+=("ERROR: Initial ECR build should have cache-hit=false")
+          fi
           [ "${{ steps.build-dockerhub-cache-hit.outputs.mimosa-cache-hit }}" = "true" ] || errors+=("ERROR: Docker Hub cache verification should have cache-hit=true")
           [ "${{ steps.build-ecr-cache-hit.outputs.mimosa-cache-hit }}" = "true" ] || errors+=("ERROR: ECR cache verification should have cache-hit=true")
           if [ ${#errors[@]} -gt 0 ]; then

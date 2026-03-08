@@ -20,6 +20,11 @@ inputs:
     required: false
     default: '.tool-versions'
 
+  mimosa-retag-only:
+    description: If true, only check cache and retag on hit; skip Docker/Buildx setup and do not build on miss
+    required: false
+    default: 'false'
+
   add-hosts:
     description: "List of a customs host-to-IP mapping (e.g., docker:10.180.0.1)"
     required: false
@@ -149,15 +154,16 @@ runs:
     - name: Setup Mimosa
       if: inputs.mimosa-setup-enabled == 'true'
       id: setup-mimosa
-      uses: hytromo/mimosa/gh/setup-action@v6.0.1-build-push
+      uses: hytromo/mimosa/gh/setup-action@v6.1.0-build-push
       with:
         version: ${{ inputs.mimosa-setup-version }}
         tools-file: ${{ inputs.mimosa-setup-tools-file }}
 
     - name: Build and push Docker image
       id: build-push
-      uses: hytromo/mimosa/gh/.almost-original-build-push-action@v6.0.1-build-push
+      uses: hytromo/mimosa/gh/.almost-original-build-push-action@v6.1.0-build-push
       with:
+        mimosa-retag-only: ${{ inputs.mimosa-retag-only }}
         add-hosts: ${{ inputs.add-hosts }}
         allow: ${{ inputs.allow }}
         annotations: ${{ inputs.annotations }}
