@@ -1,8 +1,8 @@
 import * as core from '@actions/core';
 
-import {Build} from '@docker/actions-toolkit/lib/buildx/build';
+import {Build} from '@docker/actions-toolkit/lib/buildx/build.js';
 
-import {Inputs} from './context';
+import {Inputs} from './context.js';
 
 export const tmpDir = process.env['STATE_tmpDir'] || '';
 
@@ -52,7 +52,7 @@ export function setSummaryInputs(inputs: Inputs) {
             // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const [skey, _] = Build.parseSecretKvp(secret, true);
             secretKeys.push(skey);
-          } catch (err) {
+          } catch {
             // ignore invalid secret
           }
         }
