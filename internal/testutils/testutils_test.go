@@ -22,7 +22,7 @@ func TestCheckTagExists(t *testing.T) {
 	assert.Contains(t, err.Error(), "invalid image tag format")
 
 	// Test with valid format but non-existent registry
-	err = CheckTagExists("nonexistent.registry.com/repo:tag")
+	err = CheckTagExists("nonexistent.invalid/repo:tag")
 	assert.Error(t, err)
 	// The error could be either "failed to check tag existence" or a status error
 	assert.True(t, strings.Contains(err.Error(), "failed to check tag existence") ||
