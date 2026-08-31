@@ -166,7 +166,7 @@ func TestHashBakeTargets_WithBakeFiles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to read bake file: %v", err)
 	}
-	targets, _, err := bake.ReadTargets(context.Background(), localBakeFiles, []string{}, []string{}, nil, nil)
+	targets, _, err := bake.ReadTargets(context.Background(), localBakeFiles, []string{}, []string{}, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("Failed to read bake targets: %v", err)
 	}

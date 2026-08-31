@@ -104,11 +104,11 @@ func TestResolveDockerignorePath(t *testing.T) {
 			createDockerignoreInDockerfileDir: false,
 		},
 		{
-			name:                                      ".dockerignore in Dockerfile directory ignored",
-			dockerfilePath:                            "inner/dir/Dockerfile",
-			expectedDockerignorePath:                  "",
-			createDockerignoreInContext:               false,
-			createDockerignoreInDockerfileDir:         false,
+			name:                              ".dockerignore in Dockerfile directory ignored",
+			dockerfilePath:                    "inner/dir/Dockerfile",
+			expectedDockerignorePath:          "",
+			createDockerignoreInContext:       false,
+			createDockerignoreInDockerfileDir: false,
 			createDockerignoreInDockerfileDirNoPrefix: true,
 		},
 	}
