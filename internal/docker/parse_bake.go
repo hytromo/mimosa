@@ -130,7 +130,7 @@ func ParseBakeCommand(dockerBakeCmd []string) (parsedCommand configuration.Parse
 	}
 
 	// Parse targets
-	targets, _, err := bake.ReadTargets(ctx, files, targetNames, overrides, nil, nil)
+	targets, _, err := bake.ReadTargets(ctx, files, targetNames, overrides, nil, nil, nil)
 	if err != nil {
 		return parsedCommand, fmt.Errorf("failed to parse bake targets: %w", err)
 	}
